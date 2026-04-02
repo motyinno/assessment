@@ -1,0 +1,18 @@
+{
+  "js": "javascript",
+  "basics": "typescript",
+  "express js": "express / nestjs",
+  "express": "express / nestjs",
+  "nestjs": "express / nestjs",
+  "concepts": "database concepts",
+  "rest": "rest api",
+  "other styles": "rest api",
+  "auth concepts": "security",
+  "styles": "architectural styles",
+  "principles": "solid / dry / kiss",
+  "computer sciense concepts": "computer science",
+  "computer science concepts": "computer science",
+  "encryption/encoding": "encryption / encoding",
+  "errors handler": "error handling",
+  "design": "system design"
+}

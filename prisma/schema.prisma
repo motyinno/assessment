@@ -1,0 +1,81 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:../data/pdp.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id             String   @id @default(cuid())
+  name           String
+  email          String   @unique
+  hashedPassword String
+  role           String   @default("USER") // "USER" | "ASSESSOR"
+  grade          String? // "jun" | "mid"
+  project        String?
+  manager        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participations AssessmentParticipant[]
+  pdps           Pdp[]
+}
+
+model Assessment {
+  id          String    @id @default(cuid())
+  title       String
+  status      String    @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
+  grade       String // "jun" | "mid"
+  scheduledAt DateTime?
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  participants AssessmentParticipant[]
+  results      AssessmentResult[]
+  pdps         Pdp[]
+}
+
+model AssessmentParticipant {
+  id              String   @id @default(cuid())
+  assessmentId    String
+  userId          String
+  participantRole String // "SUBJECT" | "ASSESSOR"
+  assignedSections String? // JSON array of section names
+  createdAt       DateTime @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([assessmentId, userId, participantRole])
+}
+
+model AssessmentResult {
+  id           String  @id @default(cuid())
+  assessmentId String
+  category     String
+  score        Float?
+  comment      String?
+  subtopics    String? // JSON array
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, category])
+}
+
+model Pdp {
+  id           String   @id @default(cuid())
+  userId       String
+  assessmentId String?
+  fileName     String
+  filePath     String
+  status       String   @default("DRAFT") // DRAFT | ACTIVE | COMPLETED
+  topicsJson   String
+  createdAt    DateTime @default(now())
+
+  user       User        @relation(fields: [userId], references: [id])
+  assessment Assessment? @relation(fields: [assessmentId], references: [id])
+}
