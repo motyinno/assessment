@@ -12,31 +12,37 @@ model User {
   name           String
   email          String   @unique
   hashedPassword String
-  role           String   @default("USER") // "USER" | "ASSESSOR"
-  grade          String? // "jun" | "mid"
+  role           String   @default("USER") // "USER" | "ASSESSOR" | "ADMIN"
+  grade          String? // "jun" | "mid" | "sen"
   project        String?
-  manager        String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  manager                String?
+  softAiInterviewPassed  Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
-  participations AssessmentParticipant[]
-  pdps           Pdp[]
+  participations      AssessmentParticipant[]
+  pdps                Pdp[]
+  requestedAssessments AssessmentRequest[] @relation("requestedBy")
+  assignedAssessments  AssessmentRequest[] @relation("assignedAssessor")
 }
 
 model Assessment {
   id          String    @id @default(cuid())
   title       String
   status      String    @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
-  grade       String // "jun" | "mid"
+  grade       String // "jun" | "mid" | "sen"
   scheduledAt DateTime?
   completedAt DateTime?
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  participants AssessmentParticipant[]
-  results      AssessmentResult[]
-  pdps         Pdp[]
+  participants    AssessmentParticipant[]
+  results         AssessmentResult[]
+  selfAssessments SelfAssessment[]
+  pdps            Pdp[]
+  sessions        AssessmentSession[]
+  request         AssessmentRequest?
 }
 
 model AssessmentParticipant {
@@ -78,4 +84,56 @@ model Pdp {
 
   user       User        @relation(fields: [userId], references: [id])
   assessment Assessment? @relation(fields: [assessmentId], references: [id])
+}
+
+model AssessmentRequest {
+  id           String   @id @default(cuid())
+  userId       String
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  grade        String // "jun" | "mid" | "sen"
+  notes        String?
+  adminNotes   String?
+  assessorId   String? // primary assessor (backward compat)
+  assessorIds  String? // JSON array of all assessor IDs
+  assessmentId String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User        @relation("requestedBy", fields: [userId], references: [id])
+  assessor   User?       @relation("assignedAssessor", fields: [assessorId], references: [id])
+  assessment Assessment? @relation(fields: [assessmentId], references: [id])
+}
+
+model AssessmentSession {
+  id           String    @id @default(cuid())
+  assessmentId String
+  type         String // SOFT_AI | TECHNICAL_1 | TECHNICAL_2 | TECHNICAL_3
+  status       String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED | SKIPPED
+  order        Int
+  durationMin  Int       @default(60)
+  assessorId   String? // кто проводил эту сессию
+  assessorName String? // имя асессора (snapshot на момент проведения)
+  scheduledAt  DateTime?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, type])
+}
+
+model SelfAssessment {
+  id           String @id @default(cuid())
+  assessmentId String
+  sectionId    String // tech matrix section id (e.g. "js", "typescript")
+  topicId      String // tech matrix topic id (e.g. "async-programming")
+  score        Int?   // 1-5 self rating
+  comment      String?
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, topicId])
 }

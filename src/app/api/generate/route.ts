@@ -70,13 +70,13 @@ export async function POST(request: NextRequest) {
     let docXml = await docXmlFile.async("string");
 
     // Replace placeholders
-    const replacements: [string, string][] = [
+    const replacements: [string, string][] = ([
       ["\u2019s NAME SURNAME", info.manager || ""],
       ["M\u2019s NAME SURNAME", info.manager || ""],
       ["M&#x2019;s NAME SURNAME", info.manager || ""],
       ["NAME SURNAME", info.employee || ""],
       ["05.12.2022", info.next_date || ""],
-    ].sort((a, b) => b[0].length - a[0].length);
+    ] as [string, string][]).sort((a, b) => b[0].length - a[0].length);
 
     for (const [old, nw] of replacements) {
       docXml = docXml.split(escXml(old)).join(escXml(nw));
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
 
-    return new NextResponse(output, {
+    return new NextResponse(new Uint8Array(output), {
       status: 200,
       headers: {
         "Content-Type":

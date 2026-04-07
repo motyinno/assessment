@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import type { TopicMapping } from "./types";
+import type { Grade, TopicMapping, TechMatrix } from "./types";
 
 /**
  * Get the path to the data directory.
@@ -14,7 +14,7 @@ function getDataDir(): string {
  * Load a topic mapping JSON file from data/mappings/.
  * Dynamically reads from disk so new files don't require code changes.
  */
-export function loadMapping(grade: "jun" | "mid"): TopicMapping {
+export function loadMapping(grade: Grade): TopicMapping {
   const filePath = path.join(getDataDir(), "mappings", `${grade}.json`);
   const content = fs.readFileSync(filePath, "utf-8");
   return JSON.parse(content);
@@ -103,4 +103,16 @@ export function loadPdpTopicsMarkdown(): string {
   throw new Error(
     "pdp-topics.md not found in data/. Place a markdown file with PDP topics there."
   );
+}
+
+/**
+ * Load tech matrix from data/tech-matrix.json.
+ */
+let techMatrixCache: TechMatrix | null = null;
+export function loadTechMatrix(): TechMatrix {
+  if (techMatrixCache) return techMatrixCache;
+  const filePath = path.join(getDataDir(), "tech-matrix.json");
+  const content = fs.readFileSync(filePath, "utf-8");
+  techMatrixCache = JSON.parse(content);
+  return techMatrixCache!;
 }

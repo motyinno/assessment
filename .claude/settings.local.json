@@ -3,7 +3,19 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npm view:*)",
-      "Bash(npx shadcn@latest init -d --defaults)"
+      "Bash(npx shadcn@latest init -d --defaults)",
+      "Bash(npx shadcn@latest add button input label card badge table select dialog dropdown-menu tabs separator avatar -y)",
+      "Bash(npm run:*)",
+      "Bash(kill %1)",
+      "Bash(node -e \"const d = require\\(''./data/tech-matrix.json''\\); console.log\\(''Sections:'', d.sections.length\\); d.sections.forEach\\(s => console.log\\('' -'', s.id, s.title, ''\\('' + s.topics.length + '' topics\\)''\\)\\);\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npx tsc:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsx:*)",
+      "Bash(ls /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/app/\\\\\\(app\\\\\\)/request-assessment/page.tsx /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/app/\\\\\\(app\\\\\\)/requests/page.tsx)",
+      "Bash(ls /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/app/api/assessments/[id]/sessions/route.ts /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/components/assessment-progress.tsx)",
+      "Bash(node -e \":*)",
+      "Bash(node -e \"const d = require\\(''./data/tech-matrix.json''\\); console.log\\(''Sections:'', d.sections.length\\); let total = 0; d.sections.forEach\\(s => { const c = s.topics.reduce\\(\\(sum, t\\) => sum + t.jun.length + t.mid.length + t.sen.length, 0\\); total += c; console.log\\('' -'', s.id, s.title, ''\\('' + s.topics.length + '' topics,'', c, ''skills\\)''\\); }\\); console.log\\(''Total skills:'', total\\);\")"
     ]
   }
 }

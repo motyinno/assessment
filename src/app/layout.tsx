@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Inter } from "next/font/google";
+import { SessionProvider } from "next-auth/react";
 import { cn } from "@/lib/utils";
+import "./globals.css";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
   title: "PDP Generator",
@@ -15,15 +17,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru" className={cn("font-sans", geist.variable)}>
-      <body
-        style={{
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-          margin: 0,
-        }}
-      >
-        {children}
+    <html lang="ru" className={cn("font-sans", inter.variable)}>
+      <body className="antialiased">
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

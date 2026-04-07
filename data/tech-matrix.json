@@ -1,0 +1,433 @@
+{
+  "sections": [
+    {
+      "id": "js",
+      "title": "JS (JavaScript)",
+      "topics": [
+        {
+          "id": "data-types-and-core-concepts",
+          "title": "Data Types & Core Concepts",
+          "jun": ["Data Types", "Function Context", "Object Inheritance proto/prototype", "Object Descriptors", "this", "Array methods", "Closures", "hoisting", "set/get", "list of types", "Dates usage", "Function types", "RegExp", "Error handling (try/catch/finally)", "Spread/Rest operators", "Destructuring"],
+          "mid": ["Prototypes vs OOP", "Symbol", "Iterable objects", "Functions (currying, new Function)", "ES5/ES6", "Generators", "Iterators", "Decorators", "Mixins", "BigInt", "Proxy basics"],
+          "sen": ["Module system (commonJS, ES, AMD, Dynamic, lazy load, cache)", "Proxy/Reflect", "WeakRef"]
+        },
+        {
+          "id": "collections-and-algorithms",
+          "title": "Collections & Algorithms",
+          "jun": ["Basic concepts", "WeakMap/WeakSet"],
+          "mid": ["Algorithms", "Memory Leaks"],
+          "sen": ["Optimizations", "V8"]
+        },
+        {
+          "id": "async-programming",
+          "title": "Async Programming",
+          "jun": ["Event loop concepts", "setTimeout/setInterval", "async/await", "promises", "callbacks"],
+          "mid": ["Fake multithreading and concurrency", "AsyncQueue", "Event Emitter", "Chain of responsibility", "Priority/Cargo queue", "Race condition", "async await under the hood", "reactive programming"],
+          "sen": ["Async generators and iterators", "Async Pool", "Fibers/coroutines"]
+        },
+        {
+          "id": "web-workers",
+          "title": "Web Workers",
+          "jun": [],
+          "mid": ["Web Workers", "Service Workers"],
+          "sen": ["WASM"]
+        }
+      ]
+    },
+    {
+      "id": "typescript",
+      "title": "TypeScript",
+      "topics": [
+        {
+          "id": "typescript-fundamentals",
+          "title": "TypeScript Fundamentals",
+          "jun": ["TS vs JS", "Type inference", "Interfaces", "Types", "Classes", "TSC compiler", ".d.ts files", "Union and intersection types", "Enums", "void/never/unknown", "Types casting", "Generics", "Indexable types", "Interfaces for classes", "Abstract class", "Type narrowing basics"],
+          "mid": ["Type assertions and type casting", "Generics in depth", "Type widening and narrowing", "Type guards", "Mapped types", "template literal types", "conditional types", "utility types", "Module resolution", "Namespaces", "Hybrid interfaces/types", "Overloads", "Behaviour in runtime/compile time", "Private constructor", "Decorators", "Declaration merging"],
+          "sen": ["Best practice for typings", "Configuration files", "Project references", "Custom transformers"]
+        }
+      ]
+    },
+    {
+      "id": "backend",
+      "title": "Backend",
+      "topics": [
+        {
+          "id": "nodejs-core",
+          "title": "Node.js Core",
+          "jun": ["Advantages and disadvantages of NodeJs", "How NodeJS works", "V8/libuv", "NodeJs architecture", "Event Loop in NodeJS", "Modules", "Streams", "HTTP module", "File system", "Event Based approach", "node_modules", "Callstack", "callback queue", "micro/macro tasks queues", "npm basics", "Environment variables"],
+          "mid": ["V8/libuv NodeJS architecture", "Worker Threads/Child Process/Cluster", "npm workspaces", "npm/yarn/pnpm", "Fibers coroutines callbacks", "Low-level principles of Node.js implementation", "thread-per-connection approach", "Thread pool limitations", "Process communication", "Cluster load manage", "Pattern Reactor", "Debugging and profiling"],
+          "sen": ["Async hooks", "Async local storage", "Basic knowledge of C++ addons", "Monorepo (NX, Lerna)", "Knowledge of EventLoop on low-level with examples", "Multiplexer/Demultiplexer", "Api in Node.js"]
+        },
+        {
+          "id": "security",
+          "title": "Security",
+          "jun": ["Password storage", "Environment variables", "JWT (access/refresh)", "Symmetric/Asymmetric Key Cryptography"],
+          "mid": ["SQL injection", "snyk", "npm audit", "Man in the middle", "JSON Hijacking", "Defacement", "Infiltration", "Phishing", "Pharming", "DoS", "Session Management", "CORS"],
+          "sen": ["XSRF", "XSS", "CSP", "DOS", "Path traversal", "OWASP top 10"]
+        },
+        {
+          "id": "testing",
+          "title": "Testing",
+          "jun": ["Unit", "Integration", "E2E", "Testing Pyramid", "Testing tools", "Jest/Vitest basics"],
+          "mid": ["TDD pros and cons", "TDD main ideas", "TDD anti patterns", "Test Fixtures concept", "Mocks Stubs Spies Fakes", "Test containers", "Coverage", "Tests in CI/CD", "Contract testing"],
+          "sen": ["Regression testing", "Load testing"]
+        },
+        {
+          "id": "frameworks-express-nestjs",
+          "title": "Frameworks (Express/NestJS)",
+          "jun": ["Middleware", "Routing", "App.use", "Error handling", "SSR", "Req and Res objects", "Sessions", "Validation and sanitization", "Cycle dependencies", "Express JS vs Nest JS", "Dependency Injection", "Decorators", "Middlewares", "Interceptors", "Guards", "Pipes", "Logger", "Swagger/OpenApi", "Exception filters"],
+          "mid": ["Architectural design patterns in Nest.js", "Lifecycle hooks", "Dynamic modules", "Custom DI tokens", "Helmet", "Coupling", "Request lifecycle", "Reflector", "Execution context"],
+          "sen": ["Advanced knowledge of principles behind implementations of core parts of framework", "Pros and cons of different frameworks"]
+        }
+      ]
+    },
+    {
+      "id": "react",
+      "title": "React",
+      "topics": [
+        {
+          "id": "react-core",
+          "title": "React Core",
+          "jun": ["JSX", "Functional/class components", "Lifecycle", "Props", "Basic hooks", "Router", "State management (Redux/Zustand/Context)", "Styling (Styled components, SCSS/SASS)", "Vite", "Forms", "React DevTools"],
+          "mid": ["Treeshaking", "SSR/PWA/SPA/SSG", "RTK", "Testing", "Next.js vs React", "Rollup", "Multithreading in browser", "Performance optimization", "Localization", "React vs other frameworks", "Advanced hooks", "Server Components", "Suspense/lazy loading", "React Query/SWR"],
+          "sen": ["Microfrontend", "Web components", "Electron", "React fiber", "React Server Components (RSC) architecture"]
+        }
+      ]
+    },
+    {
+      "id": "databases",
+      "title": "Databases",
+      "topics": [
+        {
+          "id": "sql-vs-nosql",
+          "title": "SQL vs NoSQL",
+          "jun": ["Key difference", "Choice factors"],
+          "mid": ["Trade-offs", "Use cases", "Performance vs SQL", "Examples"],
+          "sen": ["Knowledge of abbreviation CAP vs PACELC", "Databases that use PACELC"]
+        },
+        {
+          "id": "sql",
+          "title": "SQL",
+          "jun": ["DML", "DDL", "View", "Materialized view", "Trigger", "Stored Procedures", "Functions", "Constraints", "Joins"],
+          "mid": ["CTE", "Temp Table", "Subquery vs join", "Window functions", "Json vs JsonB", "Profiling of SQL queries"],
+          "sen": []
+        },
+        {
+          "id": "relational-model",
+          "title": "Relational Model",
+          "jun": ["Normal forms", "Primary key", "Foreign key"],
+          "mid": [],
+          "sen": []
+        },
+        {
+          "id": "transactions",
+          "title": "Transactions",
+          "jun": ["Isolation levels"],
+          "mid": [],
+          "sen": []
+        },
+        {
+          "id": "nosql-categories",
+          "title": "NoSQL Categories",
+          "jun": ["Key difference", "Choice factors between categories", "Types of NoSQL", "Examples of NoSQL"],
+          "mid": ["Typologies", "Benefits", "Trade-offs"],
+          "sen": []
+        },
+        {
+          "id": "database-concepts",
+          "title": "Database Concepts",
+          "jun": ["OLAP", "OLTP", "ACID", "ERD", "BASE", "Migrations"],
+          "mid": ["Data distribution strategies", "Benefits", "Trade-offs", "CAP", "Backups"],
+          "sen": ["Sequential consistency", "Casual consistency", "Eventual consistency"]
+        },
+        {
+          "id": "normalization",
+          "title": "Normalization",
+          "jun": ["Normal forms", "Denormalization"],
+          "mid": ["Optimistic locking", "Pessimistic locking"],
+          "sen": []
+        },
+        {
+          "id": "nosql-databases",
+          "title": "NoSQL Databases",
+          "jun": ["Mongo", "Redis"],
+          "mid": ["DynamoDB", "ElasticSearch", "ClickHouse"],
+          "sen": []
+        },
+        {
+          "id": "postgresql",
+          "title": "PostgreSQL",
+          "jun": ["Types", "Benefits", "Trade-offs"],
+          "mid": ["Index selectivity", "Query plan settings", "Explain analyze", "Full text search"],
+          "sen": ["Postgres architecture"]
+        },
+        {
+          "id": "postgresql-data-types-and-internals",
+          "title": "PostgreSQL Data Types & Internals",
+          "jun": ["Postgres data types"],
+          "mid": ["Vacuum", "WAL", "MVCC", "Table functions"],
+          "sen": ["SSI"]
+        },
+        {
+          "id": "orm-and-query-builders",
+          "title": "ORM & Query Builders",
+          "jun": ["What is ORM", "Prisma basics", "TypeORM basics"],
+          "mid": ["Migrations strategies", "Query optimization", "Connection pooling", "Sequelize"],
+          "sen": ["Custom query builders", "Multi-tenant patterns"]
+        }
+      ]
+    },
+    {
+      "id": "web",
+      "title": "WEB",
+      "topics": [
+        {
+          "id": "http-and-rest",
+          "title": "HTTP & REST",
+          "jun": ["Status codes", "Principles", "Methods", "Response/request structure", "RESTful", "RESTlike", "Idempotence"],
+          "mid": ["Key concepts (tokens, refreshing, grant types etc.)", "OpenID connect", "SSL/TLS", "Cache", "DNS"],
+          "sen": []
+        },
+        {
+          "id": "protocols",
+          "title": "Protocols",
+          "jun": ["SOAP", "GraphQL", "GRPC", "Websockets"],
+          "mid": ["WebRTC", "Server-Sent Events", "HTTP/2 multiplexing"],
+          "sen": []
+        },
+        {
+          "id": "auth-and-sessions",
+          "title": "Auth & Sessions",
+          "jun": ["JWT", "Sessions", "CORS", "Cookie-based auth"],
+          "mid": [],
+          "sen": []
+        },
+        {
+          "id": "browser-storage-and-apis",
+          "title": "Browser Storage & APIs",
+          "jun": ["localStorage", "sessionStorage", "cacheStorage"],
+          "mid": ["Accessibility", "SEO", "requestAnimationFrame"],
+          "sen": []
+        },
+        {
+          "id": "http-versions",
+          "title": "HTTP Versions",
+          "jun": ["1.x", "2.x", "3.x"],
+          "mid": ["HTTP/2 streams", "QUIC protocol basics"],
+          "sen": []
+        },
+        {
+          "id": "real-time-communication",
+          "title": "Real-time Communication",
+          "jun": ["Polling concepts", "WebSocket basics"],
+          "mid": ["Long-polling", "SSE", "Socket.IO"],
+          "sen": ["WebRTC peer-to-peer", "Scaling WebSockets"]
+        }
+      ]
+    },
+    {
+      "id": "general",
+      "title": "General",
+      "topics": [
+        {
+          "id": "versioning",
+          "title": "Versioning",
+          "jun": ["Major", "minor", "patch", "release", "build", "Tools"],
+          "mid": ["Module management (add, delete, clone, .gitmodules, etc.)", "Working with submodules"],
+          "sen": ["Code Analysis", "Attack vectors and how to defend", "Infrastructural security"]
+        },
+        {
+          "id": "git",
+          "title": "Git",
+          "jun": ["Main concepts (branches, commits, remotes, .gitignore, etc.)", "Main commands (add, fetch, pull, push, clone, rebase, etc.)", "Flags (--amend, --force, --date, etc.)"],
+          "mid": ["Git Flow", "Trunk-based development", "Cherry-pick", "Bisect"],
+          "sen": []
+        },
+        {
+          "id": "package-management",
+          "title": "Package Management",
+          "jun": ["npm", "package.json", "node_modules", "lock files"],
+          "mid": ["yarn", "pnpm", "Workspaces", "Monorepo tools"],
+          "sen": ["Private registries", "Publishing packages"]
+        },
+        {
+          "id": "computer-science-basics",
+          "title": "Computer Science Basics",
+          "jun": ["Big O notation", "Hashing", "Concurrency & Parallelism", "Threads/Processes"],
+          "mid": ["Data structures (Stack, Queue, Tree, Graph)", "Sorting algorithms", "Search algorithms"],
+          "sen": []
+        }
+      ]
+    },
+    {
+      "id": "devops",
+      "title": "DevOps",
+      "topics": [
+        {
+          "id": "aws",
+          "title": "AWS",
+          "jun": ["S3", "IAM", "ECS", "ECR", "EC2", "SES", "Lambda", "CloudWatch"],
+          "mid": ["SQS", "RDS", "Lambda", "Route53", "Cognito", "VPC and networking", "EKS", "SNS"],
+          "sen": ["Geographic distributed systems", "Availability vs scalability"]
+        },
+        {
+          "id": "kubernetes",
+          "title": "Kubernetes",
+          "jun": ["What is kubernetes", "Node", "Pod", "Service", "Deployment", "ReplicaSet", "Namespace", "Config map", "secret", "kube-apiserver", "etcd", "kube-scheduler", "kube-controller-manager", "kubelet", "kube-proxy"],
+          "mid": ["Probes", "HPA", "StatefulSet", "DaemonSet", "Job", "CronJob", "Ingress", "PersistentVolume and PersistentVolumeClaim", "Helm"],
+          "sen": ["RBAC", "Garbage Collection", "Scheduler", "Graceful shutdown"]
+        },
+        {
+          "id": "ci-cd",
+          "title": "CI/CD",
+          "jun": ["What is CI/CD", "CI/CD stages", "How to write pipelines"],
+          "mid": ["Blue/green", "Canary (rolling and a/b)", "Recreate", "One service - multiple deployments", "Monitoring"],
+          "sen": []
+        },
+        {
+          "id": "nginx",
+          "title": "Nginx",
+          "jun": ["When to use", "Tools"],
+          "mid": ["Routing and configuration", "Connection processing", "Hashes", "Logging and debugging", "HTTPS", "Load balancing"],
+          "sen": []
+        },
+        {
+          "id": "docker",
+          "title": "Docker",
+          "jun": ["Images", "Volumes", "Networks", "Docker Compose"],
+          "mid": ["Main concepts", "Deployments scaling and monitoring", "Modules", "Provisions", "States"],
+          "sen": ["Multi-stage builds", "Security scanning", "Image optimization"]
+        },
+        {
+          "id": "terraform",
+          "title": "Terraform",
+          "jun": [],
+          "mid": ["HCL basics", "State management", "Providers", "Modules"],
+          "sen": ["Workspaces", "Remote state", "Drift detection"]
+        },
+        {
+          "id": "observability",
+          "title": "Observability",
+          "jun": ["Application logs", "Log levels"],
+          "mid": ["Structured logging", "Metrics (Prometheus/Grafana)", "Distributed tracing", "APM tools"],
+          "sen": ["SLI/SLO/SLA", "Alerting strategies", "Incident management"]
+        }
+      ]
+    },
+    {
+      "id": "message-brokers",
+      "title": "Message Brokers",
+      "topics": [
+        {
+          "id": "kafka",
+          "title": "Kafka",
+          "jun": [],
+          "mid": ["Core principles", "Brokers", "Partitions", "Topic", "Offset", "Zookeeper/Kraft", "Offset control", "Partitioning strategy", "Acknowledgement modes", "Idempotent producer", "Usage of headers"],
+          "sen": ["Avro", "Replication", "Kafka streams"]
+        },
+        {
+          "id": "message-broker-patterns",
+          "title": "Message Broker Patterns",
+          "jun": ["Producer", "Consumer", "Acknowledgement"],
+          "mid": ["DLQ", "Backpressure", "Consumer groups", "Delivery guarantees", "Retry mechanisms", "Transactional Outbox + Inbox", "Message Deduplication", "Event Replay / Event Log Pattern", "Command Bus and Event Bus"],
+          "sen": []
+        },
+        {
+          "id": "rabbitmq",
+          "title": "RabbitMQ",
+          "jun": [],
+          "mid": ["Core principles", "Exchange", "Queue", "Durable queue and persistent messages", "Exchange types", "Consumer prefetch", "Priority queues", "Streams", "Message TTL and queue TTL"],
+          "sen": ["Clustering", "Quorum queue"]
+        },
+        {
+          "id": "nats",
+          "title": "NATS",
+          "jun": [],
+          "mid": ["Core principles"],
+          "sen": []
+        }
+      ]
+    },
+    {
+      "id": "principles-and-patterns",
+      "title": "Principles & Patterns",
+      "topics": [
+        {
+          "id": "common-principles",
+          "title": "Common Principles",
+          "jun": ["Dependency injection", "IoC", "IoC container", "SOLID", "OOP", "Functional Programming", "Mini principals (KISS, DRY, YAGNI, BDUF, APO, Occam's razor)", "Clean code", "Imperative/functional programming"],
+          "mid": ["SOLID", "OOP", "GoF", "GRASP", "Clean Architecture", "CQRS basics"],
+          "sen": []
+        },
+        {
+          "id": "ddd",
+          "title": "DDD",
+          "jun": [],
+          "mid": ["Main principles (bound context, ubiquitous language, aggregates etc.)", "Context maps", "Layers and hexagon architecture", "Code structure and organization"],
+          "sen": ["CQRS and event sourcing in DDD", "Aggregation managers", "Encapsulation and validation", "Modules entities value models etc."]
+        }
+      ]
+    },
+    {
+      "id": "architecture",
+      "title": "Architecture",
+      "topics": [
+        {
+          "id": "event-driven-and-distributed-systems",
+          "title": "Event-Driven & Distributed Systems",
+          "jun": ["Main concepts and ideas", "Differences", "Pros and cons"],
+          "mid": ["Event sourcing", "Event messaging", "Event based synchronizations"],
+          "sen": ["Distributed systems problems", "Consensus algos (Raft, Paxos etc.)", "Fault tolerance and guarantees"]
+        },
+        {
+          "id": "microservices-vs-monolith",
+          "title": "Microservices vs Monolith",
+          "jun": ["Client-Server", "API Gateway", "Serverless"],
+          "mid": ["Main problems and limitations", "Two phase commit", "SAGA", "Choreography vs Orchestration"],
+          "sen": ["How to migrate (both directions), where to start etc", "When monolith is preferable", "Strangler Fig pattern", "Macroservices"]
+        },
+        {
+          "id": "system-design-and-scalability",
+          "title": "System Design & Scalability",
+          "jun": ["Basic load balancing concepts", "Caching basics", "Database indexing importance"],
+          "mid": ["Rate limiter", "Circuit breaker", "Sidecar", "Orchestration/Choreography", "Graceful Degradation", "Monitoring/Telemetry", "Loadshifting", "Backpressure"],
+          "sen": ["Load balancing", "Horizontal scaling", "CDN", "Caching", "DB optimizations", "Monitoring and alerting", "Load testing"]
+        },
+        {
+          "id": "error-handling-and-resilience",
+          "title": "Error Handling & Resilience",
+          "jun": ["Error codes and categories", "Logging basics", "Graceful error responses"],
+          "mid": ["Retries logic", "Fallbacks", "Logging strategies", "Network errors handling"],
+          "sen": []
+        },
+        {
+          "id": "architectural-patterns",
+          "title": "Architectural Patterns",
+          "jun": ["MVC basics", "Repository pattern"],
+          "mid": ["MVC", "MVP", "MVVM", "Modularity", "Layered Architecture", "IoC", "SOA", "EDA", "Hexagonal (Ports and Adapters)"],
+          "sen": ["UML", "Patterns of Enterprise Architecture Applications", "Cloud computing patterns"]
+        }
+      ]
+    },
+    {
+      "id": "ai",
+      "title": "AI",
+      "topics": [
+        {
+          "id": "ai-fundamentals-and-tools",
+          "title": "AI Fundamentals & Tools",
+          "jun": ["Differences between LLMs and Agents", "Tokens and context windows", "Prompt engineering basics", "Role prompting", "AI code assistants (Copilot, Cursor, Claude)", "Limitations and hallucinations"],
+          "mid": ["Orchestrating multi-agent setups (lead + sub-agents)", "Designing multi-agent architectures for complex tasks", "Agent workflow monitoring debugging and cost control", "Risks and prevention of prompt injection", "Differences between personal team and enterprise tiers", "Tool selection standardization and onboarding", "ROI analysis: licensing costs vs productivity gains", "RAG (Retrieval Augmented Generation)", "Vector databases concepts", "Evaluation and benchmarking"],
+          "sen": ["Fine-tuning concepts", "AI system architecture", "Cost optimization at scale"]
+        },
+        {
+          "id": "ai-infrastructure-and-security",
+          "title": "AI Infrastructure & Security",
+          "jun": ["Conceptual architecture of the MCP standard", "Popular MCP: Figma Context7 PostgreSQL Playwright Supabase Atlassian", "Privacy implications of sharing secrets and PII", "Security risks inherent in AI-generated code", "Principles of subtask scoping and decomposition", "Value of AI as a conceptual learning tool", "Strategy for state recovery and version checkpoints"],
+          "mid": ["Building MCP servers", "AI gateway patterns"],
+          "sen": []
+        }
+      ]
+    }
+  ]
+}

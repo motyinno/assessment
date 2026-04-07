@@ -1,3 +1,11 @@
+export type Grade = "jun" | "mid" | "sen";
+
+export const GRADE_LABELS: Record<Grade, string> = {
+  jun: "Junior",
+  mid: "Middle",
+  sen: "Senior",
+};
+
 export interface CategoryInfo {
   name: string;
   score: number | null;
@@ -13,7 +21,7 @@ export interface EmployeeInfo {
   project: string;
   manager: string;
   interviewer: string;
-  grade: "jun" | "mid";
+  grade: Grade;
   level_after?: string;
   next_date?: string;
   next_level?: string;
@@ -38,4 +46,23 @@ export interface ParseExcelResult {
   info: EmployeeInfo;
   categories: CategoryInfo[];
   sheets: string[];
+}
+
+// Tech Matrix types
+export interface TechMatrixTopic {
+  id: string;
+  title: string;
+  jun: string[];
+  mid: string[];
+  sen: string[];
+}
+
+export interface TechMatrixSection {
+  id: string;
+  title: string;
+  topics: TechMatrixTopic[];
+}
+
+export interface TechMatrix {
+  sections: TechMatrixSection[];
 }
