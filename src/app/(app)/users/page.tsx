@@ -50,7 +50,6 @@ export default function UsersPage() {
   const [form, setForm] = useState({
     name: "",
     email: "",
-    password: "",
     role: "USER",
     grade: "",
     project: "",
@@ -85,7 +84,7 @@ export default function UsersPage() {
 
     if (res.ok) {
       setOpen(false);
-      setForm({ name: "", email: "", password: "", role: "USER", grade: "", project: "", manager: "" });
+      setForm({ name: "", email: "", role: "USER", grade: "", project: "", manager: "" });
       fetchUsers();
     } else {
       const data = await res.json();
@@ -121,19 +120,16 @@ export default function UsersPage() {
                 <Label>Email</Label>
                 <Input
                   type="email"
+                  placeholder="name.surname@innowise.com"
+                  pattern=".+@innowise\.com$"
+                  title="Только корпоративные email @innowise.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Пароль</Label>
-                <Input
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                />
+                <p className="text-xs text-muted-foreground">
+                  Только корпоративные email @innowise.com
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Роль</Label>

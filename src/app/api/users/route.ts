@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
-import bcrypt from "bcryptjs";
+import { isEmailAllowed, allowedEmailDomains } from "@/lib/allowed-domains";
 
 export async function GET() {
   const { error } = await requireAuth();
@@ -29,11 +29,22 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { name, email, password, role, grade, project, manager } = body;
+  const { name, email, role, grade, project, manager } = body;
 
-  if (!name || !email || !password) {
+  if (!name || !email) {
     return NextResponse.json(
-      { error: "Имя, email и пароль обязательны" },
+      { error: "Имя и email обязательны" },
+      { status: 400 }
+    );
+  }
+
+  if (!isEmailAllowed(email)) {
+    return NextResponse.json(
+      {
+        error: `Допустимы только корпоративные email (${allowedEmailDomains
+          .map((d) => `@${d}`)
+          .join(", ")})`,
+      },
       { status: 400 }
     );
   }
@@ -46,13 +57,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-
   const user = await prisma.user.create({
     data: {
       name,
       email,
-      hashedPassword,
       role: role || "USER",
       grade,
       project,

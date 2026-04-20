@@ -1,87 +1,66 @@
 import { PrismaClient } from "@prisma/client";
-import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+type SeedUser = {
+  name: string;
+  email: string;
+  role: "USER" | "ASSESSOR" | "ADMIN";
+  grade: "jun" | "mid" | "sen" | null;
+  project: string | null;
+  manager: string | null;
+};
+
+const users: SeedUser[] = [
+  {
+    name: "Michael Shatilo",
+    email: "mikhail.shatsila@innowise.com",
+    role: "ADMIN",
+    grade: "mid",
+    project: null,
+    manager: "Ilya Razuvaev",
+  },
+  {
+    name: "Ilya Razuvaev",
+    email: "ilya.razuvaev@innowise.com",
+    role: "ASSESSOR",
+    grade: "sen",
+    project: "aveni",
+    manager: "Nikita Verbovikov",
+  },
+  {
+    name: "Anatolii Dalgou",
+    email: "anatoli.dalgou@innowise.com",
+    role: "ASSESSOR",
+    grade: "mid",
+    project: null,
+    manager: "Darya Killiachecnko",
+  },
+  {
+    name: "Darya Killiachecnko",
+    email: "daria.killiachenko@innowise.com",
+    role: "USER",
+    grade: "mid",
+    project: null,
+    manager: "Ilya Razuvaev",
+  },
+];
+
 async function main() {
-  const hash = (pw: string) => bcrypt.hash(pw, 10);
-
-  // Admin
-  await prisma.user.upsert({
-    where: { email: "admin@pdp.local" },
-    update: { role: "ADMIN" },
-    create: {
-      name: "Администратор",
-      email: "admin@pdp.local",
-      hashedPassword: await hash("admin123"),
-      role: "ADMIN",
-    },
-  });
-
-  // Assessor 1
-  await prisma.user.upsert({
-    where: { email: "assessor1@pdp.local" },
-    update: {},
-    create: {
-      name: "Иванов Алексей",
-      email: "assessor1@pdp.local",
-      hashedPassword: await hash("assessor123"),
-      role: "ASSESSOR",
-      grade: "mid",
-      project: "Platform",
-    },
-  });
-
-  // Assessor 2
-  await prisma.user.upsert({
-    where: { email: "assessor2@pdp.local" },
-    update: {},
-    create: {
-      name: "Петрова Мария",
-      email: "assessor2@pdp.local",
-      hashedPassword: await hash("assessor123"),
-      role: "ASSESSOR",
-      grade: "sen",
-      project: "Core API",
-    },
-  });
-
-  // User 1
-  await prisma.user.upsert({
-    where: { email: "user1@pdp.local" },
-    update: {},
-    create: {
-      name: "Сидоров Дмитрий",
-      email: "user1@pdp.local",
-      hashedPassword: await hash("user123"),
-      role: "USER",
-      grade: "jun",
-      project: "Frontend",
-      manager: "Иванов Алексей",
-    },
-  });
-
-  // User 2
-  await prisma.user.upsert({
-    where: { email: "user2@pdp.local" },
-    update: {},
-    create: {
-      name: "Козлова Анна",
-      email: "user2@pdp.local",
-      hashedPassword: await hash("user123"),
-      role: "USER",
-      grade: "mid",
-      project: "Backend",
-      manager: "Петрова Мария",
-    },
-  });
-
-  console.log("Seed completed:");
-  console.log("  Admin:    admin@pdp.local / admin123");
-  console.log("  Assessor: assessor1@pdp.local / assessor123");
-  console.log("  Assessor: assessor2@pdp.local / assessor123");
-  console.log("  User:     user1@pdp.local / user123");
-  console.log("  User:     user2@pdp.local / user123");
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {
+        name: u.name,
+        role: u.role,
+        grade: u.grade,
+        project: u.project,
+        manager: u.manager,
+      },
+      create: u,
+    });
+  }
+  console.log(`Seed completed: ${users.length} users upserted.`);
 }
 
 main()

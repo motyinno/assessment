@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
-import bcrypt from "bcryptjs";
+import { requireAuth } from "@/lib/auth-helpers";
 
 export async function PATCH(
   req: NextRequest,
@@ -18,7 +17,7 @@ export async function PATCH(
   }
 
   const body = await req.json();
-  const { name, grade, project, manager, role, password } = body;
+  const { name, grade, project, manager, role } = body;
 
   const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name;
@@ -29,11 +28,6 @@ export async function PATCH(
   // Only assessors can change roles
   if (role !== undefined && session!.user.role === "ASSESSOR") {
     data.role = role;
-  }
-
-  // Password change
-  if (password) {
-    data.hashedPassword = await bcrypt.hash(password, 10);
   }
 
   const user = await prisma.user.update({

@@ -36,11 +36,20 @@ npm install
 Создайте файл `.env.local` в корне проекта:
 
 ```env
-NEXTAUTH_SECRET=ваш-секретный-ключ-для-jwt
+AUTH_SECRET=ваш-секретный-ключ-для-jwt
 NEXTAUTH_URL=http://localhost:3000
+
+# Google OAuth (https://console.cloud.google.com/ → APIs & Services → Credentials)
+AUTH_GOOGLE_ID=ваш-client-id.apps.googleusercontent.com
+AUTH_GOOGLE_SECRET=ваш-client-secret
+
+# Разрешённые домены электронной почты (через запятую). По умолчанию: innowise.com
+ALLOWED_EMAIL_DOMAIN=innowise.com
 ```
 
-> Для `NEXTAUTH_SECRET` используйте любую случайную строку. В продакшене замените на надёжный ключ.
+> Для `AUTH_SECRET` используйте любую случайную строку (`openssl rand -base64 32`). В продакшене замените на надёжный ключ.
+>
+> В Google Cloud Console в настройках OAuth-клиента добавьте разрешённый redirect URI: `http://localhost:3000/api/auth/callback/google` (и соответствующий URL продакшена).
 
 ### 3. Создать базу данных
 
@@ -50,15 +59,12 @@ npx prisma db push
 
 Это создаст файл `data/pdp.db` (SQLite) со всеми таблицами.
 
-### 4. Создать администратора
+### 4. Создать первого администратора
 
-```bash
-npx tsx prisma/seed.ts
-```
+Пользователи создаются автоматически при первом входе через Google (с ролью `USER`). Чтобы назначить администратора, выполните одно из:
 
-Будет создан пользователь с ролью ASSESSOR:
-- **Email:** `admin@pdp.local`
-- **Пароль:** `admin123`
+- Запустите `npx tsx prisma/seed.ts` — создаст тестовых пользователей, включая `admin@innowise.com` с ролью `ADMIN`.
+- Либо откройте `npx prisma studio` и вручную измените роль нужного пользователя на `ADMIN`.
 
 ### 5. Запустить приложение
 
@@ -124,7 +130,7 @@ npm start
 
 ### Модели
 
-- **User** -- пользователи (имя, email, роль, грейд, проект, руководитель)
+- **User** -- пользователи (имя, email, роль, грейд, проект, руководитель). Создаются автоматически при первом входе через Google.
 - **Assessment** -- ассессменты (название, статус, грейд, даты)
 - **AssessmentParticipant** -- участники ассессмента (оцениваемый / асессор)
 - **AssessmentResult** -- результаты (категория, оценка, комментарий)

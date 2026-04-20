@@ -21,7 +21,6 @@ export default function ProfilePage() {
     grade: "",
     project: "",
     manager: "",
-    password: "",
   });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -39,7 +38,6 @@ export default function ProfilePage() {
             grade: me.grade || "",
             project: me.project || "",
             manager: me.manager || "",
-            password: "",
           });
         }
         setLoading(false);
@@ -57,7 +55,6 @@ export default function ProfilePage() {
       project: form.project,
       manager: form.manager,
     };
-    if (form.password) data.password = form.password;
 
     const res = await fetch(`/api/users/${session!.user.id}`, {
       method: "PATCH",
@@ -67,7 +64,6 @@ export default function ProfilePage() {
 
     if (res.ok) {
       setMessage("Профиль обновлён");
-      setForm({ ...form, password: "" });
       update();
     } else {
       const d = await res.json();
@@ -126,14 +122,6 @@ export default function ProfilePage() {
               <Input
                 value={form.manager}
                 onChange={(e) => setForm({ ...form, manager: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Новый пароль (оставьте пустым, чтобы не менять)</Label>
-              <Input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
             </div>
             {message && <p className="text-sm text-green-600">{message}</p>}
