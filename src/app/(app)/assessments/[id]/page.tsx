@@ -90,6 +90,8 @@ export default function AssessmentDetailPage() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionActionLoading, setSessionActionLoading] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [generatingFeedback, setGeneratingFeedback] = useState(false);
 
   const id = params.id as string;
   const role = session?.user?.role;
@@ -139,6 +141,25 @@ export default function AssessmentDetailPage() {
       await fetchAssessment();
     }
     setSessionActionLoading(false);
+  }
+
+  async function generateFeedback() {
+    setGeneratingFeedback(true);
+    try {
+      const res = await fetch(`/api/assessments/${id}/feedback`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFeedback(data.generalFeedback);
+      } else {
+        const error = await res.json();
+        alert(error.error || "Ошибка генерации фидбека");
+      }
+    } catch (error) {
+      alert("Ошибка генерации фидбека");
+    }
+    setGeneratingFeedback(false);
   }
 
   if (loading)
@@ -372,6 +393,51 @@ export default function AssessmentDetailPage() {
           isSubject={isSubject}
           isAssessor={isAssessor}
         />
+      )}
+
+      {/* AI Feedback Generation */}
+      {assessment.status === "COMPLETED" && isAssessor && (
+        <Card>
+          <CardHeader>
+            <CardTitle>AI Фидбек</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!feedback ? (
+              <Button
+                onClick={generateFeedback}
+                disabled={generatingFeedback}
+                className="w-full"
+              >
+                {generatingFeedback ? "Генерация..." : "Сгенерировать фидбек через AI"}
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <Button
+                    onClick={generateFeedback}
+                    disabled={generatingFeedback}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {generatingFeedback ? "Генерация..." : "Перегенерировать"}
+                  </Button>
+                  <Button
+                    onClick={() => setFeedback(null)}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Скрыть
+                  </Button>
+                </div>
+                <div className="prose prose-sm max-w-none p-4 bg-muted/50 rounded-lg">
+                  {feedback.split('\n').map((paragraph, idx) => (
+                    <p key={idx} className="mb-2">{paragraph}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
 

@@ -47,7 +47,7 @@ export default function NewAssessmentPage() {
 
   useEffect(() => {
     const role = session?.user?.role;
-    if (role !== "ASSESSOR" && role !== "ADMIN") {
+    if (role !== "ASSESSOR") {
       router.push("/dashboard");
       return;
     }

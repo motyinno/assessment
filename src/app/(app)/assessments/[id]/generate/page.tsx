@@ -8,13 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface TopicWithSelection {
   name: string;
@@ -42,14 +35,15 @@ export default function GeneratePdpPage() {
   const [assessment, setAssessment] = useState<{
     title: string;
     grade: string;
+    aiFeedback: string | null;
   } | null>(null);
-  const [subjects, setSubjects] = useState<SubjectUser[]>([]);
-  const [selectedSubject, setSelectedSubject] = useState("");
+  const [subject, setSubject] = useState<SubjectUser | null>(null);
   const [topics, setTopics] = useState<TopicWithSelection[]>([]);
   const [settings, setSettings] = useState({
     maxQuestions: 2,
     threshold: 5,
     includeTasks: true,
+    useAI: false,
   });
   const [generating, setGenerating] = useState(false);
   const [message, setMessage] = useState("");
@@ -68,13 +62,12 @@ export default function GeneratePdpPage() {
       const a = await assessmentRes.json();
       const results = await resultsRes.json();
 
-      setAssessment({ title: a.title, grade: a.grade });
+      setAssessment({ title: a.title, grade: a.grade, aiFeedback: a.aiFeedback });
 
-      const subjectUsers = a.participants
+      const subjectUser = a.participants
         .filter((p: { participantRole: string }) => p.participantRole === "SUBJECT")
-        .map((p: { user: SubjectUser }) => p.user);
-      setSubjects(subjectUsers);
-      if (subjectUsers.length > 0) setSelectedSubject(subjectUsers[0].id);
+        .map((p: { user: SubjectUser }) => p.user)[0];
+      setSubject(subjectUser || null);
 
       setTopics(
         results.map((r: { category: string; score: number | null; comment: string | null; subtopics: string | null }) => ({
@@ -105,7 +98,6 @@ export default function GeneratePdpPage() {
   }
 
   async function handleGenerate() {
-    const subject = subjects.find((s) => s.id === selectedSubject);
     if (!subject || !assessment) return;
 
     setGenerating(true);
@@ -132,6 +124,8 @@ export default function GeneratePdpPage() {
         outputName,
         includeTasks: settings.includeTasks,
       },
+      useAI: settings.useAI,
+      assessmentId: id,
     };
 
     try {
@@ -187,24 +181,17 @@ export default function GeneratePdpPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Subject selection */}
+        {/* Subject display */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Сотрудник</CardTitle>
           </CardHeader>
           <CardContent>
-            <Select value={selectedSubject} onValueChange={(v) => v && setSelectedSubject(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите" />
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {subject ? (
+              <p className="text-sm font-medium">{subject.name}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Нет сотрудника</p>
+            )}
           </CardContent>
         </Card>
 
@@ -246,6 +233,21 @@ export default function GeneratePdpPage() {
               />
               Практические задания
             </label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={settings.useAI}
+                  onChange={(e) =>
+                    setSettings({ ...settings, useAI: e.target.checked })
+                  }
+                />
+                Использовать AI вопросы и практические задания для PDP
+              </label>
+              <p className="text-xs text-muted-foreground">
+                При выборе этой опции AI сгенерирует вопросы и задания на основе результатов оценки
+              </p>
+            </div>
           </CardContent>
         </Card>
 

@@ -61,6 +61,7 @@ export default function AssessmentsPage() {
       : assessments.filter((a) => a.status === filter);
 
   const role = session?.user?.role;
+  const isAssessor = role === "ASSESSOR";
   const isPrivileged = role === "ADMIN" || role === "ASSESSOR";
 
   return (
@@ -72,7 +73,7 @@ export default function AssessmentsPage() {
             {isPrivileged ? "Все ассессменты" : "Мои ассессменты"}
           </p>
         </div>
-        {isPrivileged && (
+        {isAssessor && (
           <Link href="/assessments/new" className={buttonVariants()}>
             Создать ассессмент
           </Link>

@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 import {
   loadTemplate,
-  loadPdpTopicsMarkdown,
   loadMapping,
   loadAliases,
   resolveMapping,
 } from "@/lib/data-loader";
-import { parsePdpTopicsMd, selectQuestions } from "@/lib/pdp-topics-parser";
 import {
   escXml,
   mkP,
@@ -19,23 +17,28 @@ import {
   resetParaIdCounter,
 } from "@/lib/xml-helpers";
 import type { CategoryInfo, EmployeeInfo, GenerateSettings } from "@/lib/types";
+import prisma from "@/lib/prisma";
 
 interface GenerateBody {
   weakTopics: CategoryInfo[];
   info: EmployeeInfo;
   settings: GenerateSettings;
+  useAI?: boolean;
+  assessmentId?: string;
 }
 
 /**
  * POST /api/generate
  * Generates the PDP .docx file.
- * Body: { weakTopics, info, settings }
+ * Body: { weakTopics, info, settings, useAI }
  * Returns the .docx as binary (application/octet-stream).
  */
 export async function POST(request: NextRequest) {
   try {
     const body: GenerateBody = await request.json();
-    const { weakTopics, info, settings } = body;
+    const { weakTopics, info, settings, useAI = false, assessmentId } = body;
+
+    console.log("Generate PDP - useAI:", useAI, "assessmentId:", assessmentId);
 
     if (!weakTopics || weakTopics.length === 0) {
       return NextResponse.json(
@@ -49,14 +52,6 @@ export async function POST(request: NextRequest) {
 
     // Load data files from disk
     const templateBuf = loadTemplate();
-    const md = loadPdpTopicsMarkdown();
-
-    // Parse PDP topics
-    const pdpTopics = parsePdpTopicsMd(md);
-
-    // Load mapping and aliases for grade
-    const mapping = loadMapping(info.grade || "jun");
-    const aliases = loadAliases();
 
     // Open template zip
     const zip = await JSZip.loadAsync(templateBuf);
@@ -81,6 +76,91 @@ export async function POST(request: NextRequest) {
     for (const [old, nw] of replacements) {
       docXml = docXml.split(escXml(old)).join(escXml(nw));
       docXml = docXml.split(old).join(escXml(nw));
+    }
+
+    let pdpData: Array<{ category: string; questions: string[]; practicalTask: string }> = [];
+
+    if (useAI) {
+      // Generate AI feedback on-the-fly
+      console.log("Using AI mode - generating on-the-fly");
+      if (!assessmentId) {
+        return NextResponse.json(
+          { error: "assessmentId is required when useAI is true" },
+          { status: 400 }
+        );
+      }
+
+      const { generatePDPTopics } = await import("@/lib/ai-service");
+
+      // Get assessment results from database
+      const assessment = await prisma.assessment.findUnique({
+        where: { id: assessmentId },
+        include: {
+          participants: {
+            where: { participantRole: "SUBJECT" },
+            include: { user: true },
+          },
+          results: {
+            orderBy: { category: "asc" },
+          },
+        },
+      });
+
+      if (!assessment) {
+        return NextResponse.json(
+          { error: "Assessment not found" },
+          { status: 404 }
+        );
+      }
+
+      const subject = assessment.participants[0]?.user;
+      if (!subject) {
+        return NextResponse.json(
+          { error: "No subject found for assessment" },
+          { status: 400 }
+        );
+      }
+
+      // Convert results to AI service format
+      const assessmentResults = assessment.results.map((r) => ({
+        category: r.category,
+        score: r.score,
+        comment: r.comment || "",
+        subtopics: r.subtopics ? JSON.parse(r.subtopics) : [],
+      }));
+
+      // Generate AI feedback and PDP topics
+      const aiResponse = await generatePDPTopics(
+        assessmentResults,
+        subject.name,
+        assessment.grade,
+        assessmentId
+      );
+
+      pdpData = aiResponse.pdpTopics;
+      console.log("AI data generated, pdpData length:", pdpData.length);
+      console.log("Sample pdpData item:", JSON.stringify(pdpData[0], null, 2));
+    } else {
+      // Use the old method with pre-defined topics
+      console.log("Using old logic (non-AI mode)");
+      const { loadPdpTopicsMarkdown } = await import("@/lib/data-loader");
+      const { parsePdpTopicsMd, selectQuestions } = await import("@/lib/pdp-topics-parser");
+
+      const md = loadPdpTopicsMarkdown();
+      const pdpTopics = parsePdpTopicsMd(md);
+      const mapping = loadMapping(info.grade || "jun");
+      const aliases = loadAliases();
+      const maxQ = settings.maxQuestions || 2;
+
+      pdpData = weakTopics.map((cat) => {
+        const matched = resolveMapping(cat.name, mapping, aliases);
+        const { questions, task } = selectQuestions(pdpTopics, matched, maxQ);
+        return {
+          category: cat.name,
+          questions: questions.length ? questions : (cat.subtopics || []).slice(0, maxQ),
+          practicalTask: task || "",
+        };
+      });
     }
 
     // Find table and extract header row
@@ -121,37 +201,32 @@ export async function POST(request: NextRequest) {
 
     const headerRow = tblXml.substring(firstTrStart, firstTrEnd);
     const tblProps = tblXml.substring(6, firstTrStart);
-    const maxQ = settings.maxQuestions || 2;
 
-    // Build data rows
-    const rows = weakTopics.map((cat) => {
-      const matched = resolveMapping(cat.name, mapping, aliases);
-
-      const { questions, task } = selectQuestions(pdpTopics, matched, maxQ);
+    // Build data rows from AI-generated or pre-defined data
+    console.log("Building data rows from pdpData...");
+    const rows = pdpData.map((data) => {
+      console.log("Processing data for category:", data.category);
       let content = mkP("Необходимо изучить:") + mkP("");
 
-      if (questions.length) {
-        questions.forEach((q) => {
+      if (data.questions.length) {
+        data.questions.forEach((q: string) => {
           content += mkBullet(q);
-        });
-      } else {
-        (cat.subtopics || []).slice(0, maxQ).forEach((s) => {
-          content += mkBullet(s);
         });
       }
 
-      if (task && settings.includeTasks) {
+      if (data.practicalTask && settings.includeTasks) {
         content += mkP("");
         content += mkP("Практическое задание:", {
           italic: true,
           underline: true,
         });
-        content += mkP(task.length > 250 ? task.slice(0, 250) + "..." : task, {
-          size: 22,
-        });
+        content += mkP(
+          data.practicalTask.length > 250 ? data.practicalTask.slice(0, 250) + "..." : data.practicalTask,
+          { size: 22 }
+        );
       }
 
-      return mkRow(cat.name, (cat.subtopics || []).join(", "), content);
+      return mkRow(data.category, "", content);
     });
 
     // Reassemble table
