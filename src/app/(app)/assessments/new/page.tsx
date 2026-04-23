@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 
 interface UserItem {
   id: string;
@@ -111,8 +112,8 @@ export default function NewAssessmentPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Новый ассессмент</h1>
-        <p className="text-muted-foreground">
+        <h1 className="page-title">Новый ассессмент</h1>
+        <p className="page-subtitle mt-1">
           Создайте ассессмент и назначьте участников
         </p>
       </div>
@@ -143,9 +144,11 @@ export default function NewAssessmentPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="jun">Junior</SelectItem>
-                    <SelectItem value="mid">Middle</SelectItem>
-                    <SelectItem value="sen">Senior</SelectItem>
+                    {GRADE_VALUES.map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {gradeLabel(g)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

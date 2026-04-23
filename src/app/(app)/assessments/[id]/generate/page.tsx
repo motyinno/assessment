@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { gradeLabel, baseGrade } from "@/lib/grades";
+import { cn } from "@/lib/utils";
 
 interface TopicWithSelection {
   name: string;
@@ -26,6 +29,46 @@ interface SubjectUser {
   manager: string | null;
 }
 
+interface MatrixTopic {
+  id: string;
+  title: string;
+  jun: string[];
+  mid: string[];
+  sen: string[];
+}
+interface MatrixSection {
+  id: string;
+  title: string;
+  topics: MatrixTopic[];
+}
+interface TechMatrix {
+  sections: MatrixSection[];
+}
+
+interface TopicMeta {
+  title: string;
+  sectionTitle: string;
+  sectionId: string;
+  skills: string[];
+}
+
+function initialsOf(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function scoreTone(score: number | null) {
+  if (score === null) return { bg: "bg-muted", text: "text-muted-foreground", ring: "ring-border" };
+  if (score >= 7) return { bg: "bg-success/15", text: "text-success", ring: "ring-success/25" };
+  if (score >= 5) return { bg: "bg-warning/25", text: "text-warning-foreground", ring: "ring-warning/40" };
+  return { bg: "bg-destructive/15", text: "text-destructive", ring: "ring-destructive/25" };
+}
+
 export default function GeneratePdpPage() {
   const { data: session } = useSession();
   const params = useParams();
@@ -39,10 +82,10 @@ export default function GeneratePdpPage() {
   } | null>(null);
   const [subject, setSubject] = useState<SubjectUser | null>(null);
   const [topics, setTopics] = useState<TopicWithSelection[]>([]);
+  const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [settings, setSettings] = useState({
     maxQuestions: 2,
     threshold: 5,
-    includeTasks: true,
     useAI: false,
   });
   const [generating, setGenerating] = useState(false);
@@ -50,19 +93,23 @@ export default function GeneratePdpPage() {
 
   useEffect(() => {
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   async function loadData() {
-    const [assessmentRes, resultsRes] = await Promise.all([
+    const [assessmentRes, resultsRes, matrixRes] = await Promise.all([
       fetch(`/api/assessments/${id}`),
       fetch(`/api/assessments/${id}/results`),
+      fetch(`/api/tech-matrix`),
     ]);
 
     if (assessmentRes.ok && resultsRes.ok) {
       const a = await assessmentRes.json();
       const results = await resultsRes.json();
+      const m = matrixRes.ok ? await matrixRes.json() : null;
 
       setAssessment({ title: a.title, grade: a.grade, aiFeedback: a.aiFeedback });
+      if (m) setMatrix(m);
 
       const subjectUser = a.participants
         .filter((p: { participantRole: string }) => p.participantRole === "SUBJECT")
@@ -70,16 +117,42 @@ export default function GeneratePdpPage() {
       setSubject(subjectUser || null);
 
       setTopics(
-        results.map((r: { category: string; score: number | null; comment: string | null; subtopics: string | null }) => ({
-          name: r.category,
-          score: r.score,
-          subtopics: r.subtopics ? JSON.parse(r.subtopics) : [],
-          comment: r.comment || "",
-          selected: r.score !== null && r.score < settings.threshold,
-        }))
+        results.map(
+          (r: {
+            category: string;
+            score: number | null;
+            comment: string | null;
+            subtopics: string | null;
+          }) => ({
+            name: r.category,
+            score: r.score,
+            subtopics: r.subtopics ? JSON.parse(r.subtopics) : [],
+            comment: r.comment || "",
+            selected: r.score !== null && r.score < settings.threshold,
+          })
+        )
       );
     }
   }
+
+  // Build id → {title, section, skills} map from matrix for human labels
+  const topicMeta = useMemo(() => {
+    const map: Record<string, TopicMeta> = {};
+    if (!matrix || !assessment) return map;
+    const base = baseGrade(assessment.grade);
+    for (const section of matrix.sections) {
+      for (const topic of section.topics) {
+        const skills = (topic[base as keyof MatrixTopic] as unknown as string[]) ?? [];
+        map[topic.id] = {
+          title: topic.title,
+          sectionTitle: section.title,
+          sectionId: section.id,
+          skills,
+        };
+      }
+    }
+    return map;
+  }, [matrix, assessment]);
 
   function applyThreshold(threshold: number) {
     setSettings((s) => ({ ...s, threshold }));
@@ -113,7 +186,7 @@ export default function GeneratePdpPage() {
         manager: subject.manager || "",
         grade: assessment.grade,
         date: new Date().toLocaleDateString("ru-RU"),
-        level_before: { jun: "Junior", mid: "Middle", sen: "Senior" }[assessment.grade] || assessment.grade,
+        level_before: gradeLabel(assessment.grade),
         next_date: "",
         project: subject.project || "",
         interviewer: session?.user?.name || "",
@@ -122,7 +195,7 @@ export default function GeneratePdpPage() {
         maxQuestions: settings.maxQuestions,
         threshold: settings.threshold,
         outputName,
-        includeTasks: settings.includeTasks,
+        includeTasks: true,
       },
       useAI: settings.useAI,
       assessmentId: id,
@@ -143,7 +216,6 @@ export default function GeneratePdpPage() {
 
       const blob = await res.blob();
 
-      // Save PDP record
       const formData = new FormData();
       formData.append("file", blob, outputName);
       formData.append("fileName", outputName);
@@ -153,7 +225,6 @@ export default function GeneratePdpPage() {
 
       await fetch("/api/pdps", { method: "POST", body: formData });
 
-      // Also download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -168,73 +239,122 @@ export default function GeneratePdpPage() {
     setGenerating(false);
   }
 
-  if (!assessment)
+  if (!assessment) {
     return <p className="text-muted-foreground">Загрузка...</p>;
+  }
 
   const selectedCount = topics.filter((t) => t.selected).length;
+  const weakCount = topics.filter(
+    (t) => t.score !== null && t.score < settings.threshold
+  ).length;
+  const avgScore = (() => {
+    const withScore = topics.filter((t) => t.score !== null) as Array<
+      TopicWithSelection & { score: number }
+    >;
+    if (withScore.length === 0) return null;
+    return (
+      withScore.reduce((a, b) => a + b.score, 0) / withScore.length
+    ).toFixed(1);
+  })();
+
+  // Group topics by section for nicer rendering
+  const grouped: Record<
+    string,
+    { sectionTitle: string; items: Array<{ idx: number; t: TopicWithSelection }> }
+  > = {};
+  topics.forEach((t, idx) => {
+    const meta = topicMeta[t.name];
+    const key = meta?.sectionId ?? "_other";
+    if (!grouped[key]) {
+      grouped[key] = {
+        sectionTitle: meta?.sectionTitle ?? "Прочее",
+        items: [],
+      };
+    }
+    grouped[key].items.push({ idx, t });
+  });
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Генерация ИПР</h1>
-        <p className="text-muted-foreground">{assessment.title}</p>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Link href={`/assessments/${id}`} className="hover:text-foreground transition-colors">
+          {assessment.title}
+        </Link>
+        <span>/</span>
+        <span className="text-foreground/70">Генерация ИПР</span>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Subject display */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Сотрудник</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {subject ? (
-              <p className="text-sm font-medium">{subject.name}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">Нет сотрудника</p>
-            )}
-          </CardContent>
-        </Card>
+      {/* Identity + settings banner */}
+      <Card>
+        <CardContent className="pt-5 pb-5 space-y-5">
+          <div className="flex flex-col lg:flex-row lg:items-start gap-5">
+            {/* Subject */}
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 text-primary flex items-center justify-center text-base font-semibold ring-1 ring-primary/15">
+                {subject ? initialsOf(subject.name) : "—"}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl font-semibold tracking-tight">
+                    {subject?.name ?? "Нет сотрудника"}
+                  </h1>
+                  <Badge variant="outline">{gradeLabel(assessment.grade)}</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                  {subject?.email ?? "—"}
+                </p>
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
+                  <MetaItem label="Проект" value={subject?.project ?? null} />
+                  <MetaItem label="Руководитель" value={subject?.manager ?? null} />
+                  <MetaItem
+                    label="Средний балл"
+                    value={avgScore !== null ? avgScore : null}
+                  />
+                  <MetaItem
+                    label="Слабых тем"
+                    value={`${weakCount} < ${settings.threshold}`}
+                  />
+                </div>
+              </div>
+            </div>
 
-        {/* Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Настройки</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Макс. вопросов на тему</Label>
-              <Input
-                type="number"
-                min={1}
-                max={5}
-                value={settings.maxQuestions}
-                onChange={(e) =>
-                  setSettings({ ...settings, maxQuestions: Number(e.target.value) })
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Порог оценки (ниже = в ИПР)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={settings.threshold}
-                onChange={(e) => applyThreshold(Number(e.target.value))}
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={settings.includeTasks}
-                onChange={(e) =>
-                  setSettings({ ...settings, includeTasks: e.target.checked })
-                }
-              />
-              Практические задания
-            </label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm">
+            {/* Settings */}
+            <div className="grid grid-cols-2 gap-3 lg:w-[360px] lg:shrink-0">
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Вопросов на тему
+                </Label>
+                <Input
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={String(settings.maxQuestions)}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
+                    setSettings({
+                      ...settings,
+                      maxQuestions: isNaN(n) ? 0 : n,
+                    });
+                  }}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Порог (ниже = в ИПР)
+                </Label>
+                <Input
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  value={String(settings.threshold)}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value.replace(/\D/g, ""), 10);
+                    applyThreshold(isNaN(n) ? 0 : n);
+                  }}
+                  className="h-9"
+                />
+              </div>
+              <label className="col-span-2 flex items-center gap-2 text-xs rounded-md border border-border bg-background px-3 py-2 cursor-pointer hover:bg-muted/40 transition-colors">
                 <input
                   type="checkbox"
                   checked={settings.useAI}
@@ -242,25 +362,36 @@ export default function GeneratePdpPage() {
                     setSettings({ ...settings, useAI: e.target.checked })
                   }
                 />
-                Использовать AI вопросы и практические задания для PDP
+                AI-вопросы и задания на основе оценки
               </label>
-              <p className="text-xs text-muted-foreground">
-                При выборе этой опции AI сгенерирует вопросы и задания на основе результатов оценки
-              </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Stats */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Выбрано тем</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {selectedCount} / {topics.length}
-            </p>
-            <div className="flex gap-2 mt-2">
+          {/* Selection summary bar */}
+          <div className="flex flex-wrap items-center gap-3 pt-4 border-t">
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-semibold text-foreground">
+                {selectedCount}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                из {topics.length} тем выбрано
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setTopics((prev) =>
+                    prev.map((t) => ({
+                      ...t,
+                      selected: t.score !== null && t.score < settings.threshold,
+                    }))
+                  )
+                }
+              >
+                По порогу ({weakCount})
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -274,63 +405,130 @@ export default function GeneratePdpPage() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setTopics((prev) =>
-                    prev.map((t) => ({ ...t, selected: false }))
-                  )
+                  setTopics((prev) => prev.map((t) => ({ ...t, selected: false })))
                 }
               >
                 Сбросить
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Topics */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Темы для ИПР</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {topics.map((t, i) => (
-              <button
-                key={i}
-                onClick={() => toggleTopic(i)}
-                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm border transition-colors ${
-                  t.selected
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-background text-muted-foreground border-border hover:border-primary"
-                }`}
-              >
-                {t.name}
-                {t.score !== null && (
-                  <Badge
-                    variant={t.score >= 7 ? "secondary" : t.score >= 5 ? "outline" : "destructive"}
-                    className="ml-1 text-xs"
-                  >
-                    {t.score}
-                  </Badge>
-                )}
-              </button>
-            ))}
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-4">
+      {/* Topics — grouped grid */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Темы для ИПР</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {topics.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              Нет оценок по темам — сначала заполните тех. матрицу.
+            </p>
+          ) : (
+            Object.entries(grouped).map(([sectionId, group]) => (
+              <div key={sectionId}>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  {group.sectionTitle}
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  {group.items.map(({ idx, t }) => {
+                    const meta = topicMeta[t.name];
+                    const tone = scoreTone(t.score);
+                    const title = meta?.title ?? t.name;
+                    const skillsPreview =
+                      meta?.skills.slice(0, 3).join(" · ") ?? "";
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => toggleTopic(idx)}
+                        className={cn(
+                          "group/topic text-left rounded-xl border p-3 transition-all",
+                          t.selected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/30 shadow-sm"
+                            : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
+                        )}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div
+                            className={cn(
+                              "mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors",
+                              t.selected
+                                ? "bg-primary border-primary text-primary-foreground"
+                                : "bg-background border-border"
+                            )}
+                          >
+                            {t.selected && (
+                              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {title}
+                              </p>
+                              <div
+                                className={cn(
+                                  "shrink-0 inline-flex items-center justify-center h-6 min-w-[28px] px-1.5 rounded-md text-xs font-semibold ring-1 ring-inset",
+                                  tone.bg,
+                                  tone.text,
+                                  tone.ring
+                                )}
+                              >
+                                {t.score ?? "—"}
+                              </div>
+                            </div>
+                            {skillsPreview && (
+                              <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                                {skillsPreview}
+                                {meta && meta.skills.length > 3 && (
+                                  <span> +{meta.skills.length - 3}</span>
+                                )}
+                              </p>
+                            )}
+                            {t.comment && (
+                              <p className="text-[11px] text-foreground/70 mt-1 line-clamp-2">
+                                {t.comment}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Actions */}
+      <div className="sticky bottom-0 -mx-4 px-4 py-3 bg-background/85 backdrop-blur border-t border-border flex items-center gap-3">
         <Button
           onClick={handleGenerate}
           disabled={generating || selectedCount === 0}
           size="lg"
         >
-          {generating ? "Генерация..." : `Сгенерировать ИПР (${selectedCount} тем)`}
+          {generating
+            ? "Генерация..."
+            : `Сгенерировать ИПР (${selectedCount} ${
+                selectedCount === 1 ? "тема" : "тем"
+              })`}
         </Button>
         <Button variant="outline" onClick={() => router.push(`/assessments/${id}`)}>
           Назад
         </Button>
         {message && (
-          <p className={`text-sm ${message.includes("Ошибка") ? "text-destructive" : "text-green-600"}`}>
+          <p
+            className={cn(
+              "text-sm ml-auto",
+              message.includes("Ошибка") ? "text-destructive" : "text-success"
+            )}
+          >
             {message}
           </p>
         )}
@@ -338,3 +536,15 @@ export default function GeneratePdpPage() {
     </div>
   );
 }
+
+function MetaItem({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+        {label}
+      </p>
+      <p className="text-foreground truncate mt-0.5">{value || "—"}</p>
+    </div>
+  );
+}
+

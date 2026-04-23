@@ -49,11 +49,12 @@ export async function PATCH(
   if (error) return error;
 
   const body = await req.json();
-  const { status, title, notes, scheduledAt } = body;
+  const { status, title, notes, scheduledAt, aiFeedback } = body;
 
   const data: Record<string, unknown> = {};
   if (title !== undefined) data.title = title;
   if (notes !== undefined) data.notes = notes;
+  if (aiFeedback !== undefined) data.aiFeedback = aiFeedback;
   if (scheduledAt !== undefined)
     data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
 

@@ -12,7 +12,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { status, assessorIds, adminNotes } = body;
+  const { status, assessorIds, adminNotes, assessmentType } = body;
   // backward compat: accept single assessorId too
   const allAssessorIds: string[] = assessorIds || (body.assessorId ? [body.assessorId] : []);
 
@@ -22,6 +22,9 @@ export async function PATCH(
       { status: 400 }
     );
   }
+
+  const resolvedAssessmentType: "GENERAL" | "PDP_CHECK" =
+    assessmentType === "PDP_CHECK" ? "PDP_CHECK" : "GENERAL";
 
   const request = await prisma.assessmentRequest.findUnique({
     where: { id },
@@ -48,10 +51,12 @@ export async function PATCH(
     }
 
     // Create assessment with subject + all assessors as participants
+    const titlePrefix = resolvedAssessmentType === "PDP_CHECK" ? "Проверка ИПР" : "Ассессмент";
     const assessment = await prisma.assessment.create({
       data: {
-        title: `Ассессмент: ${request.user.name}`,
+        title: `${titlePrefix}: ${request.user.name}`,
         grade: request.grade,
+        assessmentType: resolvedAssessmentType,
         notes: request.notes,
         participants: {
           create: [
@@ -68,7 +73,8 @@ export async function PATCH(
     // Auto-create sessions
     const sessionTemplates = buildSessionsForGrade(
       request.grade,
-      request.user.softAiInterviewPassed
+      request.user.softAiInterviewPassed,
+      resolvedAssessmentType
     );
     await prisma.assessmentSession.createMany({
       data: sessionTemplates.map((t) => ({ assessmentId: assessment.id, ...t })),
@@ -78,6 +84,7 @@ export async function PATCH(
       where: { id },
       data: {
         status: "APPROVED",
+        assessmentType: resolvedAssessmentType,
         assessor: { connect: { id: allAssessorIds[0] } },
         assessorIds: JSON.stringify(allAssessorIds),
         assessment: { connect: { id: assessment.id } },

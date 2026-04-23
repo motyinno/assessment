@@ -67,17 +67,13 @@ export async function POST(
       assessment.grade
     );
 
-    // Save to database
-    await prisma.assessment.update({
-      where: { id: params.id },
-      data: {
-        aiFeedback: JSON.stringify(aiResponse.feedback),
-      },
-    });
+    // Flatten per-category feedback into one readable block so the UI can
+    // load it into an editable textarea. The assessor can then tweak and save.
+    const text = aiResponse.feedback
+      .map((f) => `${f.category}\n${f.feedback}`)
+      .join("\n\n");
 
-    return NextResponse.json({
-      feedback: aiResponse.feedback,
-    });
+    return NextResponse.json({ text });
   } catch (error) {
     console.error("Error generating feedback:", error);
     return NextResponse.json(

@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { gradeLabel, baseGrade } from "@/lib/grades";
 
 interface RequestUser {
   id: string;
@@ -53,12 +54,6 @@ interface AssessmentRequest {
   assessment: Assessment | null;
 }
 
-const gradeLabels: Record<string, string> = {
-  jun: "Junior",
-  mid: "Middle",
-  sen: "Senior",
-};
-
 export default function RequestsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -68,6 +63,14 @@ export default function RequestsPage() {
   const [selected, setSelected] = useState<AssessmentRequest | null>(null);
   const [selectedAssessorIds, setSelectedAssessorIds] = useState<string[]>([]);
   const [adminNotes, setAdminNotes] = useState("");
+  const [assessmentType, setAssessmentType] = useState<"GENERAL" | "PDP_CHECK">("GENERAL");
+  const [suggestion, setSuggestion] = useState<{
+    need: number;
+    pickedIds: string[];
+    eligibleIds: string[];
+    ongoing: Record<string, number>;
+  } | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -89,7 +92,9 @@ export default function RequestsPage() {
     const res = await fetch("/api/users");
     if (res.ok) {
       const users = await res.json();
-      setAssessors(users.filter((u: { role: string }) => u.role === "ASSESSOR"));
+      setAssessors(
+        users.filter((u: { role: string }) => u.role === "ASSESSOR" || u.role === "ADMIN")
+      );
     }
   }
 
@@ -97,7 +102,53 @@ export default function RequestsPage() {
     setSelected(req);
     setSelectedAssessorIds([]);
     setAdminNotes("");
+    setAssessmentType("GENERAL");
+    setSuggestion(null);
     setOpen(true);
+    void loadSuggestion(req.id, "GENERAL", true);
+  }
+
+  async function loadSuggestion(
+    requestId: string,
+    type: "GENERAL" | "PDP_CHECK",
+    applyPicked: boolean
+  ) {
+    setLoadingSuggestion(true);
+    try {
+      const res = await fetch(
+        `/api/assessment-requests/${requestId}/suggest-assessors?assessmentType=${type}`
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        need: number;
+        pickedIds: string[];
+        candidates: Array<{ id: string; ongoingCount: number }>;
+      };
+      const ongoing: Record<string, number> = {};
+      const eligibleIds: string[] = [];
+      for (const c of data.candidates) {
+        ongoing[c.id] = c.ongoingCount;
+        eligibleIds.push(c.id);
+      }
+      setSuggestion({
+        need: data.need,
+        pickedIds: data.pickedIds,
+        eligibleIds,
+        ongoing,
+      });
+      if (applyPicked) setSelectedAssessorIds(data.pickedIds);
+    } finally {
+      setLoadingSuggestion(false);
+    }
+  }
+
+  function onAssessmentTypeChange(type: "GENERAL" | "PDP_CHECK") {
+    setAssessmentType(type);
+    if (selected) void loadSuggestion(selected.id, type, true);
+  }
+
+  function applyAutoSelection() {
+    if (suggestion) setSelectedAssessorIds(suggestion.pickedIds);
   }
 
   function toggleAssessor(id: string) {
@@ -113,6 +164,7 @@ export default function RequestsPage() {
     if (newStatus === "APPROVED") {
       if (selectedAssessorIds.length === 0) return;
       payload.assessorIds = selectedAssessorIds;
+      payload.assessmentType = assessmentType;
     }
 
     const res = await fetch(`/api/assessment-requests/${selected.id}`, {
@@ -131,9 +183,9 @@ export default function RequestsPage() {
   function renderStatusBadge(s: string) {
     switch (s) {
       case "PENDING":
-        return <Badge variant="outline" className="border-yellow-500 text-yellow-600">На рассмотрении</Badge>;
+        return <Badge variant="warning">На рассмотрении</Badge>;
       case "APPROVED":
-        return <Badge variant="default" className="bg-green-600">Одобрена</Badge>;
+        return <Badge variant="success">Одобрена</Badge>;
       case "REJECTED":
         return <Badge variant="destructive">Отклонена</Badge>;
       default:
@@ -141,15 +193,23 @@ export default function RequestsPage() {
     }
   }
 
+  const pendingCount = requests.filter((r) => r.status === "PENDING").length;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Заявки на ассессмент</h1>
-        <p className="text-muted-foreground">Рассмотрение заявок от сотрудников</p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Заявки на ассессмент</h1>
+          <p className="page-subtitle mt-1">
+            {pendingCount > 0
+              ? `${pendingCount} заявок ожидают рассмотрения`
+              : "Все заявки рассмотрены"}
+          </p>
+        </div>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -164,7 +224,7 @@ export default function RequestsPage() {
               {requests.map((req) => (
                 <TableRow key={req.id}>
                   <TableCell className="font-medium">{req.user.name}</TableCell>
-                  <TableCell>{gradeLabels[req.grade] || req.grade}</TableCell>
+                  <TableCell>{gradeLabel(req.grade)}</TableCell>
                   <TableCell className="text-muted-foreground">
                     {new Date(req.createdAt).toLocaleDateString("ru-RU")}
                   </TableCell>
@@ -184,7 +244,7 @@ export default function RequestsPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Рассмотрение заявки</DialogTitle>
           </DialogHeader>
@@ -196,7 +256,7 @@ export default function RequestsPage() {
               </div>
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Грейд</p>
-                <p className="font-medium">{gradeLabels[selected.grade] || selected.grade}</p>
+                <p className="font-medium">{gradeLabel(selected.grade)}</p>
               </div>
               {selected.notes && (
                 <div className="space-y-1">
@@ -206,29 +266,152 @@ export default function RequestsPage() {
               )}
 
               <div className="space-y-2">
-                <Label>Назначить асессоров</Label>
-                <div className="border rounded-md p-2 space-y-1 max-h-40 overflow-y-auto">
-                  {assessors.map((a) => (
-                    <label
-                      key={a.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/60 cursor-pointer text-sm"
-                    >
+                <Label>Тип ассессмента</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <label
+                    className={`flex flex-col gap-1 rounded-md border p-3 cursor-pointer text-sm transition-colors ${
+                      assessmentType === "GENERAL"
+                        ? "border-primary bg-primary/5"
+                        : "border-input hover:bg-muted/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
                       <input
-                        type="checkbox"
-                        checked={selectedAssessorIds.includes(a.id)}
-                        onChange={() => toggleAssessor(a.id)}
-                        className="rounded border-gray-300"
+                        type="radio"
+                        name="assessmentType"
+                        checked={assessmentType === "GENERAL"}
+                        onChange={() => onAssessmentTypeChange("GENERAL")}
                       />
-                      <span>{a.name}</span>
-                      <span className="text-muted-foreground text-xs">{a.email}</span>
-                    </label>
-                  ))}
+                      <span className="font-medium">Общий ассессмент</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-5">
+                      Soft+AI {baseGrade(selected.grade) === "jun" ? "+ 2 тех." : "+ 3 тех."} сессии по 1 ч.
+                    </span>
+                  </label>
+                  <label
+                    className={`flex flex-col gap-1 rounded-md border p-3 cursor-pointer text-sm transition-colors ${
+                      assessmentType === "PDP_CHECK"
+                        ? "border-primary bg-primary/5"
+                        : "border-input hover:bg-muted/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="assessmentType"
+                        checked={assessmentType === "PDP_CHECK"}
+                        onChange={() => onAssessmentTypeChange("PDP_CHECK")}
+                      />
+                      <span className="font-medium">Проверка ИПР</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-5">
+                      1 тех. сессия 1 ч.
+                    </span>
+                  </label>
                 </div>
-                {selectedAssessorIds.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Выбрано: {selectedAssessorIds.length}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label>
+                    Назначить асессоров
+                    {suggestion && (
+                      <span className="text-xs font-normal text-muted-foreground ml-1.5">
+                        (нужно {suggestion.need})
+                      </span>
+                    )}
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!suggestion || loadingSuggestion}
+                    onClick={applyAutoSelection}
+                  >
+                    {loadingSuggestion ? "Подбор..." : "Авто-подбор"}
+                  </Button>
+                </div>
+                <div className="rounded-md border divide-y divide-border max-h-64 overflow-y-auto">
+                  {(() => {
+                    const sorted = [...assessors].sort((a, b) => {
+                      const ea = suggestion?.eligibleIds.includes(a.id) ? 0 : 1;
+                      const eb = suggestion?.eligibleIds.includes(b.id) ? 0 : 1;
+                      if (ea !== eb) return ea - eb;
+                      const oa = suggestion?.ongoing[a.id] ?? 0;
+                      const ob = suggestion?.ongoing[b.id] ?? 0;
+                      if (oa !== ob) return oa - ob;
+                      return a.name.localeCompare(b.name);
+                    });
+                    return sorted.map((a) => {
+                      const eligible =
+                        !suggestion || suggestion.eligibleIds.includes(a.id);
+                      const isPicked = suggestion?.pickedIds.includes(a.id);
+                      const ongoing = suggestion?.ongoing[a.id];
+                      const checked = selectedAssessorIds.includes(a.id);
+                      return (
+                        <label
+                          key={a.id}
+                          className={
+                            "flex items-center gap-3 px-3 py-2 cursor-pointer text-sm transition-colors " +
+                            (checked
+                              ? "bg-primary/5"
+                              : eligible
+                                ? "hover:bg-muted/50"
+                                : "opacity-60 hover:bg-muted/40")
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleAssessor(a.id)}
+                            className="shrink-0 rounded border-gray-300"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {a.name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {a.email}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isPicked && (
+                              <Badge variant="success" className="whitespace-nowrap">
+                                Рекомендуем
+                              </Badge>
+                            )}
+                            {!eligible && suggestion && (
+                              <Badge variant="outline" className="whitespace-nowrap">
+                                не подходит
+                              </Badge>
+                            )}
+                            {ongoing !== undefined && (
+                              <span
+                                className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums"
+                                title="Активных ассессментов сейчас"
+                              >
+                                {ongoing} актив.
+                              </span>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+                {suggestion && suggestion.eligibleIds.length === 0 && (
+                  <p className="text-xs text-destructive">
+                    Нет подходящих асессоров по правилам (грейд ≥ кандидата, не руководитель).
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Выбрано: {selectedAssessorIds.length}
+                  {suggestion && (
+                    <>
+                      {" · "}Правила: грейд ≥ сотрудника · не руководитель · приоритет с меньшей нагрузкой
+                    </>
+                  )}
+                </p>
               </div>
 
               <div className="space-y-2">

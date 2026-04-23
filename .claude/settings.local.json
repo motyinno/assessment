@@ -15,7 +15,16 @@
       "Bash(ls /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/app/\\\\\\(app\\\\\\)/request-assessment/page.tsx /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/app/\\\\\\(app\\\\\\)/requests/page.tsx)",
       "Bash(ls /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/app/api/assessments/[id]/sessions/route.ts /Users/user/Documents/projects/pdp-generator/pdp-generator-next/src/components/assessment-progress.tsx)",
       "Bash(node -e \":*)",
-      "Bash(node -e \"const d = require\\(''./data/tech-matrix.json''\\); console.log\\(''Sections:'', d.sections.length\\); let total = 0; d.sections.forEach\\(s => { const c = s.topics.reduce\\(\\(sum, t\\) => sum + t.jun.length + t.mid.length + t.sen.length, 0\\); total += c; console.log\\('' -'', s.id, s.title, ''\\('' + s.topics.length + '' topics,'', c, ''skills\\)''\\); }\\); console.log\\(''Total skills:'', total\\);\")"
+      "Bash(node -e \"const d = require\\(''./data/tech-matrix.json''\\); console.log\\(''Sections:'', d.sections.length\\); let total = 0; d.sections.forEach\\(s => { const c = s.topics.reduce\\(\\(sum, t\\) => sum + t.jun.length + t.mid.length + t.sen.length, 0\\); total += c; console.log\\('' -'', s.id, s.title, ''\\('' + s.topics.length + '' topics,'', c, ''skills\\)''\\); }\\); console.log\\(''Total skills:'', total\\);\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/requests)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/assessments/abc)",
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(perl -0777 -pi -e 's/\\\\{ jun: \"Junior\", mid: \"Middle\", sen: \"Senior\" \\\\}\\\\[\\([a-z.]+\\)\\\\] \\\\|\\\\| \\\\1/gradeLabel\\(\\\\1\\)/g' src/app/\\\\\\(app\\\\\\)/dashboard/page.tsx src/app/\\\\\\(app\\\\\\)/assessments/page.tsx)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/api/auth/providers)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/assessments/cmo027beh0002rto0xgh7kde7)",
+      "Bash(curl -s -o /dev/null -w \"meeting-endpoint:%{http_code}\\\\n\" -X POST http://localhost:3000/api/assessments/xxx/sessions/meeting -H 'Content-Type: application/json' -d '{}')",
+      "Bash(curl -s -o /dev/null -w \"transcript-route:%{http_code}\\\\n\" -X POST http://localhost:3000/api/assessments/xxx/sessions/yyy/transcript)",
+      "Bash(python3 -c \"import json; d = json.load\\(open\\('/Users/user/Downloads/parsed.json'\\)\\); print\\('count:', len\\(d\\)\\); grades = {}; [grades.update\\({g: grades.get\\(g, 0\\)+1}\\) for g in [x.get\\('grade'\\) for x in d]]; print\\('grades:', grades\\); print\\('first keys:', list\\(d[0].keys\\(\\)\\)\\)\")"
     ]
   }
 }

@@ -27,10 +27,18 @@ export async function POST(req: NextRequest) {
   if (error) return error;
 
   const body = await req.json();
-  const { grade, notes } = body;
+  const { notes } = body;
 
-  if (!grade) {
-    return NextResponse.json({ error: "Грейд обязателен" }, { status: 400 });
+  const user = await prisma.user.findUnique({
+    where: { id: session!.user.id },
+    select: { grade: true },
+  });
+
+  if (!user?.grade) {
+    return NextResponse.json(
+      { error: "В вашем профиле не указан грейд. Обратитесь к администратору." },
+      { status: 400 }
+    );
   }
 
   // Check for existing pending request
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
   const request = await prisma.assessmentRequest.create({
     data: {
       userId: session!.user.id,
-      grade,
+      grade: user.grade,
       notes,
     },
     include: {

@@ -1,6 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-helpers";
+import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
+import { isValidGrade } from "@/lib/grades";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { error } = await requireAuth();
+  if (error) return error;
+
+  const { id } = params;
+  const user = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      grade: true,
+      project: true,
+      manager: true,
+      participations: {
+        where: { participantRole: "SUBJECT" },
+        orderBy: { createdAt: "desc" },
+        include: {
+          assessment: {
+            select: {
+              id: true,
+              title: true,
+              status: true,
+              grade: true,
+              assessmentType: true,
+              createdAt: true,
+              completedAt: true,
+            },
+          },
+        },
+      },
+      pdps: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          assessment: { select: { id: true, title: true } },
+        },
+      },
+    },
+  });
+  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  return NextResponse.json(user);
+}
+
+const VALID_ROLES = new Set(["USER", "ASSESSOR", "ADMIN"]);
 
 export async function PATCH(
   req: NextRequest,
@@ -10,23 +60,63 @@ export async function PATCH(
   if (error) return error;
 
   const { id } = params;
+  const isAdmin = session!.user.role === "ADMIN";
+  const isSelf = session!.user.id === id;
 
-  // Users can edit own profile, assessors can edit anyone
-  if (session!.user.id !== id && session!.user.role !== "ASSESSOR") {
+  // Only admins can edit other users. Anyone can edit their own profile.
+  if (!isAdmin && !isSelf) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
-  const { name, grade, project, manager, role } = body;
+  const { name, grade, project, manager, role } = body as Record<string, unknown>;
 
   const data: Record<string, unknown> = {};
-  if (name !== undefined) data.name = name;
-  if (grade !== undefined) data.grade = grade;
-  if (project !== undefined) data.project = project;
-  if (manager !== undefined) data.manager = manager;
 
-  // Only assessors can change roles
-  if (role !== undefined && session!.user.role === "ASSESSOR") {
+  if (name !== undefined) {
+    if (typeof name !== "string" || name.trim().length === 0) {
+      return NextResponse.json({ error: "Некорректное имя" }, { status: 400 });
+    }
+    data.name = name.trim();
+  }
+
+  if (project !== undefined) {
+    data.project = typeof project === "string" && project.trim().length > 0 ? project.trim() : null;
+  }
+
+  if (manager !== undefined) {
+    data.manager = typeof manager === "string" && manager.trim().length > 0 ? manager.trim() : null;
+  }
+
+  // Grade and role are admin-only.
+  if (grade !== undefined) {
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Только администратор может менять грейд" }, { status: 403 });
+    }
+    if (grade === null || grade === "") {
+      data.grade = null;
+    } else if (isValidGrade(grade)) {
+      data.grade = grade;
+    } else {
+      return NextResponse.json({ error: "Некорректный грейд" }, { status: 400 });
+    }
+  }
+
+  if (role !== undefined) {
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Только администратор может менять роль" }, { status: 403 });
+    }
+    if (typeof role !== "string" || !VALID_ROLES.has(role)) {
+      return NextResponse.json({ error: "Некорректная роль" }, { status: 400 });
+    }
+    // Prevent an admin from demoting themselves — otherwise they could
+    // lock the whole system out of admin access.
+    if (isSelf && role !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Нельзя сменить свою роль с администратора" },
+        { status: 400 }
+      );
+    }
     data.role = role;
   }
 
@@ -45,4 +135,46 @@ export async function PATCH(
   });
 
   return NextResponse.json(user);
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const { error, session } = await requireAdmin();
+  if (error) return error;
+
+  const { id } = params;
+
+  if (session!.user.id === id) {
+    return NextResponse.json(
+      { error: "Нельзя удалить свой аккаунт" },
+      { status: 400 }
+    );
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      _count: { select: { participations: true, pdps: true } },
+    },
+  });
+
+  if (!target) {
+    return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+  }
+
+  if (target._count.participations > 0 || target._count.pdps > 0) {
+    return NextResponse.json(
+      {
+        error:
+          "У пользователя есть связанные ассессменты или ИПР. Удаление заблокировано.",
+      },
+      { status: 409 }
+    );
+  }
+
+  await prisma.user.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

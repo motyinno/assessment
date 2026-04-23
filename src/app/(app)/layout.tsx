@@ -14,9 +14,13 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-muted/30">
       <AppSidebar user={session.user} />
-      <main className="flex-1 overflow-auto bg-background p-6 lg:p-8">{children}</main>
+      <main className="flex-1 overflow-auto">
+        <div className="mx-auto w-full max-w-6xl px-6 py-8 lg:px-10 lg:py-10">
+          {children}
+        </div>
+      </main>
     </div>
   );
 }

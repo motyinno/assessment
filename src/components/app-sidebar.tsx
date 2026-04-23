@@ -22,6 +22,10 @@ const navItems = [
   { href: "/request-assessment", label: "Запрос ассессмента", icon: "send", hideForAdmin: true },
 ];
 
+const assessorItems = [
+  { href: "/assessment-logs", label: "Журнал ассессментов", icon: "file-text" },
+];
+
 const adminItems = [
   { href: "/requests", label: "Заявки", icon: "inbox" },
   { href: "/users", label: "Пользователи", icon: "users" },
@@ -114,22 +118,24 @@ export function AppSidebar({ user }: SidebarProps) {
     .toUpperCase();
 
   return (
-    <div className="flex h-full w-60 flex-col bg-white border-r border-border/60">
+    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo area */}
-      <div className="px-5 py-4 border-b border-border/60">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground text-xs font-bold">PDP</span>
+      <div className="px-5 py-5">
+        <Link href="/dashboard" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm ring-1 ring-primary/20 group-hover:shadow-md transition-shadow">
+            <span className="text-primary-foreground text-[11px] font-bold tracking-wider">PDP</span>
           </div>
-          <div>
-            <h1 className="text-sm font-semibold text-foreground leading-tight">PDP Generator</h1>
-            <p className="text-[10px] text-muted-foreground leading-tight">Управление ассессментами</p>
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold text-sidebar-foreground leading-tight">PDP Generator</h1>
+            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Ассессменты и ИПР</p>
           </div>
-        </div>
+        </Link>
       </div>
 
+      <div className="mx-3 h-px bg-sidebar-border" />
+
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
         {navItems
           .filter((item) => !("hideForAdmin" in item && item.hideForAdmin && user.role === "ADMIN"))
           .map((item) => {
@@ -139,25 +145,62 @@ export function AppSidebar({ user }: SidebarProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all relative",
+                  "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
                   active
-                    ? "bg-accent text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                 )}
               >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
-                )}
-                <NavIcon name={item.icon} className="w-[18px] h-[18px] shrink-0" />
-                {item.label}
+                <NavIcon
+                  name={item.icon}
+                  className={cn(
+                    "w-[18px] h-[18px] shrink-0 transition-colors",
+                    active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+                  )}
+                />
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
 
+        {(user.role === "ADMIN" || user.role === "ASSESSOR") && (
+          <>
+            <div className="pt-5 pb-2 px-3">
+              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
+                Работа с ассессментами
+              </p>
+            </div>
+            {assessorItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <NavIcon
+                    name={item.icon}
+                    className={cn(
+                      "w-[18px] h-[18px] shrink-0 transition-colors",
+                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+                    )}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
+
         {user.role === "ADMIN" && (
           <>
-            <div className="pt-4 pb-1">
-              <p className="px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="pt-5 pb-2 px-3">
+              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
                 Администрирование
               </p>
             </div>
@@ -168,17 +211,20 @@ export function AppSidebar({ user }: SidebarProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-all relative",
+                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
                     active
-                      ? "bg-accent text-primary font-medium"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
-                  {active && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-r-full" />
-                  )}
-                  <NavIcon name={item.icon} className="w-[18px] h-[18px] shrink-0" />
-                  {item.label}
+                  <NavIcon
+                    name={item.icon}
+                    className={cn(
+                      "w-[18px] h-[18px] shrink-0 transition-colors",
+                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+                    )}
+                  />
+                  <span className="truncate">{item.label}</span>
                 </Link>
               );
             })}
@@ -187,17 +233,17 @@ export function AppSidebar({ user }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-border/60 p-3 space-y-2">
-        <Link href="/profile" className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-muted/60 transition-colors">
-          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+      <div className="border-t border-sidebar-border p-3 space-y-1">
+        <Link href="/profile" className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-primary flex items-center justify-center text-xs font-semibold shrink-0 ring-1 ring-primary/15">
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium truncate text-foreground">{user.name}</p>
+            <p className="text-[13px] font-medium truncate text-sidebar-foreground">{user.name}</p>
             <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>
           </div>
           {user.role !== "USER" && (
-            <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-md whitespace-nowrap">
               {user.role === "ADMIN" ? "Админ" : "Асессор"}
             </span>
           )}
@@ -205,13 +251,13 @@ export function AppSidebar({ user }: SidebarProps) {
         <Button
           variant="ghost"
           size="sm"
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground text-[13px]"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground text-[13px] px-2"
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <NavIcon name="logout" className="w-4 h-4" />
           Выйти
         </Button>
       </div>
-    </div>
+    </aside>
   );
 }

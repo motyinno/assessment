@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { baseGrade, gradeLabel } from "@/lib/grades";
 
 interface TechMatrixTopic {
   id: string;
@@ -55,7 +56,6 @@ const SECTION_COLORS: Record<string, { border: string; bg: string; text: string 
   ai: { border: "border-l-pink-500", bg: "bg-pink-50", text: "text-pink-800" },
 };
 
-const GRADE_LABELS: Record<string, string> = { jun: "Junior", mid: "Middle", sen: "Senior" };
 const GRADE_DOT: Record<string, string> = { jun: "bg-emerald-400", mid: "bg-blue-400", sen: "bg-purple-400" };
 const GRADE_DOT_BG: Record<string, string> = { jun: "bg-emerald-500", mid: "bg-blue-500", sen: "bg-purple-500" };
 const GRADE_LABEL_COLOR: Record<string, string> = { jun: "text-emerald-600", mid: "text-blue-600", sen: "text-purple-600" };
@@ -79,6 +79,8 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
     ])
       .then(([matrixData, saItems, results]: [TechMatrix, SelfAssessmentItem[], AssessmentResult[]]) => {
         setMatrix(matrixData);
+        // Collapse every section by default — user expands what they need
+        setCollapsedSections(new Set(matrixData.sections.map((s) => s.id)));
         const sm: Record<string, number | null> = {};
         if (Array.isArray(saItems)) {
           for (const item of saItems) sm[item.topicId] = item.score;
@@ -174,13 +176,14 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
   if (loading) return <p className="text-muted-foreground py-4">Загрузка матрицы...</p>;
   if (!matrix) return <p className="text-destructive py-4">Ошибка загрузки</p>;
 
-  const dotColor = GRADE_DOT[grade] || "bg-gray-400";
+  const base = baseGrade(grade);
+  const dotColor = GRADE_DOT[base] || "bg-gray-400";
 
   const filteredSections = matrix.sections
     .map((section) => ({
       ...section,
       topics: section.topics.filter(
-        (topic) => (topic[grade as keyof TechMatrixTopic] as string[])?.length > 0
+        (topic) => (topic[base as keyof TechMatrixTopic] as string[])?.length > 0
       ),
     }))
     .filter((section) => section.topics.length > 0);
@@ -189,9 +192,9 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${GRADE_DOT_BG[grade] || "bg-gray-500"}`} />
-          <span className={`text-sm font-medium ${GRADE_LABEL_COLOR[grade] || "text-gray-600"} uppercase tracking-wide`}>
-            Техническая матрица &middot; {GRADE_LABELS[grade] || grade}
+          <span className={`w-2 h-2 rounded-full ${GRADE_DOT_BG[base] || "bg-gray-500"}`} />
+          <span className={`text-sm font-medium ${GRADE_LABEL_COLOR[base] || "text-gray-600"} uppercase tracking-wide`}>
+            Техническая матрица &middot; {gradeLabel(grade)}
           </span>
         </div>
         {saving && <span className="text-xs text-muted-foreground animate-pulse">Сохранение...</span>}
@@ -219,8 +222,8 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                     <tr className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
                       <th className="text-left px-3 py-2 font-medium w-[140px]">Тема</th>
                       <th className="text-left px-3 py-2 font-medium border-l border-border/60 w-[280px]">
-                        <span className={`inline-flex items-center gap-1 ${GRADE_LABEL_COLOR[grade]}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${GRADE_DOT_BG[grade]}`} />
+                        <span className={`inline-flex items-center gap-1 ${GRADE_LABEL_COLOR[base]}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${GRADE_DOT_BG[base]}`} />
                           Навыки
                         </span>
                       </th>
@@ -231,7 +234,7 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                   </thead>
                   <tbody className="divide-y divide-border/40">
                     {section.topics.map((topic) => {
-                      const skills = topic[grade as keyof TechMatrixTopic] as string[];
+                      const skills = topic[base as keyof TechMatrixTopic] as string[];
                       const aScore = assessorScores[topic.id];
 
                       return (
@@ -260,11 +263,17 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                           </td>
                           <td className="px-2 py-2 align-top border-r border-border/40">
                             <input
-                              type="number"
-                              min={1}
-                              max={10}
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={2}
                               value={aScore?.score ?? ""}
-                              onChange={(e) => handleAssessorChange(topic.id, "score", e.target.value ? Number(e.target.value) : null)}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+                                const n = raw === "" ? null : Number(raw);
+                                const clamped = n === null ? null : Math.min(Math.max(n, 0), 10);
+                                handleAssessorChange(topic.id, "score", clamped);
+                              }}
                               disabled={!isAssessor}
                               className="w-full h-7 text-center text-[12px] rounded border border-border/60 bg-transparent focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                               placeholder="—"

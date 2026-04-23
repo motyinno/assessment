@@ -24,6 +24,11 @@ export interface AIGeneratedPDPTopics {
   }>;
 }
 
+export interface TechMatrixTopicInput {
+  title: string;
+  skills: string[];
+}
+
 /**
  * Generate detailed feedback for each category based on assessment results
  */
@@ -107,6 +112,89 @@ Use the EXACT same category name as shown in the Assessment Results above (maint
   } catch (error) {
     console.error("Error generating AI feedback:", error);
     throw new Error("Failed to generate AI feedback. Please check your Gemini API key and try again.");
+  }
+}
+
+/**
+ * Generate PDP content for a set of tech-matrix topics chosen for the user's
+ * grade, without reference to a completed assessment. Returns one practical
+ * task + a small set of study questions per topic.
+ */
+export async function generateStandalonePDP(
+  topics: TechMatrixTopicInput[],
+  employeeName: string,
+  grade: string
+): Promise<AIGeneratedPDPTopics> {
+  if (topics.length === 0) {
+    return { pdpTopics: [] };
+  }
+
+  const topicsList = topics
+    .map(
+      (t) =>
+        `- ${t.title} (grade-relevant skills: ${t.skills.length ? t.skills.join("; ") : "general fundamentals"})`
+    )
+    .join("\n");
+
+  const prompt = `You are an expert technical mentor preparing a Professional Development Plan (PDP) for an employee.
+
+Employee Name: ${employeeName}
+Grade: ${grade}
+
+Topics to cover (from the ${grade}-grade technical matrix):
+${topicsList}
+
+For each topic, produce:
+- 2-3 concise study questions the employee should learn/research to master the topic at their grade
+- EXACTLY ONE practical task that demonstrates mastery of the topic
+
+Target each item at the stated grade — not too easy, not beyond scope.
+
+IMPORTANT:
+- All questions and practical tasks MUST be in ENGLISH.
+- Use the EXACT same topic title as in the list above — preserve capitalization and spacing (e.g. "TypeScript Fundamentals", not "typescript-fundamentals").
+
+Respond ONLY with valid JSON:
+{
+  "pdpTopics": [
+    { "category": "Topic title", "questions": ["...", "..."], "practicalTask": "..." }
+  ]
+}`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: "You are an expert technical mentor. Always respond with valid JSON only.",
+            },
+            { text: prompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const responseContent = result.response.text();
+    if (!responseContent) throw new Error("No response content from Gemini");
+
+    const parsed = JSON.parse(responseContent) as AIGeneratedPDPTopics;
+    parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
+      ...topic,
+      category: normalizeCategory(topic.category),
+    }));
+    return parsed;
+  } catch (error) {
+    console.error("Error generating standalone PDP:", error);
+    throw new Error(
+      "Failed to generate PDP via AI. Check GEMINI_API_KEY and try again."
+    );
   }
 }
 

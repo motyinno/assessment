@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,17 +8,15 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { AssessmentProgress } from "@/components/assessment-progress";
-import { SESSION_TYPE_LABELS, SESSION_STATUS_LABELS } from "@/lib/assessment-sessions";
+import {
+  SESSION_TYPE_LABELS,
+  SESSION_STATUS_LABELS,
+  ASSESSMENT_TYPE_LABELS,
+} from "@/lib/assessment-sessions";
+import { gradeLabel } from "@/lib/grades";
 import { AssessmentMatrix } from "@/components/assessment-matrix";
+import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
   PLANNED: "Запланирован",
@@ -27,18 +25,64 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Отменён",
 };
 
-const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  PLANNED: "outline",
-  IN_PROGRESS: "default",
-  COMPLETED: "secondary",
+const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info" | "warning"> = {
+  PLANNED: "warning",
+  IN_PROGRESS: "info",
+  COMPLETED: "success",
   CANCELLED: "destructive",
 };
 
-const gradeLabels: Record<string, string> = {
-  jun: "Junior",
-  mid: "Middle",
-  sen: "Senior",
-};
+function SessionStatusIcon({ status }: { status: string }) {
+  const base = "w-9 h-9 rounded-full flex items-center justify-center shrink-0";
+  if (status === "COMPLETED") {
+    return (
+      <div className={cn(base, "bg-success/15 text-success ring-1 ring-success/20")}>
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+    );
+  }
+  if (status === "IN_PROGRESS") {
+    return (
+      <div className={cn(base, "bg-info/15 text-info ring-1 ring-info/20")}>
+        <span className="w-2 h-2 rounded-full bg-info animate-pulse" />
+      </div>
+    );
+  }
+  if (status === "SKIPPED") {
+    return (
+      <div className={cn(base, "bg-muted text-muted-foreground")}>
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    <div className={cn(base, "bg-muted text-muted-foreground")}>
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+      </svg>
+    </div>
+  );
+}
+
+function SessionStatusBadge({ status }: { status: string }) {
+  const variant =
+    status === "COMPLETED"
+      ? "success"
+      : status === "IN_PROGRESS"
+        ? "info"
+        : status === "SKIPPED"
+          ? "outline"
+          : "outline";
+  return (
+    <Badge variant={variant} className="mt-0.5">
+      {SESSION_STATUS_LABELS[status] || status}
+    </Badge>
+  );
+}
 
 interface SessionInfo {
   id: string;
@@ -51,6 +95,9 @@ interface SessionInfo {
   startedAt: string | null;
   completedAt: string | null;
   notes: string | null;
+  meetingLink: string | null;
+  meetingScheduledAt: string | null;
+  recordingLink: string | null;
 }
 
 interface Assessment {
@@ -58,6 +105,8 @@ interface Assessment {
   title: string;
   status: string;
   grade: string;
+  assessmentType: string;
+  aiFeedback: string | null;
   scheduledAt: string | null;
   completedAt: string | null;
   notes: string | null;
@@ -78,6 +127,7 @@ interface Assessment {
     id: string;
     fileName: string;
     createdAt: string;
+    driveLink: string | null;
     user: { id: string; name: string };
   }>;
   sessions: SessionInfo[];
@@ -90,8 +140,11 @@ export default function AssessmentDetailPage() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionActionLoading, setSessionActionLoading] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
   const [generatingFeedback, setGeneratingFeedback] = useState(false);
+  const [savingFeedback, setSavingFeedback] = useState(false);
+  const [feedbackSavedAt, setFeedbackSavedAt] = useState<number | null>(null);
+  const [matrixOpen, setMatrixOpen] = useState(false);
 
   const id = params.id as string;
   const role = session?.user?.role;
@@ -104,7 +157,9 @@ export default function AssessmentDetailPage() {
   async function fetchAssessment() {
     const res = await fetch(`/api/assessments/${id}`);
     if (res.ok) {
-      setAssessment(await res.json());
+      const data: Assessment = await res.json();
+      setAssessment(data);
+      setFeedbackText(data.aiFeedback ?? "");
     }
     setLoading(false);
   }
@@ -118,19 +173,26 @@ export default function AssessmentDetailPage() {
     if (res.ok) fetchAssessment();
   }
 
-  async function handleSessionAction(sessionId: string, action: "start" | "complete") {
+  async function handleSessionAction(
+    sessionId: string,
+    action: "start" | "complete",
+    extra?: { notes?: string }
+  ) {
     setSessionActionLoading(true);
     const newStatus = action === "start" ? "IN_PROGRESS" : "COMPLETED";
+    const body: Record<string, unknown> = { sessionId, status: newStatus };
+    if (extra?.notes !== undefined) body.notes = extra.notes;
     const res = await fetch(`/api/assessments/${id}/sessions`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, status: newStatus }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       await fetchAssessment();
     }
     setSessionActionLoading(false);
   }
+
 
   async function createSessions() {
     setSessionActionLoading(true);
@@ -151,21 +213,45 @@ export default function AssessmentDetailPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setFeedback(data.generalFeedback);
+        setFeedbackText(data.text ?? "");
+        setFeedbackSavedAt(null);
       } else {
         const error = await res.json();
         alert(error.error || "Ошибка генерации фидбека");
       }
-    } catch (error) {
+    } catch {
       alert("Ошибка генерации фидбека");
     }
     setGeneratingFeedback(false);
+  }
+
+  async function saveFeedback() {
+    setSavingFeedback(true);
+    try {
+      const res = await fetch(`/api/assessments/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiFeedback: feedbackText }),
+      });
+      if (res.ok) {
+        setFeedbackSavedAt(Date.now());
+        setAssessment((prev) => (prev ? { ...prev, aiFeedback: feedbackText } : prev));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Не удалось сохранить фидбек");
+      }
+    } catch {
+      alert("Не удалось сохранить фидбек");
+    }
+    setSavingFeedback(false);
   }
 
   if (loading)
     return <p className="text-muted-foreground">Загрузка...</p>;
   if (!assessment)
     return <p className="text-destructive">Ассессмент не найден</p>;
+
+  const isPdpCheck = assessment.assessmentType === "PDP_CHECK";
 
   const subjects = assessment.participants.filter(
     (p) => p.participantRole === "SUBJECT"
@@ -187,22 +273,32 @@ export default function AssessmentDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{assessment.title}</h1>
-          <div className="flex items-center gap-2 mt-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Link href="/assessments" className="hover:text-foreground transition-colors">
+              Ассессменты
+            </Link>
+            <span>/</span>
+            <span className="text-foreground/70 truncate">{assessment.title}</span>
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">{assessment.title}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant={statusVariants[assessment.status]}>
               {statusLabels[assessment.status]}
             </Badge>
             <Badge variant="outline">
-              {gradeLabels[assessment.grade] || assessment.grade}
+              {gradeLabel(assessment.grade)}
+            </Badge>
+            <Badge variant={isPdpCheck ? "info" : "secondary"}>
+              {ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || assessment.assessmentType}
             </Badge>
           </div>
         </div>
 
         {isAssessor && (
           <div className="flex gap-2">
-            {assessment.status === "COMPLETED" && (
+            {assessment.status === "COMPLETED" && !isPdpCheck && (
               <Link href={`/assessments/${id}/generate`} className={buttonVariants()}>
                 Сгенерировать ИПР
               </Link>
@@ -225,7 +321,9 @@ export default function AssessmentDetailPage() {
         <AssessmentProgress
           sessions={assessment.sessions}
           isAssessor={isAssessor}
+          assessmentId={id}
           onSessionAction={handleSessionAction}
+          onMeetingChange={fetchAssessment}
           loading={sessionActionLoading}
         />
       )}
@@ -293,7 +391,16 @@ export default function AssessmentDetailPage() {
                 </p>
                 {subjects.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 py-1">
-                    <span className="text-sm">{p.user.name}</span>
+                    {isAssessor ? (
+                      <Link
+                        href={`/users/${p.user.id}`}
+                        className="text-sm hover:text-primary hover:underline underline-offset-2 transition-colors"
+                      >
+                        {p.user.name}
+                      </Link>
+                    ) : (
+                      <span className="text-sm">{p.user.name}</span>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {p.user.email}
                     </span>
@@ -308,7 +415,16 @@ export default function AssessmentDetailPage() {
                 </p>
                 {assessors.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 py-1">
-                    <span className="text-sm">{p.user.name}</span>
+                    {isAssessor ? (
+                      <Link
+                        href={`/users/${p.user.id}`}
+                        className="text-sm hover:text-primary hover:underline underline-offset-2 transition-colors"
+                      >
+                        {p.user.name}
+                      </Link>
+                    ) : (
+                      <span className="text-sm">{p.user.name}</span>
+                    )}
                     {p.assignedSections && (
                       <span className="text-xs text-muted-foreground">
                         ({JSON.parse(p.assignedSections).join(", ")})
@@ -328,161 +444,355 @@ export default function AssessmentDetailPage() {
           <CardHeader>
             <CardTitle>История проведения</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Этап</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Асессор</TableHead>
-                  <TableHead>Начало</TableHead>
-                  <TableHead>Завершение</TableHead>
-                  <TableHead>Длительность</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assessment.sessions
-                  .filter((s) => s.status !== "NOT_STARTED")
-                  .map((s) => (
-                    <TableRow key={s.id}>
-                      <TableCell className="font-medium">
-                        {SESSION_TYPE_LABELS[s.type] || s.type}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            s.status === "COMPLETED" ? "secondary" :
-                            s.status === "IN_PROGRESS" ? "default" :
-                            s.status === "SKIPPED" ? "outline" : "outline"
-                          }
-                        >
-                          {SESSION_STATUS_LABELS[s.status] || s.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {s.assessorName || (s.status === "SKIPPED" ? "—" : "Не назначен")}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {s.startedAt
-                          ? new Date(s.startedAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {s.completedAt
-                          ? new Date(s.completedAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {s.startedAt && s.completedAt
-                          ? `${Math.round((new Date(s.completedAt).getTime() - new Date(s.startedAt).getTime()) / 60000)} мин.`
-                          : s.status === "SKIPPED" ? "Пропущена" : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+          <CardContent className="space-y-3">
+            {assessment.sessions
+              .filter((s) => s.status !== "NOT_STARTED")
+              .map((s) => {
+                const duration =
+                  s.startedAt && s.completedAt
+                    ? `${Math.round(
+                        (new Date(s.completedAt).getTime() -
+                          new Date(s.startedAt).getTime()) /
+                          60000
+                      )} мин.`
+                    : null;
+                const dateStr = s.startedAt
+                  ? new Date(s.startedAt).toLocaleDateString("ru-RU", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })
+                  : null;
+                const timeRange =
+                  s.startedAt && s.completedAt
+                    ? `${new Date(s.startedAt).toLocaleTimeString("ru-RU", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })} – ${new Date(s.completedAt).toLocaleTimeString("ru-RU", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}`
+                    : s.startedAt
+                      ? `с ${new Date(s.startedAt).toLocaleTimeString("ru-RU", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}`
+                      : null;
+
+                const metaParts: React.ReactNode[] = [];
+                metaParts.push(
+                  <span key="assessor" className="inline-flex items-center gap-1">
+                    <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                    {s.assessorName || (s.status === "SKIPPED" ? "—" : "Не назначен")}
+                  </span>
+                );
+                if (dateStr) {
+                  metaParts.push(
+                    <span key="when" className="inline-flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      {dateStr}
+                      {timeRange && (
+                        <span className="text-muted-foreground">· {timeRange}</span>
+                      )}
+                    </span>
+                  );
+                }
+                if (duration || s.status === "SKIPPED") {
+                  metaParts.push(
+                    <span key="dur" className="inline-flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      {duration ?? (s.status === "SKIPPED" ? "Пропущена" : "—")}
+                    </span>
+                  );
+                }
+
+                return (
+                  <div
+                    key={s.id}
+                    className="relative rounded-xl border border-border bg-card overflow-hidden"
+                  >
+                    <div
+                      className={cn(
+                        "absolute left-0 top-0 bottom-0 w-1",
+                        s.status === "COMPLETED"
+                          ? "bg-success"
+                          : s.status === "IN_PROGRESS"
+                            ? "bg-info"
+                            : s.status === "SKIPPED"
+                              ? "bg-muted-foreground/30"
+                              : "bg-border"
+                      )}
+                    />
+                    <div className="pl-5 pr-4 py-3.5 space-y-2.5">
+                      {/* Top row: stage + status + actions */}
+                      <div className="flex items-start gap-3">
+                        <SessionStatusIcon status={s.status} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p
+                              className={cn(
+                                "text-sm font-medium",
+                                s.status === "SKIPPED" && "text-muted-foreground line-through"
+                              )}
+                            >
+                              {SESSION_TYPE_LABELS[s.type] || s.type}
+                            </p>
+                            <SessionStatusBadge status={s.status} />
+                          </div>
+                        </div>
+                        {s.status === "COMPLETED" && (
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0 justify-end">
+                            {s.recordingLink ? (
+                              <a
+                                href={s.recordingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 px-2 py-1 rounded-md"
+                              >
+                                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                  <polygon points="23 7 16 12 23 17 23 7" />
+                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                </svg>
+                                Запись
+                              </a>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-md bg-muted/60">
+                                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
+                                Запись ожидается
+                              </span>
+                            )}
+                            {isAssessor && !s.recordingLink && (
+                              <RecordingSyncButton
+                                assessmentId={id}
+                                sessionId={s.id}
+                                onSynced={fetchAssessment}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Meta line */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-foreground/80 pl-12">
+                        {metaParts.map((m, i) => (
+                          <Fragment key={i}>{m}</Fragment>
+                        ))}
+                      </div>
+
+                      {/* Feedback notes */}
+                      {s.notes && (
+                        <div className="pl-12">
+                          <details className="group/notes">
+                            <summary className="cursor-pointer list-none inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                              <svg
+                                className="w-3.5 h-3.5 transition-transform group-open/notes:rotate-90"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="9 18 15 12 9 6" />
+                              </svg>
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                              </svg>
+                              Фидбек по сессии
+                            </summary>
+                            <div className="mt-2 text-sm text-foreground/90 whitespace-pre-wrap rounded-md bg-muted/40 border border-border/60 p-3 leading-relaxed">
+                              {s.notes}
+                            </div>
+                          </details>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
           </CardContent>
         </Card>
       )}
 
-      {/* Tech Matrix with Self-Assessment */}
-      {assessment.status !== "CANCELLED" && (
-        <AssessmentMatrix
-          assessmentId={assessment.id}
-          grade={assessment.grade}
-          isSubject={isSubject}
-          isAssessor={isAssessor}
-        />
+      {/* Tech Matrix with Self-Assessment — hidden for PDP check, collapsed by default */}
+      {assessment.status !== "CANCELLED" && !isPdpCheck && (
+        <Card>
+          <button
+            type="button"
+            onClick={() => setMatrixOpen((v) => !v)}
+            className="w-full flex items-center gap-2 px-6 py-4 hover:bg-muted/40 rounded-lg transition-colors"
+          >
+            <span
+              className="text-muted-foreground text-xs transition-transform"
+              style={{ transform: matrixOpen ? "rotate(0)" : "rotate(-90deg)" }}
+            >
+              ▼
+            </span>
+            <span className="text-base font-semibold">Техническая матрица</span>
+            <span className="text-xs text-muted-foreground ml-auto">
+              {matrixOpen ? "Скрыть" : "Показать"}
+            </span>
+          </button>
+          {matrixOpen && (
+            <CardContent className="pt-0">
+              <AssessmentMatrix
+                assessmentId={assessment.id}
+                grade={assessment.grade}
+                isSubject={isSubject}
+                isAssessor={isAssessor}
+              />
+            </CardContent>
+          )}
+        </Card>
       )}
 
-      {/* AI Feedback Generation */}
-      {assessment.status === "COMPLETED" && isAssessor && (
+      {/* Feedback — general flow only. Text can be authored manually or via AI. */}
+      {assessment.status === "COMPLETED" && isAssessor && !isPdpCheck && (
         <Card>
-          <CardHeader>
-            <CardTitle>AI Фидбек</CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Фидбек по ассессменту</CardTitle>
+              {feedbackSavedAt && !savingFeedback && (
+                <span className="text-xs text-success inline-flex items-center gap-1">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Сохранено
+                </span>
+              )}
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {!feedback ? (
+          <CardContent className="space-y-3">
+            <textarea
+              value={feedbackText}
+              onChange={(e) => {
+                setFeedbackText(e.target.value);
+                setFeedbackSavedAt(null);
+              }}
+              rows={10}
+              placeholder="Напишите фидбек вручную или сгенерируйте через AI и отредактируйте."
+              className="w-full min-h-[220px] rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <div className="flex flex-wrap items-center gap-2">
               <Button
+                onClick={saveFeedback}
+                disabled={savingFeedback || feedbackText === (assessment.aiFeedback ?? "")}
+              >
+                {savingFeedback ? "Сохранение..." : "Сохранить"}
+              </Button>
+              <Button
+                variant="outline"
                 onClick={generateFeedback}
                 disabled={generatingFeedback}
-                className="w-full"
               >
-                {generatingFeedback ? "Генерация..." : "Сгенерировать фидбек через AI"}
+                {generatingFeedback ? "Генерация..." : "Сгенерировать через AI"}
               </Button>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={generateFeedback}
-                    disabled={generatingFeedback}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {generatingFeedback ? "Генерация..." : "Перегенерировать"}
-                  </Button>
-                  <Button
-                    onClick={() => setFeedback(null)}
-                    variant="ghost"
-                    size="sm"
-                  >
-                    Скрыть
-                  </Button>
-                </div>
-                <div className="prose prose-sm max-w-none p-4 bg-muted/50 rounded-lg">
-                  {feedback.split('\n').map((paragraph, idx) => (
-                    <p key={idx} className="mb-2">{paragraph}</p>
-                  ))}
-                </div>
-              </div>
-            )}
+              {feedbackText && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setFeedbackText("");
+                    setFeedbackSavedAt(null);
+                  }}
+                >
+                  Очистить
+                </Button>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {feedbackText.length} симв.
+              </span>
+            </div>
           </CardContent>
         </Card>
       )}
 
 
-      {/* PDPs */}
-      {assessment.pdps.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Планы развития</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Файл</TableHead>
-                  <TableHead>Сотрудник</TableHead>
-                  <TableHead>Дата</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {assessment.pdps.map((pdp) => (
-                  <TableRow key={pdp.id}>
-                    <TableCell className="font-medium">{pdp.fileName}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {pdp.user.name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {new Date(pdp.createdAt).toLocaleDateString("ru-RU")}
-                    </TableCell>
-                    <TableCell>
-                      <Link href={`/api/pdps/${pdp.id}/download`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                        Скачать
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
 
       <Button variant="outline" onClick={() => router.push("/assessments")}>
         Назад к списку
       </Button>
+    </div>
+  );
+}
+
+/**
+ * The recording is pulled automatically from the assessor's Drive after the
+ * meeting ends. This button is the "Обновить" fallback when Google takes
+ * longer than 3 minutes to publish the file and the auto-sync missed it.
+ */
+function RecordingSyncButton({
+  assessmentId,
+  sessionId,
+  onSynced,
+}: {
+  assessmentId: string;
+  sessionId: string;
+  onSynced: () => Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function triggerSync() {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/assessments/${assessmentId}/sessions/${sessionId}/sync`,
+        { method: "POST" }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Не удалось синхронизировать");
+      }
+      const data = await res.json();
+      if (!data.recordingFound) {
+        setError(
+          "Запись пока не найдена. Google публикует её через несколько минут после завершения встречи — попробуйте чуть позже."
+        );
+      }
+      await onSynced();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Ошибка");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        disabled={loading}
+        onClick={triggerSync}
+        className="inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50 px-1.5 py-1 rounded-md hover:bg-muted"
+        title="Синхронизировать запись с Google Drive"
+      >
+        <svg
+          className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <polyline points="1 20 1 14 7 14" />
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+        </svg>
+      </button>
+      {error && <p className="text-xs text-destructive max-w-[220px]">{error}</p>}
     </div>
   );
 }

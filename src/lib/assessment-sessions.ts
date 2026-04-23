@@ -3,6 +3,7 @@ export const SESSION_TYPES = {
   TECHNICAL_1: "TECHNICAL_1",
   TECHNICAL_2: "TECHNICAL_2",
   TECHNICAL_3: "TECHNICAL_3",
+  PDP_TECH: "PDP_TECH",
 } as const;
 
 export const SESSION_STATUSES = {
@@ -12,11 +13,22 @@ export const SESSION_STATUSES = {
   SKIPPED: "SKIPPED",
 } as const;
 
+export const ASSESSMENT_TYPES = {
+  GENERAL: "GENERAL",
+  PDP_CHECK: "PDP_CHECK",
+} as const;
+
+export const ASSESSMENT_TYPE_LABELS: Record<string, string> = {
+  GENERAL: "Общий ассессмент",
+  PDP_CHECK: "Проверка ИПР",
+};
+
 export const SESSION_TYPE_LABELS: Record<string, string> = {
   SOFT_AI: "Soft + AI",
   TECHNICAL_1: "Техническая 1",
   TECHNICAL_2: "Техническая 2",
   TECHNICAL_3: "Техническая 3",
+  PDP_TECH: "Проверка ИПР",
 };
 
 export const SESSION_STATUS_LABELS: Record<string, string> = {
@@ -26,6 +38,8 @@ export const SESSION_STATUS_LABELS: Record<string, string> = {
   SKIPPED: "Пропущена",
 };
 
+import { baseGrade } from "./grades";
+
 export interface SessionTemplate {
   type: string;
   status: string;
@@ -34,13 +48,26 @@ export interface SessionTemplate {
 }
 
 /**
- * Build session templates for a given grade.
- * If softAiInterviewPassed, the SOFT_AI session is created as SKIPPED.
+ * Build session templates for a given grade and assessment type.
+ * - GENERAL: SOFT_AI (SKIPPED if already passed) + 2 tech sessions (jun) or 3 (mid/sen).
+ * - PDP_CHECK: single 1-hour tech session (PDP_TECH).
  */
 export function buildSessionsForGrade(
   grade: string,
-  softAiInterviewPassed: boolean
+  softAiInterviewPassed: boolean,
+  assessmentType: string = ASSESSMENT_TYPES.GENERAL
 ): SessionTemplate[] {
+  if (assessmentType === ASSESSMENT_TYPES.PDP_CHECK) {
+    return [
+      {
+        type: SESSION_TYPES.PDP_TECH,
+        status: SESSION_STATUSES.NOT_STARTED,
+        order: 0,
+        durationMin: 60,
+      },
+    ];
+  }
+
   const sessions: SessionTemplate[] = [
     {
       type: SESSION_TYPES.SOFT_AI,
@@ -62,8 +89,9 @@ export function buildSessionsForGrade(
     },
   ];
 
-  // Mid and Sen get a 3rd technical session
-  if (grade === "mid" || grade === "sen") {
+  // Mid and Sen get a 3rd technical session (grade may be "mid-", "mid+", etc.)
+  const base = baseGrade(grade);
+  if (base === "mid" || base === "sen") {
     sessions.push({
       type: SESSION_TYPES.TECHNICAL_3,
       status: SESSION_STATUSES.NOT_STARTED,
@@ -78,7 +106,12 @@ export function buildSessionsForGrade(
 /**
  * Get total planned hours for an assessment.
  */
-export function getTotalHours(grade: string, softAiSkipped: boolean): number {
-  const techHours = grade === "jun" ? 2 : 3;
+export function getTotalHours(
+  grade: string,
+  softAiSkipped: boolean,
+  assessmentType: string = ASSESSMENT_TYPES.GENERAL
+): number {
+  if (assessmentType === ASSESSMENT_TYPES.PDP_CHECK) return 1;
+  const techHours = baseGrade(grade) === "jun" ? 2 : 3;
   return techHours + (softAiSkipped ? 0 : 1);
 }

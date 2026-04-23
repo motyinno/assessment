@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
@@ -13,6 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
+
+const ROLE_LABEL: Record<string, string> = {
+  ADMIN: "Админ",
+  ASSESSOR: "Асессор",
+  USER: "Пользователь",
+};
+
+function initialsOf(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -25,6 +43,7 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -48,6 +67,7 @@ export default function ProfilePage() {
     e.preventDefault();
     setMessage("");
     setError("");
+    setSaving(true);
 
     const data: Record<string, string> = {
       name: form.name,
@@ -69,64 +89,174 @@ export default function ProfilePage() {
       const d = await res.json();
       setError(d.error || "Ошибка сохранения");
     }
+    setSaving(false);
   }
 
-  if (loading) return <p className="text-muted-foreground">Загрузка...</p>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-sm text-muted-foreground">Загрузка...</p>
+      </div>
+    );
+  }
+
+  const email = session?.user?.email ?? "";
+  const role = (session?.user as { role?: string } | undefined)?.role ?? "USER";
+  const initials = initialsOf(form.name || "?");
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Профиль</h1>
-        <p className="text-muted-foreground">Настройки вашего профиля</p>
+        <h1 className="page-title">Профиль</h1>
+        <p className="page-subtitle mt-1">
+          Ваши персональные данные и предпочтения в системе
+        </p>
       </div>
 
+      {/* Identity banner */}
+      <Card>
+        <CardContent className="pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/5 text-primary flex items-center justify-center text-lg font-semibold ring-1 ring-primary/20 shrink-0">
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-foreground truncate">
+              {form.name || "—"}
+            </h2>
+            <p className="text-sm text-muted-foreground truncate">{email}</p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Badge
+                variant={
+                  role === "ADMIN"
+                    ? "warning"
+                    : role === "ASSESSOR"
+                      ? "default"
+                      : "secondary"
+                }
+              >
+                {ROLE_LABEL[role] || role}
+              </Badge>
+              {form.grade && (
+                <Badge variant="outline">{gradeLabel(form.grade)}</Badge>
+              )}
+              {form.project && (
+                <Badge variant="secondary">{form.project}</Badge>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit form */}
       <Card>
         <CardHeader>
           <CardTitle>Личные данные</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSave} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Имя</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
+          <form onSubmit={handleSave} className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Имя</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input
+                  value={email}
+                  disabled
+                  readOnly
+                  className="h-10"
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Email управляется через Google SSO
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Грейд</Label>
+                {role === "ADMIN" ? (
+                  <Select
+                    value={form.grade}
+                    onValueChange={(v) => v && setForm({ ...form, grade: v })}
+                  >
+                    <SelectTrigger className="!h-10 w-full">
+                      <SelectValue placeholder="Выберите грейд" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {GRADE_VALUES.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {gradeLabel(g)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <>
+                    <Input
+                      value={form.grade ? gradeLabel(form.grade) : ""}
+                      disabled
+                      readOnly
+                      placeholder="Грейд не назначен"
+                      className="h-10"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Грейд назначает администратор
+                    </p>
+                  </>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Проект</Label>
+                <Input
+                  value={form.project}
+                  onChange={(e) =>
+                    setForm({ ...form, project: e.target.value })
+                  }
+                  placeholder="Например, Innowise Core"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>Руководитель</Label>
+                <Input
+                  value={form.manager}
+                  onChange={(e) =>
+                    setForm({ ...form, manager: e.target.value })
+                  }
+                  placeholder="Имя и фамилия руководителя"
+                  className="h-10"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Грейд</Label>
-              <Select
-                value={form.grade}
-                onValueChange={(v) => v && setForm({ ...form, grade: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите грейд" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="jun">Junior</SelectItem>
-                  <SelectItem value="mid">Middle</SelectItem>
-                  <SelectItem value="sen">Senior</SelectItem>
-                </SelectContent>
-              </Select>
+
+            <div className="flex items-center gap-3 pt-2 border-t">
+              <Button type="submit" size="lg" disabled={saving}>
+                {saving ? "Сохранение..." : "Сохранить изменения"}
+              </Button>
+              {message && (
+                <span className="text-sm text-success inline-flex items-center gap-1">
+                  <svg
+                    className="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  {message}
+                </span>
+              )}
+              {error && (
+                <span className="text-sm text-destructive">{error}</span>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label>Проект</Label>
-              <Input
-                value={form.project}
-                onChange={(e) => setForm({ ...form, project: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Руководитель</Label>
-              <Input
-                value={form.manager}
-                onChange={(e) => setForm({ ...form, manager: e.target.value })}
-              />
-            </div>
-            {message && <p className="text-sm text-green-600">{message}</p>}
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit">Сохранить</Button>
           </form>
         </CardContent>
       </Card>

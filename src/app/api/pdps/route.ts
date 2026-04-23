@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
+import { uploadPdpToDrive } from "@/lib/google-drive";
 import path from "path";
 import fs from "fs/promises";
 
@@ -61,9 +62,22 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(filePath, buffer);
 
+  // Upload to Google Drive of the uploader (the assessor/admin generating the PDP).
+  // Falls back silently if the user hasn't connected Google (e.g. dev-credentials logins).
+  const driveResult = await uploadPdpToDrive(session!.user.id, fileName, buffer).catch(
+    (e) => {
+      console.error("Drive upload threw:", e);
+      return null;
+    }
+  );
+
   const updated = await prisma.pdp.update({
     where: { id: pdp.id },
-    data: { filePath: `data/pdps/${pdp.id}.docx` },
+    data: {
+      filePath: `data/pdps/${pdp.id}.docx`,
+      driveFileId: driveResult?.fileId ?? null,
+      driveLink: driveResult?.webViewLink ?? null,
+    },
   });
 
   return NextResponse.json(updated, { status: 201 });

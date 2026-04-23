@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 
 interface User {
   id: string;
@@ -42,11 +43,32 @@ interface User {
   createdAt: string;
 }
 
+const ROLE_META: Record<
+  string,
+  { label: string; tone: "warning" | "default" | "secondary"; accent: string }
+> = {
+  ADMIN: { label: "Админ", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
+  ASSESSOR: { label: "Асессор", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
+  USER: { label: "Пользователь", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
+};
+
+function userInitials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
 export default function UsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "ASSESSOR" | "USER">("ALL");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -94,13 +116,15 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold">Пользователи</h1>
-          <p className="text-muted-foreground">Управление пользователями системы</p>
+          <h1 className="page-title">Пользователи</h1>
+          <p className="page-subtitle mt-1">
+            Всего в системе: <span className="font-medium text-foreground">{users.length}</span>
+          </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger render={<Button />}>
+          <DialogTrigger render={<Button size="lg" />}>
             Создать пользователя
           </DialogTrigger>
           <DialogContent>
@@ -152,9 +176,11 @@ export default function UsersPage() {
                       <SelectValue placeholder="Выберите" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="jun">Junior</SelectItem>
-                      <SelectItem value="mid">Middle</SelectItem>
-                      <SelectItem value="sen">Senior</SelectItem>
+                      {GRADE_VALUES.map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {gradeLabel(g)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -182,38 +208,152 @@ export default function UsersPage() {
         </Dialog>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Имя</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Роль</TableHead>
-                <TableHead>Грейд</TableHead>
-                <TableHead>Проект</TableHead>
-                <TableHead>Руководитель</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === "ADMIN" ? "destructive" : user.role === "ASSESSOR" ? "default" : "secondary"}>
-                      {{ ADMIN: "Админ", ASSESSOR: "Асессор", USER: "Пользователь" }[user.role] || user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{user.grade ? ({ jun: "Junior", mid: "Middle", sen: "Senior" }[user.grade] || user.grade) : "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{user.project || "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{user.manager || "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Role filter chips with counts */}
+      <div className="flex flex-wrap items-center gap-2">
+        {(["ALL", "ADMIN", "ASSESSOR", "USER"] as const).map((r) => {
+          const count =
+            r === "ALL" ? users.length : users.filter((u) => u.role === r).length;
+          const active = roleFilter === r;
+          const label =
+            r === "ALL" ? "Все" : ROLE_META[r]?.label ?? r;
+          return (
+            <button
+              key={r}
+              onClick={() => setRoleFilter(r)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all " +
+                (active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-card text-muted-foreground hover:text-foreground ring-1 ring-border hover:ring-primary/30")
+              }
+            >
+              {label}
+              <span
+                className={
+                  "inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-semibold " +
+                  (active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")
+                }
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+        <div className="ml-auto w-full sm:w-64">
+          <div className="relative">
+            <svg
+              aria-hidden
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Поиск по имени или email"
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* User table */}
+      {(() => {
+        const filtered = users.filter((u) => {
+          if (roleFilter !== "ALL" && u.role !== roleFilter) return false;
+          if (!search) return true;
+          const q = search.toLowerCase();
+          return (
+            u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            (u.project ?? "").toLowerCase().includes(q)
+          );
+        });
+
+        if (filtered.length === 0) {
+          return (
+            <Card>
+              <CardContent className="py-14 flex flex-col items-center gap-2 text-center">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium">Пользователи не найдены</p>
+                <p className="text-xs text-muted-foreground">Попробуйте изменить фильтр или поиск.</p>
+              </CardContent>
+            </Card>
+          );
+        }
+
+        return (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Пользователь</TableHead>
+                    <TableHead>Роль</TableHead>
+                    <TableHead>Грейд</TableHead>
+                    <TableHead>Проект</TableHead>
+                    <TableHead>Руководитель</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((user) => {
+                    const meta = ROLE_META[user.role] ?? ROLE_META.USER;
+                    return (
+                      <TableRow
+                        key={user.id}
+                        className="cursor-pointer"
+                        onClick={() => router.push(`/users/${user.id}`)}
+                      >
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`w-8 h-8 shrink-0 rounded-full bg-gradient-to-br ${meta.accent} flex items-center justify-center text-[11px] font-semibold ring-1 ring-border/50`}
+                            >
+                              {userInitials(user.name)}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={meta.tone}>{meta.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.grade ? (
+                            <Badge variant="outline">{gradeLabel(user.grade)}</Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.project || "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.manager || "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }

@@ -1,0 +1,1674 @@
+[
+  {
+    "firstNameRu": "Tomasz",
+    "lastNameRu": "Bekus",
+    "firstNameEn": "Tomasz",
+    "lastNameEn": "Bekus",
+    "email": "tomasz.bekus@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Jakub",
+    "lastNameRu": "Dabrowski",
+    "firstNameEn": "Jakub",
+    "lastNameEn": "Dabrowski",
+    "email": "jakub.dabrowski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "David",
+    "lastNameRu": "Gabedava",
+    "firstNameEn": "David",
+    "lastNameEn": "Gabedava",
+    "email": "david.gabedava@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Андриа",
+      "lastNameRu": "Мелуа",
+      "firstNameEn": "Andria",
+      "lastNameEn": "Melua"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Abdukodir",
+    "lastNameRu": "Gofurboyev",
+    "firstNameEn": "Abdukodir",
+    "lastNameEn": "Gofurboyev",
+    "email": "abdukodir.gofurboyev@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Роман",
+      "lastNameRu": "Бикчентаев",
+      "firstNameEn": "Raman",
+      "lastNameEn": "Bikchantayeu"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Zayniddin",
+    "lastNameRu": "Otabaev",
+    "firstNameEn": "Zayniddin",
+    "lastNameEn": "Otabaev",
+    "email": "zayniddin.otabaev@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Oskar",
+    "lastNameRu": "Patkowski",
+    "firstNameEn": "Oskar",
+    "lastNameEn": "Patkowski",
+    "email": "oskar.patkowski@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Piotr",
+    "lastNameRu": "Sokolowski",
+    "firstNameEn": "Piotr",
+    "lastNameEn": "Sokolowski",
+    "email": "piotr.sokolowski@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Dominik",
+    "lastNameRu": "Stępniewski",
+    "firstNameEn": "Dominik",
+    "lastNameEn": "Stepniewski",
+    "email": "dominik.stepniewski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Wiktor",
+    "lastNameRu": "Wilk",
+    "firstNameEn": "Wiktor",
+    "lastNameEn": "Wilk",
+    "email": "wiktor.wilk@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Wioletta",
+    "lastNameRu": "Wysopal",
+    "firstNameEn": "Wioletta",
+    "lastNameEn": "Wysopal",
+    "email": "wioletta.wysopal@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Роман",
+    "lastNameRu": "Ананьев",
+    "firstNameEn": "Raman",
+    "lastNameEn": "Ananyeu",
+    "email": "raman.ananyeu@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Иван",
+    "lastNameRu": "Андрейчук",
+    "firstNameEn": "Ivan",
+    "lastNameEn": "Andriichuk",
+    "email": "ivan.andriichuk@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Виктория",
+    "lastNameRu": "Антончик",
+    "firstNameEn": "Viktoryia",
+    "lastNameEn": "Antonchyk",
+    "email": "viktoryia.antonchyk@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Сейед Мохсен",
+      "lastNameRu": "Шафаи",
+      "firstNameEn": "Mohsen",
+      "lastNameEn": "Shafaei"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Ахмад",
+    "lastNameRu": "Ахмедов",
+    "firstNameEn": "Akhmad",
+    "lastNameEn": "Akhmedov",
+    "email": "akhmad.akhmedov@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Кобилжон",
+    "lastNameRu": "Ашуров",
+    "firstNameEn": "Qobiljon",
+    "lastNameEn": "Ashurov",
+    "email": "qobiljon.ashurov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Олег",
+      "lastNameRu": "Васечко",
+      "firstNameEn": "Aleh",
+      "lastNameEn": "Vasechka"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Матвей",
+    "lastNameRu": "Балахонов",
+    "firstNameEn": "Matsvei",
+    "lastNameEn": "Balakhonau",
+    "email": "matsvei.balakhonau@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Роман",
+      "lastNameRu": "Бикчентаев",
+      "firstNameEn": "Raman",
+      "lastNameEn": "Bikchantayeu"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Вячеслав",
+    "lastNameRu": "Басков",
+    "firstNameEn": "Viachaslau",
+    "lastNameEn": "Baskau",
+    "email": "viachaslau.baskau@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Иван",
+    "lastNameRu": "Безмен",
+    "firstNameEn": "Ivan",
+    "lastNameEn": "Biazmen",
+    "email": "ivan.biazmen@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Артём",
+    "lastNameRu": "Белугин",
+    "firstNameEn": "Artem",
+    "lastNameEn": "Belugin",
+    "email": "artem.belugin@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Николай",
+    "lastNameRu": "Бельский",
+    "firstNameEn": "Mikalai",
+    "lastNameEn": "Belski",
+    "email": "mikalai.belski@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Макар",
+    "lastNameRu": "Белявский",
+    "firstNameEn": "Makar",
+    "lastNameEn": "Bialiauski",
+    "email": "makar.bialiauski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Роман",
+    "lastNameRu": "Бикчентаев",
+    "firstNameEn": "Raman",
+    "lastNameEn": "Bikchantayeu",
+    "email": "raman.bikchantayeu@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Бобровников",
+    "firstNameEn": "Uladzislau",
+    "lastNameEn": "Babrounikau",
+    "email": "uladzislau.babrounikau@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Александр",
+      "lastNameRu": "Ямром",
+      "firstNameEn": "Alexander",
+      "lastNameEn": "Yamrom"
+    },
+    "grade": "Senior"
+  },
+  {
+    "firstNameRu": "Иван",
+    "lastNameRu": "Босак",
+    "firstNameEn": "Ivan",
+    "lastNameEn": "Bosak",
+    "email": "ivan.bosak@innowise.com",
+    "managerM1": {},
+    "grade": "Senior-"
+  },
+  {
+    "firstNameRu": "Владимир",
+    "lastNameRu": "Бронишевский",
+    "firstNameEn": "Uladzimir",
+    "lastNameEn": "Branisheuski",
+    "email": "uladzimir.branisheuski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Дмитрий",
+    "lastNameRu": "Бруснев",
+    "firstNameEn": "Dzmitry",
+    "lastNameEn": "Brusneu",
+    "email": "dzmitry.brusneu@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Александр",
+      "lastNameRu": "Ямром",
+      "firstNameEn": "Alexander",
+      "lastNameEn": "Yamrom"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Андрей",
+    "lastNameRu": "Былинович",
+    "firstNameEn": "Andrei",
+    "lastNameEn": "Bylinovich",
+    "email": "andrei.bylinovich@innowise.com",
+    "managerM1": {},
+    "grade": "Senior-"
+  },
+  {
+    "firstNameRu": "Мурман",
+    "lastNameRu": "Вадачкория",
+    "firstNameEn": "Murman",
+    "lastNameEn": "Vadachkoria",
+    "email": "murman.vadachkoria@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Андриа",
+      "lastNameRu": "Мелуа",
+      "firstNameEn": "Andria",
+      "lastNameEn": "Melua"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Олег",
+    "lastNameRu": "Васечко",
+    "firstNameEn": "Aleh",
+    "lastNameEn": "Vasechka",
+    "email": "aleh.vasechka@innowise.com",
+    "managerM1": {},
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Евгений",
+    "lastNameRu": "Василискин",
+    "firstNameEn": "Yauheni",
+    "lastNameEn": "Vasiliskin",
+    "email": "yauheni.vasiliskin@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Роман",
+      "lastNameRu": "Бикчентаев",
+      "firstNameEn": "Raman",
+      "lastNameEn": "Bikchantayeu"
+    },
+    "grade": "Senior"
+  },
+  {
+    "firstNameRu": "Денис",
+    "lastNameRu": "Василюк",
+    "firstNameEn": "Dzianis",
+    "lastNameEn": "Vasiliuk",
+    "email": "dzianis.vasiliuk@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Дмитрий",
+    "lastNameRu": "Веко",
+    "firstNameEn": "Dzmitry",
+    "lastNameEn": "Veka",
+    "email": "dzmitry.veka@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Татьяна",
+    "lastNameRu": "Веракса",
+    "firstNameEn": "Tatsiana",
+    "lastNameEn": "Veraksa",
+    "email": "tatsiana.veraksa@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Дмитрий",
+      "lastNameRu": "Веко",
+      "firstNameEn": "Dzmitry",
+      "lastNameEn": "Veka"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Вербовиков",
+    "firstNameEn": "Nikita",
+    "lastNameEn": "Verbovikov",
+    "email": "nikita.verbovikov@innowise.com",
+    "managerM1": {},
+    "grade": "Other"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Верига",
+    "firstNameEn": "Alexander",
+    "lastNameEn": "Veriga",
+    "email": "alexander.veriga@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Сергей",
+    "lastNameRu": "Веселов",
+    "firstNameEn": "Siarhei",
+    "lastNameEn": "Vesialou",
+    "email": "siarhei.vesialou@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Роман",
+      "lastNameRu": "Бикчентаев",
+      "firstNameEn": "Raman",
+      "lastNameEn": "Bikchantayeu"
+    },
+    "grade": "Senior"
+  },
+  {
+    "firstNameRu": "Антон",
+    "lastNameRu": "Весельев",
+    "firstNameEn": "Anton",
+    "lastNameEn": "Veselev",
+    "email": "anton.veselev@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Олег",
+      "lastNameRu": "Васечко",
+      "firstNameEn": "Aleh",
+      "lastNameEn": "Vasechka"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Станислав",
+    "lastNameRu": "Виноградов",
+    "firstNameEn": "Stanislau",
+    "lastNameEn": "Vinahradau",
+    "email": "stanislau.vinahradau@innowise.com",
+    "managerM1": {},
+    "grade": "Senior"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Воропаев",
+    "firstNameEn": "Vladislav",
+    "lastNameEn": "Voropaev",
+    "email": "vladislav.voropaev@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Максим",
+      "lastNameRu": "Гаврилович",
+      "firstNameEn": "Maksim",
+      "lastNameEn": "Haurylovich"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Максим",
+    "lastNameRu": "Гаврилович",
+    "firstNameEn": "Maksim",
+    "lastNameEn": "Haurylovich",
+    "email": "maksim.haurylovich@innowise.com",
+    "managerM1": {},
+    "grade": "Senior-"
+  },
+  {
+    "firstNameRu": "Павел",
+    "lastNameRu": "Гайдукевич",
+    "firstNameEn": "Pavel",
+    "lastNameEn": "Haidukevich",
+    "email": "pavel.haidukevich@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Герасимчук",
+    "firstNameEn": "Vladyslav",
+    "lastNameEn": "Herasymchuk",
+    "email": "vladyslav.herasymchuk@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Филипп",
+    "lastNameRu": "Гозд",
+    "firstNameEn": "Filip",
+    "lastNameEn": "Gozdz",
+    "email": "filip.gozdz@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Владимир",
+      "lastNameRu": "Чухлебов",
+      "firstNameEn": "Vladimir",
+      "lastNameEn": "Chukhlebov"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Лев",
+    "lastNameRu": "Гордиенко",
+    "firstNameEn": "Leu",
+    "lastNameEn": "Hardziyenka",
+    "email": "leu.hardziyenka@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Олег",
+      "lastNameRu": "Васечко",
+      "firstNameEn": "Aleh",
+      "lastNameEn": "Vasechka"
+    },
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Анна",
+    "lastNameRu": "Гудинская",
+    "firstNameEn": "Anna",
+    "lastNameEn": "Gudinskaya",
+    "email": "anna.gudinskaya@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Алексей",
+    "lastNameRu": "Гудков",
+    "firstNameEn": "Alex",
+    "lastNameEn": "Gudkov",
+    "email": "alex.gudkov@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Станислав",
+    "lastNameRu": "Дашкевич",
+    "firstNameEn": "Stanislau",
+    "lastNameEn": "Dashkevich",
+    "email": "stanislau.dashkevich@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Владислава",
+    "lastNameRu": "Демидовец",
+    "firstNameEn": "Uladzislava",
+    "lastNameEn": "Dzemidavets",
+    "email": "uladzislava.dzemidavets@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Демчук",
+    "firstNameEn": "Illia",
+    "lastNameEn": "Demchuk",
+    "email": "illia.demchuk@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Довнар",
+    "firstNameEn": "Illia",
+    "lastNameEn": "Dounar",
+    "email": "illia.dounar@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Анатолий",
+    "lastNameRu": "Долгов",
+    "firstNameEn": "Anatoly",
+    "lastNameEn": "Dolgov",
+    "email": "anatoli.dalhou@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Драгун",
+    "firstNameEn": "Illia",
+    "lastNameEn": "Drahun",
+    "email": "illia.drahun@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Павел",
+    "lastNameRu": "Дубровский",
+    "firstNameEn": "Pavel",
+    "lastNameEn": "Dubrouski",
+    "email": "pavel.dubrouski@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Запекин",
+    "firstNameEn": "Mikita",
+    "lastNameEn": "Zapekin",
+    "email": "mikita.zapekin@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Алексей",
+    "lastNameRu": "Зинуков",
+    "firstNameEn": "Alexei",
+    "lastNameEn": "Zinukov",
+    "email": "alex.zinukov@innowise.com",
+    "managerM1": {},
+    "grade": "Senior"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Исаеня",
+    "firstNameEn": "Ilya",
+    "lastNameEn": "Isayenia",
+    "email": "ilya.isayenia@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Олег",
+    "lastNameRu": "Кавко",
+    "firstNameEn": "Aleh",
+    "lastNameEn": "Kauko",
+    "email": "aleh.kauko@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Канстанчук",
+    "firstNameEn": "Ilja",
+    "lastNameEn": "Kanstanczuk",
+    "email": "ilja.kanstanczuk@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Карачун",
+    "firstNameEn": "Ilya",
+    "lastNameEn": "Karachun",
+    "email": "ilya.karachun@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Сергей",
+    "lastNameRu": "Касторнов",
+    "firstNameEn": "Siarhei",
+    "lastNameEn": "Kastornau",
+    "email": "siarhei.kastornau@innowise.com",
+    "managerM1": {},
+    "grade": "Lead"
+  },
+  {
+    "firstNameRu": "Мухаммаджон",
+    "lastNameRu": "Каюмов",
+    "firstNameEn": "Mukhammadjon",
+    "lastNameEn": "Kayumov",
+    "email": "mukhammadjon.kayumov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Сейед Мохсен",
+      "lastNameRu": "Шафаи",
+      "firstNameEn": "Mohsen",
+      "lastNameEn": "Shafaei"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Дарья",
+    "lastNameRu": "Кильяченко",
+    "firstNameEn": "Daria",
+    "lastNameEn": "Kiliachenko",
+    "email": "daria.kiliachenko@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Клочко",
+    "firstNameEn": "Aliaksandr",
+    "lastNameEn": "Klachko",
+    "email": "aliaksandr.klachko@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Ковалев",
+    "firstNameEn": "Alexander",
+    "lastNameEn": "Kovalev",
+    "email": "alexander.kovalev@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Ковалев",
+    "firstNameEn": "Uladzislau",
+    "lastNameEn": "Kavaliou",
+    "email": "uladzislau.kovaliou@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Дмитрий",
+      "lastNameRu": "Веко",
+      "firstNameEn": "Dzmitry",
+      "lastNameEn": "Veka"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Артём",
+    "lastNameRu": "Ковалевский",
+    "firstNameEn": "Artsiom",
+    "lastNameEn": "Kavaleuski",
+    "email": "artsiom.kavaleuski@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Коваленко",
+    "firstNameEn": "Nikita",
+    "lastNameEn": "Kovalenko",
+    "email": "nikita.kovalenko@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Максим",
+    "lastNameRu": "Кожух",
+    "firstNameEn": "Maksim",
+    "lastNameEn": "Kozhukh",
+    "email": "maksim.kozhukh@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Вячеслав",
+    "lastNameRu": "Козлов",
+    "firstNameEn": "Viacheslav",
+    "lastNameEn": "Kozlov",
+    "email": "viacheslav.kozlov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Дмитрий",
+    "lastNameRu": "Козолий",
+    "firstNameEn": "Dima",
+    "lastNameEn": "Kozoliy",
+    "email": "dima.kozoliy@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Иван",
+      "lastNameRu": "Андрейчук",
+      "firstNameEn": "Ivan",
+      "lastNameEn": "Andriichuk"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Косевич",
+    "firstNameEn": "Mikita",
+    "lastNameEn": "Kasevich",
+    "email": "mikita.kasevich@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Сташевский",
+      "firstNameEn": "Anatoli",
+      "lastNameEn": "Stasheuski"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Данила",
+    "lastNameRu": "Кохан",
+    "firstNameEn": "Danila",
+    "lastNameEn": "Kokhan",
+    "email": "danila.kokhan@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Кохан",
+    "firstNameEn": "Nikita",
+    "lastNameEn": "Kokhan",
+    "email": "nikita.kokhan@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Кравченко",
+    "firstNameEn": "Uladzislau",
+    "lastNameEn": "Krauchanka",
+    "email": "uladzislau.krauchanka@innowise.com",
+    "managerM1": {},
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Артём",
+    "lastNameRu": "Красницкий",
+    "firstNameEn": "Artsiom",
+    "lastNameEn": "Krasnitski",
+    "email": "artsiom.krasnitski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Евгений",
+    "lastNameRu": "Крижик",
+    "firstNameEn": "Yauheni",
+    "lastNameEn": "Kryzhyk",
+    "email": "yauheni.kryzhyk@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Сергей",
+    "lastNameRu": "Ксенофонтов",
+    "firstNameEn": "Sergei",
+    "lastNameEn": "Ksenofontov",
+    "email": "sergei.ksenofontov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Владимир",
+      "lastNameRu": "Чухлебов",
+      "firstNameEn": "Vladimir",
+      "lastNameEn": "Chukhlebov"
+    },
+    "grade": "Senior+"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Кудравец",
+    "firstNameEn": "Uladzislau",
+    "lastNameEn": "Kudravets",
+    "email": "uladzislau.kudravets@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Олег",
+      "lastNameRu": "Васечко",
+      "firstNameEn": "Aleh",
+      "lastNameEn": "Vasechka"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Евгений",
+    "lastNameRu": "Кульбеда",
+    "firstNameEn": "Eugene",
+    "lastNameEn": "Kulbeda",
+    "email": "eugene.kulbeda@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Кутас",
+    "firstNameEn": "Mikita",
+    "lastNameEn": "Kutas",
+    "email": "mikita.kutas@innowise.com",
+    "managerM1": {},
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Полина",
+    "lastNameRu": "Лазарева",
+    "firstNameEn": "Palina",
+    "lastNameEn": "Lazarava",
+    "email": "palina.lazarava@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Сейед Мохсен",
+      "lastNameRu": "Шафаи",
+      "firstNameEn": "Mohsen",
+      "lastNameEn": "Shafaei"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Сергей",
+    "lastNameRu": "Лободин",
+    "firstNameEn": "Siarhei",
+    "lastNameEn": "Labodzin",
+    "email": "siarhei.labodzin@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Олег",
+      "lastNameRu": "Васечко",
+      "firstNameEn": "Aleh",
+      "lastNameEn": "Vasechka"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Тимофей",
+    "lastNameRu": "Лукашевич",
+    "firstNameEn": "Tsimafei",
+    "lastNameEn": "Lukashevich",
+    "email": "tsimafei.lukashevich@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Вячеслав",
+    "lastNameRu": "Лукашёнок",
+    "firstNameEn": "Viachaslau",
+    "lastNameEn": "Lukashonak",
+    "email": "viachaslau.lukashonak@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Владимир",
+      "lastNameRu": "Чухлебов",
+      "firstNameEn": "Vladimir",
+      "lastNameEn": "Chukhlebov"
+    },
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Иван",
+    "lastNameRu": "Лютов",
+    "firstNameEn": "Ivan",
+    "lastNameEn": "Lyutov",
+    "email": "ivan.lyutov@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Остап",
+    "lastNameRu": "Максимов",
+    "firstNameEn": "Ostap",
+    "lastNameEn": "Maksymiv",
+    "email": "ostap.maksymiv@innowise.com",
+    "managerM1": {},
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Артём",
+    "lastNameRu": "Малахов",
+    "firstNameEn": "Artsiom",
+    "lastNameEn": "Malakhau",
+    "email": "artsiom.malakhau@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Медведев",
+    "firstNameEn": "Aleksandr",
+    "lastNameEn": "Medvedev",
+    "email": "aleksandr.medvedev@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Андриа",
+    "lastNameRu": "Мелуа",
+    "firstNameEn": "Andria",
+    "lastNameEn": "Melua",
+    "email": "andria.melua@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Минчук",
+    "firstNameEn": "Ilya",
+    "lastNameEn": "Minchuk",
+    "email": "ilya.minchuk@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Владимир",
+      "lastNameRu": "Чухлебов",
+      "firstNameEn": "Vladimir",
+      "lastNameEn": "Chukhlebov"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Марк",
+    "lastNameRu": "Миткевич",
+    "firstNameEn": "Mark",
+    "lastNameEn": "Mitkevich",
+    "email": "mark.mitkevich@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Антон",
+    "lastNameRu": "Могдалов",
+    "firstNameEn": "Anton",
+    "lastNameEn": "Mahdalau",
+    "email": "anton.mahdalau@innowise.com",
+    "managerM1": {},
+    "grade": "Senior+"
+  },
+  {
+    "firstNameRu": "Марк",
+    "lastNameRu": "Морев",
+    "firstNameEn": "Mark",
+    "lastNameEn": "Morau",
+    "email": "mark.morau@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Александр",
+      "lastNameRu": "Ямром",
+      "firstNameEn": "Alexander",
+      "lastNameEn": "Yamrom"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Морозов",
+    "firstNameEn": "Ilya",
+    "lastNameEn": "Morozov",
+    "email": "ilya.morozov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Senior-"
+  },
+  {
+    "firstNameRu": "Довлетгелди",
+    "lastNameRu": "Мухамметгурбанов",
+    "firstNameEn": "Dovletgeldi",
+    "lastNameEn": "Muhammetgurbanov",
+    "email": "dovletgeldi.muhammetgurbanov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Дмитрий",
+      "lastNameRu": "Веко",
+      "firstNameEn": "Dzmitry",
+      "lastNameEn": "Veka"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Роман",
+    "lastNameRu": "Новиков",
+    "firstNameEn": "Raman",
+    "lastNameEn": "Novikau",
+    "email": "raman.novikau@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Павел",
+    "lastNameRu": "Новицкий",
+    "firstNameEn": "Pawel",
+    "lastNameEn": "Nowicki",
+    "email": "pawel.nowicki@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Надежда",
+    "lastNameRu": "Омельчук",
+    "firstNameEn": "Nadzeya",
+    "lastNameEn": "Amialchuk",
+    "email": "nadzeya.amialchuk@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Дмитрий",
+      "lastNameRu": "Веко",
+      "firstNameEn": "Dzmitry",
+      "lastNameEn": "Veka"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Глеб",
+    "lastNameRu": "Охрименко",
+    "firstNameEn": "Gleb",
+    "lastNameEn": "Okhrimenko",
+    "email": "gleb.okhrimenko@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Сергей",
+    "lastNameRu": "Печко",
+    "firstNameEn": "Sergey",
+    "lastNameEn": "Pechko",
+    "email": "sergey.pechko@innowise.com",
+    "managerM1": {},
+    "grade": "Senior-"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Пешко",
+    "firstNameEn": "Uladzislau",
+    "lastNameEn": "Peshko",
+    "email": "uladzislau.peshko@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Татьяна",
+    "lastNameRu": "Поликарпова",
+    "firstNameEn": "Tatsiana",
+    "lastNameEn": "Palikarpava",
+    "email": "tatsiana.palikarpava@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Рагойша",
+    "firstNameEn": "Mikita",
+    "lastNameEn": "Rahoisha",
+    "email": "mikita.rahoisha@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Владислав",
+    "lastNameRu": "Раенок",
+    "firstNameEn": "Uladzislau",
+    "lastNameEn": "Rayanok",
+    "email": "uladzislau.rayanok@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Дмитрий",
+      "lastNameRu": "Веко",
+      "firstNameEn": "Dzmitry",
+      "lastNameEn": "Veka"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Илья",
+    "lastNameRu": "Разуваев",
+    "firstNameEn": "Ilya",
+    "lastNameEn": "Razuvaev",
+    "email": "ilya.razuvaev@innowise.com",
+    "managerM1": {},
+    "grade": "Senior-"
+  },
+  {
+    "firstNameRu": "Андрей",
+    "lastNameRu": "Рафальский",
+    "firstNameEn": "Andrei",
+    "lastNameEn": "Rafalski",
+    "email": "andrei.rafalski@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Дарья",
+    "lastNameRu": "Рахацевич",
+    "firstNameEn": "Darya",
+    "lastNameEn": "Rakhatsevich",
+    "email": "darya.rakhatsevich@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Роман",
+      "lastNameRu": "Бикчентаев",
+      "firstNameEn": "Raman",
+      "lastNameEn": "Bikchantayeu"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Кирилл",
+    "lastNameRu": "Рахуба",
+    "firstNameEn": "Kiryl",
+    "lastNameEn": "Rakhuba",
+    "email": "kiryl.rakhuba@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Никита",
+    "lastNameRu": "Рева",
+    "firstNameEn": "Nikita",
+    "lastNameEn": "Reva",
+    "email": "nikita.reva@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Владимир",
+    "lastNameRu": "Рубахин",
+    "firstNameEn": "Uladzimir",
+    "lastNameEn": "Rubakhin",
+    "email": "uladzimir.rubakhin@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Глеб",
+    "lastNameRu": "Рутковский",
+    "firstNameEn": "Hleb",
+    "lastNameEn": "Rutkouski",
+    "email": "hleb.rutkouski@innowise.com",
+    "managerM1": {},
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Наврузбек",
+    "lastNameRu": "Сафобоев",
+    "firstNameEn": "Navruzbek",
+    "lastNameEn": "Safoboev",
+    "email": "navruzbek.safoboev@innowise.com",
+    "managerM1": {},
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Евгений",
+    "lastNameRu": "Сафонов",
+    "firstNameEn": "Yauheni",
+    "lastNameEn": "Safonau",
+    "email": "yauheni.safonau@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Кристина",
+    "lastNameRu": "Селезнёва",
+    "firstNameEn": "Krystsina",
+    "lastNameEn": "Seliazniova",
+    "email": "krystsina.seliazniova@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Максим",
+      "lastNameRu": "Гаврилович",
+      "firstNameEn": "Maksim",
+      "lastNameEn": "Haurylovich"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Михаил",
+    "lastNameRu": "Сергеев",
+    "firstNameEn": "Mikhail",
+    "lastNameEn": "Sergeev",
+    "email": "mikhail.sergeev@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Андриа",
+      "lastNameRu": "Мелуа",
+      "firstNameEn": "Andria",
+      "lastNameEn": "Melua"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Иван",
+    "lastNameRu": "Слесарев",
+    "firstNameEn": "Ivan",
+    "lastNameEn": "Slesarau",
+    "email": "ivan.slesarau@innowise.com",
+    "managerM1": {},
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Артём",
+    "lastNameRu": "Смолян",
+    "firstNameEn": "Artsiom",
+    "lastNameEn": "Smalian",
+    "email": "artsiom.smalian@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Максим",
+      "lastNameRu": "Гаврилович",
+      "firstNameEn": "Maksim",
+      "lastNameEn": "Haurylovich"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Бурхонжон",
+    "lastNameRu": "Солихжонов",
+    "firstNameEn": "Burkhonjon",
+    "lastNameEn": "Solihjonov",
+    "email": "burkhonjon.solihjonov@innowise.com",
+    "managerM1": {},
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Надежда",
+    "lastNameRu": "Сороковая",
+    "firstNameEn": "Nadiia",
+    "lastNameEn": "Sorokova",
+    "email": "nadiia.sorokova@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Максим",
+    "lastNameRu": "Станчик",
+    "firstNameEn": "Maxim",
+    "lastNameEn": "Stanchik",
+    "email": "maxim.stanchik@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Александр",
+      "lastNameRu": "Дьяченко",
+      "firstNameEn": "Aleksandr",
+      "lastNameEn": "Dzyachenka"
+    },
+    "grade": "Trainee"
+  },
+  {
+    "firstNameRu": "Анатолий",
+    "lastNameRu": "Сташевский",
+    "firstNameEn": "Anatoli",
+    "lastNameEn": "Stasheuski",
+    "email": "anatoli.stasheuski@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Юрий",
+    "lastNameRu": "Степанюк",
+    "firstNameEn": "Yury",
+    "lastNameEn": "Stsepaniuk",
+    "email": "yury.stsepaniuk@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Евгений",
+      "lastNameRu": "Крижик",
+      "firstNameEn": "Yauheni",
+      "lastNameEn": "Kryzhyk"
+    },
+    "grade": "Lead"
+  },
+  {
+    "firstNameRu": "Павел",
+    "lastNameRu": "Стефанович",
+    "firstNameEn": "Pavel",
+    "lastNameEn": "Stsefanovich",
+    "email": "pavel.stsefanovich@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Суслов",
+    "firstNameEn": "Aleksandr",
+    "lastNameEn": "Suslov",
+    "email": "aleksandr.suslov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Андрій",
+    "lastNameRu": "Тимофєєв",
+    "firstNameEn": "Andrii",
+    "lastNameEn": "Tymofieiev",
+    "email": "andrii.tymofieiev@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Артур",
+    "lastNameRu": "Ткачёв",
+    "firstNameEn": "Artur",
+    "lastNameEn": "Tkachov",
+    "email": "artur.tkachov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Валерия",
+    "lastNameRu": "Филонова",
+    "firstNameEn": "Valeria",
+    "lastNameEn": "Filonova",
+    "email": "valeria.filonova@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Сейед Мохсен",
+      "lastNameRu": "Шафаи",
+      "firstNameEn": "Mohsen",
+      "lastNameEn": "Shafaei"
+    },
+    "grade": "Junior"
+  },
+  {
+    "firstNameRu": "Николай",
+    "lastNameRu": "Хомченко",
+    "firstNameEn": "Mikalai",
+    "lastNameEn": "Khomchanka",
+    "email": "mikalai.khomchanka@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Екатерина",
+    "lastNameRu": "Хроль",
+    "firstNameEn": "Kate",
+    "lastNameEn": "Khrol",
+    "email": "kate.khrol@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Иван",
+    "lastNameRu": "Чернецкий",
+    "firstNameEn": "Ivan",
+    "lastNameEn": "Charnetski",
+    "email": "ivan.charnetski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Сейед Мохсен",
+      "lastNameRu": "Шафаи",
+      "firstNameEn": "Mohsen",
+      "lastNameEn": "Shafaei"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Артём",
+    "lastNameRu": "Чех",
+    "firstNameEn": "Artsiom",
+    "lastNameEn": "Chekh",
+    "email": "artsiom.chekh@innowise.com",
+    "managerM1": {},
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Владимир",
+    "lastNameRu": "Чухлебов",
+    "firstNameEn": "Vladimir",
+    "lastNameEn": "Chukhlebov",
+    "email": "vladimir.chukhlebov@innowise.com",
+    "managerM1": {},
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Глеб",
+    "lastNameRu": "Шатерник",
+    "firstNameEn": "Hleb",
+    "lastNameEn": "Shaternik",
+    "email": "hleb.shaternik@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Михаил",
+    "lastNameRu": "Шатило",
+    "firstNameEn": "Michael",
+    "lastNameEn": "Shatilo",
+    "email": "mikhail.shatsila@innowise.com",
+    "managerM1": {},
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Сейед Мохсен",
+    "lastNameRu": "Шафаи",
+    "firstNameEn": "Mohsen",
+    "lastNameEn": "Shafaei",
+    "email": "seyedmohsen.shafaei@innowise.com",
+    "managerM1": {},
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Шаховский",
+    "firstNameEn": "Alexander",
+    "lastNameEn": "Shahovsky",
+    "email": "aliaksandr.shakhouski@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Александр",
+      "lastNameRu": "Ямром",
+      "firstNameEn": "Alexander",
+      "lastNameEn": "Yamrom"
+    },
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Анжелика",
+    "lastNameRu": "Шиманская",
+    "firstNameEn": "Anzhalika",
+    "lastNameEn": "Shymanskaya",
+    "email": "anzhalika.shymanskaya@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Олег",
+      "lastNameRu": "Васечко",
+      "firstNameEn": "Aleh",
+      "lastNameEn": "Vasechka"
+    },
+    "grade": "Junior-"
+  },
+  {
+    "firstNameRu": "Мыкыта",
+    "lastNameRu": "Юдин",
+    "firstNameEn": "Mykyta",
+    "lastNameEn": "Yudin",
+    "email": "mykyta.yudin@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Макар",
+      "lastNameRu": "Белявский",
+      "firstNameEn": "Makar",
+      "lastNameEn": "Bialiauski"
+    },
+    "grade": "Middle-"
+  },
+  {
+    "firstNameRu": "Самандар",
+    "lastNameRu": "Юсупов",
+    "firstNameEn": "Samandar",
+    "lastNameEn": "Yusupov",
+    "email": "samandar.yusupov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Анатолий",
+      "lastNameRu": "Долгов",
+      "firstNameEn": "Anatoly",
+      "lastNameEn": "Dolgov"
+    },
+    "grade": "Middle+"
+  },
+  {
+    "firstNameRu": "Александр",
+    "lastNameRu": "Ямром",
+    "firstNameEn": "Alexander",
+    "lastNameEn": "Yamrom",
+    "email": "alexander.yamrom@innowise.com",
+    "managerM1": {},
+    "grade": "Junior+"
+  },
+  {
+    "firstNameRu": "Юрий",
+    "lastNameRu": "Яркович",
+    "firstNameEn": "Yurii",
+    "lastNameEn": "Yarkovich",
+    "email": "yurii.yarkovich@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Никита",
+      "lastNameRu": "Кутас",
+      "firstNameEn": "Mikita",
+      "lastNameEn": "Kutas"
+    },
+    "grade": "Intern"
+  },
+  {
+    "firstNameRu": "Дмитрий",
+    "lastNameRu": "Ясников",
+    "firstNameEn": "Dmitrii",
+    "lastNameEn": "Iasnikov",
+    "email": "dmitrii.iasnikov@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Андриа",
+      "lastNameRu": "Мелуа",
+      "firstNameEn": "Andria",
+      "lastNameEn": "Melua"
+    },
+    "grade": "Middle"
+  },
+  {
+    "firstNameRu": "Павел",
+    "lastNameRu": "Ясюкевич",
+    "firstNameEn": "Pavel",
+    "lastNameEn": "Yasiukevich",
+    "email": "pavel.yasiukevich@innowise.com",
+    "managerM1": {
+      "firstNameRu": "Сейед Мохсен",
+      "lastNameRu": "Шафаи",
+      "firstNameEn": "Mohsen",
+      "lastNameEn": "Shafaei"
+    },
+    "grade": "Lead"
+  }
+]

@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
 import { buildSessionsForGrade, SESSION_STATUSES } from "@/lib/assessment-sessions";
+import { syncSessionAssets } from "@/lib/session-sync";
+
+/**
+ * After a session is marked COMPLETED, Google publishes the recording to
+ * Drive asynchronously — usually ready within 1–5 minutes. Schedule a
+ * one-shot delayed sync attempt so the UI shows the auto-fetched recording
+ * without the assessor needing to click anything.
+ *
+ * In dev (node server) setTimeout survives until the process is killed.
+ * In a serverless deployment this is unreliable — you'd want a proper job
+ * queue or the Drive-watch webhook flow for production.
+ */
+function scheduleDelayedSync(args: {
+  assessmentId: string;
+  sessionId: string;
+  actorUserId: string;
+}) {
+  const delayMs = 3 * 60 * 1000; // 3 min
+  setTimeout(() => {
+    syncSessionAssets(args).catch((e) => {
+      console.error("Delayed session sync failed:", e);
+    });
+  }, delayMs).unref?.();
+}
 
 export async function GET(
   _req: NextRequest,
@@ -77,7 +101,7 @@ export async function POST(
   const grade = assessment.grade;
   const softAiPassed = subject.user.softAiInterviewPassed;
 
-  const templates = buildSessionsForGrade(grade, softAiPassed);
+  const templates = buildSessionsForGrade(grade, softAiPassed, assessment.assessmentType);
 
   await prisma.assessmentSession.createMany({
     data: templates.map((t) => ({
@@ -103,13 +127,16 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json();
-  const { sessionId, status, notes } = body;
+  const { sessionId, status, notes, recordingLink, meetingLink } = body;
 
-  if (!sessionId || !status) {
-    return NextResponse.json(
-      { error: "sessionId и status обязательны" },
-      { status: 400 }
-    );
+  if (!sessionId) {
+    return NextResponse.json({ error: "sessionId обязателен" }, { status: 400 });
+  }
+
+  // Status is optional now — PATCH can also be called just to update
+  // `recordingLink` (or `notes`) on an already-completed session.
+  if (status && !["IN_PROGRESS", "COMPLETED", "SKIPPED"].includes(status)) {
+    return NextResponse.json({ error: "Некорректный статус" }, { status: 400 });
   }
 
   // Fetch session with its assessment
@@ -133,14 +160,14 @@ export async function PATCH(
     );
   }
 
-  // Validate status transitions
+  // Validate status transitions (only when status is being changed)
   const currentStatus = session.status;
   const validTransitions: Record<string, string> = {
     [SESSION_STATUSES.NOT_STARTED]: SESSION_STATUSES.IN_PROGRESS,
     [SESSION_STATUSES.IN_PROGRESS]: SESSION_STATUSES.COMPLETED,
   };
 
-  if (validTransitions[currentStatus] !== status) {
+  if (status && validTransitions[currentStatus] !== status) {
     return NextResponse.json(
       { error: `Невозможно перевести сессию из "${currentStatus}" в "${status}"` },
       { status: 400 }
@@ -171,19 +198,21 @@ export async function PATCH(
   }
 
   // Build update data
-  const updateData: Record<string, unknown> = { status };
-
-  if (status === SESSION_STATUSES.IN_PROGRESS) {
-    updateData.startedAt = new Date();
-    updateData.assessorId = authSession.user.id;
-    updateData.assessorName = authSession.user.name;
+  const updateData: Record<string, unknown> = {};
+  if (status) {
+    updateData.status = status;
+    if (status === SESSION_STATUSES.IN_PROGRESS) {
+      updateData.startedAt = new Date();
+      updateData.assessorId = authSession.user.id;
+      updateData.assessorName = authSession.user.name;
+    }
+    if (status === SESSION_STATUSES.COMPLETED) {
+      updateData.completedAt = new Date();
+    }
   }
-  if (status === SESSION_STATUSES.COMPLETED) {
-    updateData.completedAt = new Date();
-  }
-  if (notes !== undefined) {
-    updateData.notes = notes;
-  }
+  if (notes !== undefined) updateData.notes = notes;
+  if (recordingLink !== undefined) updateData.recordingLink = recordingLink;
+  if (meetingLink !== undefined) updateData.meetingLink = meetingLink;
 
   const updatedSession = await prisma.assessmentSession.update({
     where: { id: sessionId },
@@ -210,6 +239,16 @@ export async function PATCH(
         data: { softAiInterviewPassed: true },
       });
     }
+  }
+
+  // 1b. On completion, schedule a delayed Drive sync so we auto-pull the
+  // recording once Google finishes publishing it.
+  if (status === SESSION_STATUSES.COMPLETED) {
+    scheduleDelayedSync({
+      assessmentId: id,
+      sessionId,
+      actorUserId: authSession.user.id,
+    });
   }
 
   // 2. Auto-sync assessment status

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { gradeLabel } from "@/lib/grades";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -22,10 +23,10 @@ const statusLabels: Record<string, string> = {
   CANCELLED: "Отменён",
 };
 
-const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  PLANNED: "outline",
-  IN_PROGRESS: "default",
-  COMPLETED: "secondary",
+const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info" | "warning"> = {
+  PLANNED: "warning",
+  IN_PROGRESS: "info",
+  COMPLETED: "success",
   CANCELLED: "destructive",
 };
 
@@ -66,41 +67,69 @@ export default function AssessmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold">Ассессменты</h1>
-          <p className="text-muted-foreground">
-            {isPrivileged ? "Все ассессменты" : "Мои ассессменты"}
+          <h1 className="page-title">Ассессменты</h1>
+          <p className="page-subtitle mt-1">
+            {isPrivileged ? "Все ассессменты в системе" : "Ассессменты с вашим участием"}
           </p>
         </div>
         {isAssessor && (
-          <Link href="/assessments/new" className={buttonVariants()}>
+          <Link href="/assessments/new" className={buttonVariants({ size: "lg" })}>
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
             Создать ассессмент
           </Link>
         )}
       </div>
 
-      <div className="flex gap-2">
-        {["ALL", "PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map(
-          (s) => (
-            <Button
+      <div className="flex flex-wrap items-center gap-2">
+        {["ALL", "PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"].map((s) => {
+          const count =
+            s === "ALL"
+              ? assessments.length
+              : assessments.filter((a) => a.status === s).length;
+          const active = filter === s;
+          return (
+            <button
               key={s}
-              variant={filter === s ? "default" : "outline"}
-              size="sm"
               onClick={() => setFilter(s)}
+              className={
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all " +
+                (active
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-card text-muted-foreground hover:text-foreground ring-1 ring-border hover:ring-primary/30")
+              }
             >
               {s === "ALL" ? "Все" : statusLabels[s]}
-            </Button>
-          )
-        )}
+              <span
+                className={
+                  "inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-semibold " +
+                  (active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")
+                }
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-0">
           {filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              Нет ассессментов
-            </p>
+            <div className="flex flex-col items-center gap-2 py-14 text-center">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  <rect x="8" y="2" width="8" height="4" rx="1" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-foreground">Ассессменты не найдены</p>
+              <p className="text-xs text-muted-foreground">Попробуйте изменить фильтр или создать новый ассессмент.</p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -110,7 +139,7 @@ export default function AssessmentsPage() {
                   <TableHead>Статус</TableHead>
                   <TableHead>Участники</TableHead>
                   <TableHead>Дата</TableHead>
-                  <TableHead></TableHead>
+                  <TableHead className="text-right pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -119,12 +148,14 @@ export default function AssessmentsPage() {
                     .filter((p) => p.participantRole === "SUBJECT")
                     .map((p) => p.user.name);
                   return (
-                    <TableRow key={a.id}>
-                      <TableCell className="font-medium">{a.title}</TableCell>
+                    <TableRow key={a.id} className="group/row">
+                      <TableCell className="font-medium">
+                        <Link href={`/assessments/${a.id}`} className="hover:text-primary transition-colors">
+                          {a.title}
+                        </Link>
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {{ jun: "Junior", mid: "Middle", sen: "Senior" }[a.grade] || a.grade}
-                        </Badge>
+                        <Badge variant="outline">{gradeLabel(a.grade)}</Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusVariants[a.status]}>
@@ -139,9 +170,12 @@ export default function AssessmentsPage() {
                           ? new Date(a.scheduledAt).toLocaleDateString("ru-RU")
                           : "—"}
                       </TableCell>
-                      <TableCell>
-                        <Link href={`/assessments/${a.id}`} className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                          Открыть
+                      <TableCell className="text-right pr-4">
+                        <Link
+                          href={`/assessments/${a.id}`}
+                          className={buttonVariants({ variant: "ghost", size: "sm" })}
+                        >
+                          Открыть →
                         </Link>
                       </TableCell>
                     </TableRow>

@@ -261,18 +261,17 @@ export default function ConductAssessmentPage() {
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min={1}
-                          max={10}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={2}
                           value={r.score ?? ""}
-                          onChange={(e) =>
-                            updateResult(
-                              i,
-                              "score",
-                              e.target.value ? Number(e.target.value) : null
-                            )
-                          }
-                          className="w-20"
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+                            const n = raw === "" ? null : Number(raw);
+                            const clamped = n === null ? null : Math.min(Math.max(n, 0), 10);
+                            updateResult(i, "score", clamped);
+                          }}
+                          className="w-20 text-center"
                         />
                       </TableCell>
                       <TableCell>

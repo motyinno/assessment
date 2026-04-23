@@ -5,15 +5,9 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { gradeLabel } from "@/lib/grades";
 
 interface AssessmentRequest {
   id: string;
@@ -28,12 +22,6 @@ interface AssessmentRequest {
     id: string;
   } | null;
 }
-
-const gradeLabels: Record<string, string> = {
-  jun: "Junior",
-  mid: "Middle",
-  sen: "Senior",
-};
 
 const statusLabels: Record<string, string> = {
   PENDING: "На рассмотрении",
@@ -51,7 +39,7 @@ export default function RequestAssessmentPage() {
   const { data: session, status: sessionStatus } = useSession();
   const router = useRouter();
 
-  const [grade, setGrade] = useState("");
+  const [userGrade, setUserGrade] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,9 +59,22 @@ export default function RequestAssessmentPage() {
     }
   };
 
+  const fetchMe = async () => {
+    try {
+      const res = await fetch("/api/users/me");
+      if (res.ok) {
+        const me = await res.json();
+        setUserGrade(me.grade ?? null);
+      }
+    } catch (e) {
+      console.error("Ошибка загрузки профиля:", e);
+    }
+  };
+
   useEffect(() => {
     if (sessionStatus === "authenticated") {
       fetchRequests();
+      fetchMe();
     }
   }, [sessionStatus]);
 
@@ -81,17 +82,12 @@ export default function RequestAssessmentPage() {
     e.preventDefault();
     setError(null);
 
-    if (!grade) {
-      setError("Выберите грейд");
-      return;
-    }
-
     setSubmitting(true);
     try {
       const res = await fetch("/api/assessment-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ grade, notes }),
+        body: JSON.stringify({ notes }),
       });
 
       if (!res.ok) {
@@ -99,7 +95,6 @@ export default function RequestAssessmentPage() {
         throw new Error(data.error || "Не удалось отправить заявку");
       }
 
-      setGrade("");
       setNotes("");
       await fetchRequests();
     } catch (e: unknown) {
@@ -123,11 +118,11 @@ export default function RequestAssessmentPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 p-6">
+    <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Запрос на ассессмент</h1>
-        <p className="text-muted-foreground">
-          Отправьте заявку на прохождение ассессмента
+        <h1 className="page-title">Запрос на ассессмент</h1>
+        <p className="page-subtitle mt-1">
+          Отправьте заявку на прохождение ассессмента — администратор рассмотрит её и назначит асессоров.
         </p>
       </div>
 
@@ -137,18 +132,17 @@ export default function RequestAssessmentPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label>Грейд</Label>
-              <Select value={grade} onValueChange={(v) => v && setGrade(v)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="jun">Junior</SelectItem>
-                  <SelectItem value="mid">Middle</SelectItem>
-                  <SelectItem value="sen">Senior</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-1">
+              <Label>Ваш грейд</Label>
+              <div className="rounded-lg border border-input bg-muted/40 px-3 py-2 text-sm">
+                {userGrade ? (
+                  gradeLabel(userGrade)
+                ) : (
+                  <span className="text-muted-foreground">
+                    Грейд не указан. Обратитесь к администратору, чтобы назначить грейд перед подачей заявки.
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -166,7 +160,7 @@ export default function RequestAssessmentPage() {
               <p className="text-sm text-destructive">{error}</p>
             )}
 
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting || !userGrade}>
               {submitting ? "Отправка..." : "Отправить заявку"}
             </Button>
           </form>
@@ -187,16 +181,17 @@ export default function RequestAssessmentPage() {
                 <CardContent className="flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">
-                      {gradeLabels[req.grade] || req.grade}
+                      {gradeLabel(req.grade)}
                     </span>
                     <Badge
-                      variant={statusVariant[req.status]}
-                      className={
+                      variant={
                         req.status === "PENDING"
-                          ? "border-yellow-500 text-yellow-600 dark:text-yellow-400"
+                          ? "warning"
                           : req.status === "APPROVED"
-                            ? "bg-green-600 text-white"
-                            : ""
+                            ? "success"
+                            : req.status === "REJECTED"
+                              ? "destructive"
+                              : "outline"
                       }
                     >
                       {statusLabels[req.status]}
