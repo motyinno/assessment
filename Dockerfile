@@ -53,6 +53,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Prisma schema + migrations (replayed by `migrate deploy` at boot)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
+# Reference data read at runtime (tech matrix, PDP topics, mappings, template)
+COPY --from=builder --chown=nextjs:nodejs /app/data ./data
+
 # Sidecar Prisma CLI (separate dir to avoid clashing with standalone's
 # minimal node_modules at /app/node_modules)
 COPY --from=prisma-cli --chown=nextjs:nodejs /opt/prisma-cli /opt/prisma-cli
