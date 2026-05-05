@@ -173,8 +173,8 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
     });
   }
 
-  if (loading) return <p className="text-muted-foreground py-4">Загрузка матрицы...</p>;
-  if (!matrix) return <p className="text-destructive py-4">Ошибка загрузки</p>;
+  if (loading) return <p className="text-muted-foreground py-4">Loading matrix...</p>;
+  if (!matrix) return <p className="text-destructive py-4">Failed to load</p>;
 
   const base = baseGrade(grade);
   const dotColor = GRADE_DOT[base] || "bg-gray-400";
@@ -194,10 +194,10 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
         <div className="flex items-center gap-2">
           <span className={`w-2 h-2 rounded-full ${GRADE_DOT_BG[base] || "bg-gray-500"}`} />
           <span className={`text-sm font-medium ${GRADE_LABEL_COLOR[base] || "text-gray-600"} uppercase tracking-wide`}>
-            Техническая матрица &middot; {gradeLabel(grade)}
+            Tech matrix &middot; {gradeLabel(grade)}
           </span>
         </div>
-        {saving && <span className="text-xs text-muted-foreground animate-pulse">Сохранение...</span>}
+        {saving && <span className="text-xs text-muted-foreground animate-pulse">Saving...</span>}
       </div>
 
       {filteredSections.map((section) => {
@@ -220,16 +220,16 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                 <table className="w-full text-[12px]">
                   <thead>
                     <tr className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      <th className="text-left px-3 py-2 font-medium w-[140px]">Тема</th>
+                      <th className="text-left px-3 py-2 font-medium w-[140px]">Topic</th>
                       <th className="text-left px-3 py-2 font-medium border-l border-border/60 w-[280px]">
                         <span className={`inline-flex items-center gap-1 ${GRADE_LABEL_COLOR[base]}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${GRADE_DOT_BG[base]}`} />
-                          Навыки
+                          Skills
                         </span>
                       </th>
-                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[120px]">Самооценка</th>
-                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[70px]">Оценка</th>
-                      <th className="text-left px-2 py-2 font-medium border-l border-border/60 w-[160px]">Комментарий</th>
+                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[120px]">Self-assessment</th>
+                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[70px]">Score</th>
+                      <th className="text-left px-2 py-2 font-medium border-l border-border/60 w-[160px]">Comment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -286,7 +286,7 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                               onChange={(e) => handleAssessorChange(topic.id, "comment", e.target.value)}
                               disabled={!isAssessor}
                               className="w-full h-7 text-[12px] rounded border border-border/60 bg-transparent px-2 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
-                              placeholder="Комментарий..."
+                              placeholder="Comment..."
                             />
                           </td>
                         </tr>

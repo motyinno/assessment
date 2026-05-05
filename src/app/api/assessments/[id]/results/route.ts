@@ -36,7 +36,7 @@ export async function PUT(
 
   if (!results || !Array.isArray(results)) {
     return NextResponse.json(
-      { error: "results array обязателен" },
+      { error: "results array is required" },
       { status: 400 }
     );
   }

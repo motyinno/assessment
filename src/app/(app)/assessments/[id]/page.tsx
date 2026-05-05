@@ -19,10 +19,10 @@ import { AssessmentMatrix } from "@/components/assessment-matrix";
 import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
-  PLANNED: "Запланирован",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершён",
-  CANCELLED: "Отменён",
+  PLANNED: "Planned",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info" | "warning"> = {
@@ -217,10 +217,10 @@ export default function AssessmentDetailPage() {
         setFeedbackSavedAt(null);
       } else {
         const error = await res.json();
-        alert(error.error || "Ошибка генерации фидбека");
+        alert(error.error || "Failed to generate feedback");
       }
     } catch {
-      alert("Ошибка генерации фидбека");
+      alert("Failed to generate feedback");
     }
     setGeneratingFeedback(false);
   }
@@ -238,18 +238,18 @@ export default function AssessmentDetailPage() {
         setAssessment((prev) => (prev ? { ...prev, aiFeedback: feedbackText } : prev));
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Не удалось сохранить фидбек");
+        alert(err.error || "Failed to save feedback");
       }
     } catch {
-      alert("Не удалось сохранить фидбек");
+      alert("Failed to save feedback");
     }
     setSavingFeedback(false);
   }
 
   if (loading)
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return <p className="text-muted-foreground">Loading...</p>;
   if (!assessment)
-    return <p className="text-destructive">Ассессмент не найден</p>;
+    return <p className="text-destructive">Assessment not found</p>;
 
   const isPdpCheck = assessment.assessmentType === "PDP_CHECK";
 
@@ -277,7 +277,7 @@ export default function AssessmentDetailPage() {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Link href="/assessments" className="hover:text-foreground transition-colors">
-              Ассессменты
+              Assessments
             </Link>
             <span>/</span>
             <span className="text-foreground/70 truncate">{assessment.title}</span>
@@ -300,7 +300,7 @@ export default function AssessmentDetailPage() {
           <div className="flex gap-2">
             {assessment.status === "COMPLETED" && !isPdpCheck && (
               <Link href={`/assessments/${id}/generate`} className={buttonVariants()}>
-                Сгенерировать ИПР
+                Generate PDP
               </Link>
             )}
             {assessment.status !== "CANCELLED" &&
@@ -309,7 +309,7 @@ export default function AssessmentDetailPage() {
                   variant="destructive"
                   onClick={() => updateStatus("CANCELLED")}
                 >
-                  Отменить
+                  Cancel
                 </Button>
               )}
           </div>
@@ -333,10 +333,10 @@ export default function AssessmentDetailPage() {
         <Card>
           <CardContent className="py-6 text-center">
             <p className="text-sm text-muted-foreground mb-3">
-              Для этого ассессмента ещё не созданы сессии
+              No sessions have been created for this assessment yet
             </p>
             <Button onClick={createSessions} disabled={sessionActionLoading}>
-              Создать сессии
+              Create sessions
             </Button>
           </CardContent>
         </Card>
@@ -346,26 +346,26 @@ export default function AssessmentDetailPage() {
         {/* Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Информация</CardTitle>
+            <CardTitle>Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Дата создания</span>
-              <span>{new Date(assessment.createdAt).toLocaleDateString("ru-RU")}</span>
+              <span className="text-muted-foreground">Created</span>
+              <span>{new Date(assessment.createdAt).toLocaleDateString("en-US")}</span>
             </div>
             {assessment.scheduledAt && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Запланирован на</span>
+                <span className="text-muted-foreground">Scheduled for</span>
                 <span>
-                  {new Date(assessment.scheduledAt).toLocaleDateString("ru-RU")}
+                  {new Date(assessment.scheduledAt).toLocaleDateString("en-US")}
                 </span>
               </div>
             )}
             {assessment.completedAt && (
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Завершён</span>
+                <span className="text-muted-foreground">Completed</span>
                 <span>
-                  {new Date(assessment.completedAt).toLocaleDateString("ru-RU")}
+                  {new Date(assessment.completedAt).toLocaleDateString("en-US")}
                 </span>
               </div>
             )}
@@ -381,13 +381,13 @@ export default function AssessmentDetailPage() {
         {/* Participants */}
         <Card>
           <CardHeader>
-            <CardTitle>Участники</CardTitle>
+            <CardTitle>Participants</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {subjects.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
-                  Оцениваемые
+                  Subjects
                 </p>
                 {subjects.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 py-1">
@@ -411,7 +411,7 @@ export default function AssessmentDetailPage() {
             {assessors.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
-                  Асессоры
+                  Assessors
                 </p>
                 {assessors.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 py-1">
@@ -442,7 +442,7 @@ export default function AssessmentDetailPage() {
       {hasSessions && assessment.sessions.some((s) => s.status === "COMPLETED" || s.status === "IN_PROGRESS") && (
         <Card>
           <CardHeader>
-            <CardTitle>История проведения</CardTitle>
+            <CardTitle>Session history</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {assessment.sessions
@@ -454,10 +454,10 @@ export default function AssessmentDetailPage() {
                         (new Date(s.completedAt).getTime() -
                           new Date(s.startedAt).getTime()) /
                           60000
-                      )} мин.`
+                      )} min`
                     : null;
                 const dateStr = s.startedAt
-                  ? new Date(s.startedAt).toLocaleDateString("ru-RU", {
+                  ? new Date(s.startedAt).toLocaleDateString("en-US", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
@@ -465,15 +465,15 @@ export default function AssessmentDetailPage() {
                   : null;
                 const timeRange =
                   s.startedAt && s.completedAt
-                    ? `${new Date(s.startedAt).toLocaleTimeString("ru-RU", {
+                    ? `${new Date(s.startedAt).toLocaleTimeString("en-US", {
                         hour: "2-digit",
                         minute: "2-digit",
-                      })} – ${new Date(s.completedAt).toLocaleTimeString("ru-RU", {
+                      })} – ${new Date(s.completedAt).toLocaleTimeString("en-US", {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}`
                     : s.startedAt
-                      ? `с ${new Date(s.startedAt).toLocaleTimeString("ru-RU", {
+                      ? `from ${new Date(s.startedAt).toLocaleTimeString("en-US", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}`
@@ -486,7 +486,7 @@ export default function AssessmentDetailPage() {
                       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                       <circle cx="12" cy="7" r="4" />
                     </svg>
-                    {s.assessorName || (s.status === "SKIPPED" ? "—" : "Не назначен")}
+                    {s.assessorName || (s.status === "SKIPPED" ? "—" : "Not assigned")}
                   </span>
                 );
                 if (dateStr) {
@@ -512,7 +512,7 @@ export default function AssessmentDetailPage() {
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
-                      {duration ?? (s.status === "SKIPPED" ? "Пропущена" : "—")}
+                      {duration ?? (s.status === "SKIPPED" ? "Skipped" : "—")}
                     </span>
                   );
                 }
@@ -564,12 +564,12 @@ export default function AssessmentDetailPage() {
                                   <polygon points="23 7 16 12 23 17 23 7" />
                                   <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                                 </svg>
-                                Запись
+                                Recording
                               </a>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-md bg-muted/60">
                                 <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
-                                Запись ожидается
+                                Recording pending
                               </span>
                             )}
                             {isAssessor && !s.recordingLink && (
@@ -609,7 +609,7 @@ export default function AssessmentDetailPage() {
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                               </svg>
-                              Фидбек по сессии
+                              Session feedback
                             </summary>
                             <div className="mt-2 text-sm text-foreground/90 whitespace-pre-wrap rounded-md bg-muted/40 border border-border/60 p-3 leading-relaxed">
                               {s.notes}
@@ -639,9 +639,9 @@ export default function AssessmentDetailPage() {
             >
               ▼
             </span>
-            <span className="text-base font-semibold">Техническая матрица</span>
+            <span className="text-base font-semibold">Tech matrix</span>
             <span className="text-xs text-muted-foreground ml-auto">
-              {matrixOpen ? "Скрыть" : "Показать"}
+              {matrixOpen ? "Hide" : "Show"}
             </span>
           </button>
           {matrixOpen && (
@@ -662,13 +662,13 @@ export default function AssessmentDetailPage() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
-              <CardTitle>Фидбек по ассессменту</CardTitle>
+              <CardTitle>Assessment feedback</CardTitle>
               {feedbackSavedAt && !savingFeedback && (
                 <span className="text-xs text-success inline-flex items-center gap-1">
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Сохранено
+                  Saved
                 </span>
               )}
             </div>
@@ -681,7 +681,7 @@ export default function AssessmentDetailPage() {
                 setFeedbackSavedAt(null);
               }}
               rows={10}
-              placeholder="Напишите фидбек вручную или сгенерируйте через AI и отредактируйте."
+              placeholder="Write feedback manually, or generate it with AI and edit."
               className="w-full min-h-[220px] rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <div className="flex flex-wrap items-center gap-2">
@@ -689,14 +689,14 @@ export default function AssessmentDetailPage() {
                 onClick={saveFeedback}
                 disabled={savingFeedback || feedbackText === (assessment.aiFeedback ?? "")}
               >
-                {savingFeedback ? "Сохранение..." : "Сохранить"}
+                {savingFeedback ? "Saving..." : "Save"}
               </Button>
               <Button
                 variant="outline"
                 onClick={generateFeedback}
                 disabled={generatingFeedback}
               >
-                {generatingFeedback ? "Генерация..." : "Сгенерировать через AI"}
+                {generatingFeedback ? "Generating..." : "Generate with AI"}
               </Button>
               {feedbackText && (
                 <Button
@@ -706,11 +706,11 @@ export default function AssessmentDetailPage() {
                     setFeedbackSavedAt(null);
                   }}
                 >
-                  Очистить
+                  Clear
                 </Button>
               )}
               <span className="text-xs text-muted-foreground ml-auto">
-                {feedbackText.length} симв.
+                {feedbackText.length} chars
               </span>
             </div>
           </CardContent>
@@ -720,7 +720,7 @@ export default function AssessmentDetailPage() {
 
 
       <Button variant="outline" onClick={() => router.push("/assessments")}>
-        Назад к списку
+        Back to list
       </Button>
     </div>
   );
@@ -728,7 +728,7 @@ export default function AssessmentDetailPage() {
 
 /**
  * The recording is pulled automatically from the assessor's Drive after the
- * meeting ends. This button is the "Обновить" fallback when Google takes
+ * meeting ends. This button is the "Refresh" fallback when Google takes
  * longer than 3 minutes to publish the file and the auto-sync missed it.
  */
 function RecordingSyncButton({
@@ -753,17 +753,17 @@ function RecordingSyncButton({
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось синхронизировать");
+        throw new Error(data.error || "Failed to sync");
       }
       const data = await res.json();
       if (!data.recordingFound) {
         setError(
-          "Запись пока не найдена. Google публикует её через несколько минут после завершения встречи — попробуйте чуть позже."
+          "Recording not found yet. Google publishes it a few minutes after the meeting ends — try again shortly."
         );
       }
       await onSynced();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      setError(e instanceof Error ? e.message : "Error");
     } finally {
       setLoading(false);
     }
@@ -776,7 +776,7 @@ function RecordingSyncButton({
         disabled={loading}
         onClick={triggerSync}
         className="inline-flex items-center text-[11px] text-muted-foreground hover:text-foreground disabled:opacity-50 px-1.5 py-1 rounded-md hover:bg-muted"
-        title="Синхронизировать запись с Google Drive"
+        title="Sync recording from Google Drive"
       >
         <svg
           className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}

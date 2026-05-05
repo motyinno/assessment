@@ -123,30 +123,29 @@ export default function GeneratePdpForUserPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Ошибка генерации");
+        throw new Error(data.error || "Failed to generate");
       }
       // Generation runs in the background — go straight to the user's page
-      // where the new PDP shows with a "Генерация..." indicator.
+      // where the new PDP shows with a "Generating..." indicator.
       router.push(`/users/${userId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      setError(e instanceof Error ? e.message : "Error");
       setGenerating(false);
     }
   }
 
   if (!user || !matrix) {
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return <p className="text-muted-foreground">Loading...</p>;
   }
 
   if (!user.grade) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold">Сгенерировать ИПР</h1>
+        <h1 className="text-2xl font-bold">Generate PDP</h1>
         <Card>
           <CardContent className="py-6">
             <p className="text-sm">
-              У пользователя <b>{user.name}</b> не указан грейд. Назначьте грейд
-              в карточке пользователя перед генерацией.
+              User <b>{user.name}</b> has no grade assigned. Set a grade on the user's profile before generating.
             </p>
           </CardContent>
         </Card>
@@ -157,7 +156,7 @@ export default function GeneratePdpForUserPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Сгенерировать ИПР</h1>
+        <h1 className="text-2xl font-bold">Generate PDP</h1>
         <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
           <span>{user.name}</span>
           <Badge variant="outline">{gradeLabel(user.grade)}</Badge>
@@ -169,7 +168,7 @@ export default function GeneratePdpForUserPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            Темы тех. матрицы ({selected.size} выбрано)
+            Tech matrix topics ({selected.size} selected)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -236,10 +235,10 @@ export default function GeneratePdpForUserPage() {
 
       <div className="flex items-center gap-3">
         <Button onClick={handleGenerate} disabled={generating || selected.size === 0}>
-          {generating ? "Генерация..." : "Сгенерировать ИПР"}
+          {generating ? "Generating..." : "Generate PDP"}
         </Button>
         <Button variant="outline" onClick={() => router.push("/users")}>
-          Отмена
+          Cancel
         </Button>
       </div>
 

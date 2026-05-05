@@ -73,10 +73,10 @@ interface ProfileData {
 }
 
 const statusLabels: Record<string, string> = {
-  PLANNED: "Запланирован",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершён",
-  CANCELLED: "Отменён",
+  PLANNED: "Planned",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info" | "warning"> = {
@@ -87,15 +87,15 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
 };
 
 const ROLE_META: Record<string, { label: string; tone: "warning" | "default" | "secondary"; accent: string }> = {
-  ADMIN: { label: "Админ", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
-  ASSESSOR: { label: "Асессор", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
-  USER: { label: "Пользователь", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
+  ADMIN: { label: "Admin", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
+  ASSESSOR: { label: "Assessor", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
+  USER: { label: "User", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
 };
 
 const ROLE_LABEL: Record<string, string> = {
-  USER: "Пользователь",
-  ASSESSOR: "Асессор",
-  ADMIN: "Админ",
+  USER: "User",
+  ASSESSOR: "Assessor",
+  ADMIN: "Admin",
 };
 
 function initialsOf(name: string) {
@@ -222,12 +222,12 @@ export default function UserProfilePage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось сохранить");
+        throw new Error(data.error || "Failed to save");
       }
       setEditOpen(false);
       await fetchProfile();
     } catch (e) {
-      setEditError(e instanceof Error ? e.message : "Ошибка");
+      setEditError(e instanceof Error ? e.message : "Error");
     } finally {
       setEditLoading(false);
     }
@@ -236,7 +236,7 @@ export default function UserProfilePage() {
   async function handleDelete() {
     if (!profile) return;
     const confirmed = window.confirm(
-      `Удалить пользователя ${profile.name}? Это действие нельзя отменить.`
+      `Delete user ${profile.name}? This action cannot be undone.`
     );
     if (!confirmed) return;
     setDeleteError("");
@@ -245,11 +245,11 @@ export default function UserProfilePage() {
       const res = await fetch(`/api/users/${profile.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось удалить");
+        throw new Error(data.error || "Failed to delete");
       }
       router.push("/users");
     } catch (e) {
-      setDeleteError(e instanceof Error ? e.message : "Ошибка");
+      setDeleteError(e instanceof Error ? e.message : "Error");
       setDeleteLoading(false);
     }
   }
@@ -276,19 +276,19 @@ export default function UserProfilePage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось добавить");
+        throw new Error(data.error || "Failed to add");
       }
       setAttachOpen(false);
       await fetchProfile();
     } catch (e) {
-      setAttachError(e instanceof Error ? e.message : "Ошибка");
+      setAttachError(e instanceof Error ? e.message : "Error");
     } finally {
       setAttachLoading(false);
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Загрузка...</p>;
-  if (!profile) return <p className="text-destructive">Пользователь не найден</p>;
+  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (!profile) return <p className="text-destructive">User not found</p>;
 
   const roleMeta = ROLE_META[profile.role] ?? ROLE_META.USER;
   const completedAssessments = profile.participations.filter(
@@ -300,7 +300,7 @@ export default function UserProfilePage() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <Link href="/users" className="hover:text-foreground transition-colors">
-          Пользователи
+          Users
         </Link>
         <span>/</span>
         <span className="text-foreground/70 truncate">{profile.name}</span>
@@ -330,13 +330,13 @@ export default function UserProfilePage() {
                   {profile.email}
                 </p>
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                  <MetaItem label="Проект" value={profile.project} />
-                  <MetaItem label="Руководитель" value={profile.manager} />
+                  <MetaItem label="Project" value={profile.project} />
+                  <MetaItem label="Manager" value={profile.manager} />
                   <MetaItem
-                    label="Ассессменты"
+                    label="Assessments"
                     value={`${completedAssessments} / ${profile.participations.length}`}
                   />
-                  <MetaItem label="ИПР" value={String(profile.pdps.length)} />
+                  <MetaItem label="PDPs" value={String(profile.pdps.length)} />
                 </div>
               </div>
             </div>
@@ -347,20 +347,20 @@ export default function UserProfilePage() {
                   href={`/users/${profile.id}/generate-pdp`}
                   className={buttonVariants({ size: "lg" }) + " justify-center"}
                 >
-                  Сгенерировать ИПР
+                  Generate PDP
                 </Link>
               ) : (
                 <div className="text-[11px] text-muted-foreground rounded-md border border-dashed px-3 py-2 text-center">
-                  Без грейда — генерация недоступна
+                  No grade — generation unavailable
                 </div>
               )}
               <Button variant="outline" size="lg" onClick={openAttach}>
-                Добавить PDP файл
+                Attach PDP file
               </Button>
               {isAdmin && (
                 <>
                   <Button variant="outline" size="lg" onClick={openEdit}>
-                    Редактировать
+                    Edit
                   </Button>
                   <Button
                     variant="outline"
@@ -370,11 +370,11 @@ export default function UserProfilePage() {
                     className="text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/30"
                     title={
                       profile.id === currentUserId
-                        ? "Нельзя удалить свой аккаунт"
+                        ? "Can't delete your own account"
                         : undefined
                     }
                   >
-                    {deleteLoading ? "Удаление..." : "Удалить"}
+                    {deleteLoading ? "Deleting..." : "Delete"}
                   </Button>
                   {deleteError && (
                     <p className="text-xs text-destructive">{deleteError}</p>
@@ -390,10 +390,10 @@ export default function UserProfilePage() {
       <div className="grid gap-6 xl:grid-cols-3">
         <Card className="xl:col-span-2">
           <CardHeader className="flex-row items-center justify-between gap-3">
-            <CardTitle>Ассессменты</CardTitle>
+            <CardTitle>Assessments</CardTitle>
             <span className="text-xs text-muted-foreground">
               {profile.participations.length}{" "}
-              {profile.participations.length === 1 ? "участие" : "участий"}
+              {profile.participations.length === 1 ? "participation" : "participations"}
             </span>
           </CardHeader>
           <CardContent className="p-0">
@@ -405,16 +405,16 @@ export default function UserProfilePage() {
                     <rect x="8" y="2" width="8" height="4" rx="1" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium">Нет ассессментов</p>
+                <p className="text-sm font-medium">No assessments</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Название</TableHead>
-                    <TableHead>Тип</TableHead>
-                    <TableHead>Статус</TableHead>
-                    <TableHead>Дата</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -440,7 +440,7 @@ export default function UserProfilePage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
-                        {new Date(p.assessment.createdAt).toLocaleDateString("ru-RU")}
+                        {new Date(p.assessment.createdAt).toLocaleDateString("en-US")}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -452,10 +452,10 @@ export default function UserProfilePage() {
 
         <Card className="xl:col-span-1">
           <CardHeader className="flex-row items-center justify-between gap-3">
-            <CardTitle>ИПР</CardTitle>
+            <CardTitle>PDPs</CardTitle>
             <span className="text-xs text-muted-foreground">
               {profile.pdps.length}{" "}
-              {profile.pdps.length === 1 ? "план" : "планов"}
+              {profile.pdps.length === 1 ? "plan" : "plans"}
             </span>
           </CardHeader>
           <CardContent className="p-0">
@@ -467,7 +467,7 @@ export default function UserProfilePage() {
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium">Нет планов развития</p>
+                <p className="text-sm font-medium">No development plans</p>
               </div>
             ) : (
               (() => {
@@ -545,20 +545,20 @@ export default function UserProfilePage() {
                                   <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                                     {isGenerating ? (
                                       <Badge variant="info" className="shrink-0">
-                                        Генерация…
+                                        Generating…
                                       </Badge>
                                     ) : isFailed ? (
                                       <Badge variant="destructive" className="shrink-0">
-                                        Ошибка
+                                        Failed
                                       </Badge>
                                     ) : isOnReview ? (
                                       <Badge variant="warning" className="shrink-0">
-                                        На проверке
+                                        In review
                                       </Badge>
                                     ) : (
                                       isLatestActive && (
                                         <Badge variant="success" className="shrink-0">
-                                          Актуальный
+                                          Current
                                         </Badge>
                                       )
                                     )}
@@ -572,11 +572,11 @@ export default function UserProfilePage() {
                                           <path d="M7 17L17 7" />
                                           <polyline points="7 7 17 7 17 17" />
                                         </svg>
-                                        {new Date(pdp.createdAt).toLocaleDateString("ru-RU")}
+                                        {new Date(pdp.createdAt).toLocaleDateString("en-US")}
                                       </Link>
                                     ) : (
                                       <span>
-                                        {new Date(pdp.createdAt).toLocaleDateString("ru-RU")}
+                                        {new Date(pdp.createdAt).toLocaleDateString("en-US")}
                                       </span>
                                     )}
                                   </div>
@@ -588,7 +588,7 @@ export default function UserProfilePage() {
                                   {isOnReview && pdp.reviewNotes && (
                                     <div className="mt-1.5 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-1.5">
                                       <p className="text-[10px] font-semibold uppercase tracking-wide text-warning-foreground/80">
-                                        Замечания администратора
+                                        Administrator notes
                                       </p>
                                       <p className="text-[11px] text-foreground whitespace-pre-wrap mt-0.5">
                                         {pdp.reviewNotes}
@@ -602,7 +602,7 @@ export default function UserProfilePage() {
                                       href={pdp.driveLink}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      title="Открыть в Google Drive"
+                                      title="Open in Google Drive"
                                       className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 px-2 py-1 rounded-md"
                                     >
                                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -639,8 +639,8 @@ export default function UserProfilePage() {
                             <polyline points="6 9 12 15 18 9" />
                           </svg>
                           {pdpsExpanded
-                            ? "Скрыть предыдущие"
-                            : `Показать предыдущие (${older.length})`}
+                            ? "Hide previous"
+                            : `Show previous (${older.length})`}
                         </button>
                       </div>
                     )}
@@ -658,7 +658,7 @@ export default function UserProfilePage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                Редактировать пользователя
+                Edit user
                 <span className="block text-sm font-normal text-muted-foreground mt-1">
                   {profile.email}
                 </span>
@@ -666,7 +666,7 @@ export default function UserProfilePage() {
             </DialogHeader>
             <form onSubmit={submitEdit} className="space-y-4">
               <div className="space-y-1.5">
-                <Label>Имя</Label>
+                <Label>Name</Label>
                 <Input
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
@@ -674,7 +674,7 @@ export default function UserProfilePage() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label>Роль</Label>
+                <Label>Role</Label>
                 <Select
                   value={editForm.role}
                   onValueChange={(v) => v && setEditForm({ ...editForm, role: v })}
@@ -686,20 +686,20 @@ export default function UserProfilePage() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USER">Пользователь</SelectItem>
-                    <SelectItem value="ASSESSOR">Асессор</SelectItem>
-                    <SelectItem value="ADMIN">Админ</SelectItem>
+                    <SelectItem value="USER">User</SelectItem>
+                    <SelectItem value="ASSESSOR">Assessor</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
                   </SelectContent>
                 </Select>
                 {profile.id === currentUserId && (
                   <p className="text-[11px] text-muted-foreground">
-                    Нельзя сменить собственную роль.
+                    Can't change your own role.
                   </p>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label>Грейд</Label>
+                  <Label>Grade</Label>
                   <Select
                     value={editForm.grade || "__none__"}
                     onValueChange={(v) =>
@@ -707,16 +707,16 @@ export default function UserProfilePage() {
                     }
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Не задан">
+                      <SelectValue placeholder="Not set">
                         {(v: unknown) =>
                           typeof v === "string" && v && v !== "__none__"
                             ? gradeLabel(v)
-                            : "Не задан"
+                            : "Not set"
                         }
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="__none__">Не задан</SelectItem>
+                      <SelectItem value="__none__">Not set</SelectItem>
                       {GRADE_VALUES.map((g) => (
                         <SelectItem key={g} value={g}>
                           {gradeLabel(g)}
@@ -726,7 +726,7 @@ export default function UserProfilePage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Проект</Label>
+                  <Label>Project</Label>
                   <Input
                     value={editForm.project}
                     onChange={(e) => setEditForm({ ...editForm, project: e.target.value })}
@@ -734,7 +734,7 @@ export default function UserProfilePage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Руководитель</Label>
+                <Label>Manager</Label>
                 <ManagerCombobox
                   value={editForm.manager}
                   onChange={(v) => setEditForm({ ...editForm, manager: v })}
@@ -745,10 +745,10 @@ export default function UserProfilePage() {
               {editError && <p className="text-sm text-destructive">{editError}</p>}
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
-                  Отмена
+                  Cancel
                 </Button>
                 <Button type="submit" disabled={editLoading}>
-                  {editLoading ? "Сохранение..." : "Сохранить"}
+                  {editLoading ? "Saving..." : "Save"}
                 </Button>
               </div>
             </form>
@@ -761,7 +761,7 @@ export default function UserProfilePage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Добавить ИПР по ссылке
+              Attach PDP by link
               <span className="block text-sm font-normal text-muted-foreground mt-1">
                 {profile.name}
               </span>
@@ -769,7 +769,7 @@ export default function UserProfilePage() {
           </DialogHeader>
           <form onSubmit={submitAttach} className="space-y-3">
             <div className="space-y-1.5">
-              <Label>Ссылка на Google Drive / Docs</Label>
+              <Label>Google Drive / Docs link</Label>
               <Input
                 type="url"
                 required
@@ -779,9 +779,9 @@ export default function UserProfilePage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Название (необязательно)</Label>
+              <Label>Name (optional)</Label>
               <Input
-                placeholder="Например: ИПР Q2 2026"
+                placeholder="e.g. PDP Q2 2026"
                 value={attachName}
                 onChange={(e) => setAttachName(e.target.value)}
               />
@@ -795,10 +795,10 @@ export default function UserProfilePage() {
                 variant="outline"
                 onClick={() => setAttachOpen(false)}
               >
-                Отмена
+                Cancel
               </Button>
               <Button type="submit" disabled={attachLoading || !attachLink.trim()}>
-                {attachLoading ? "Сохранение..." : "Добавить"}
+                {attachLoading ? "Saving..." : "Add"}
               </Button>
             </div>
           </form>
@@ -880,7 +880,7 @@ function ManagerCombobox({
             setOpen(false);
           }
         }}
-        placeholder="Начните вводить имя или email"
+        placeholder="Start typing a name or email"
         autoComplete="off"
       />
       {open && matches.length > 0 && (
@@ -914,7 +914,7 @@ function ManagerCombobox({
       )}
       {value && !matches.some((m) => m.name === value) && (
         <p className="text-[11px] text-muted-foreground mt-1">
-          Если руководителя нет в списке, значение будет сохранено как есть.
+          If the manager isn't in the list, the value will be saved as-is.
         </p>
       )}
     </div>

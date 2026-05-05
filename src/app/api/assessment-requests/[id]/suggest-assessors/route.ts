@@ -20,7 +20,7 @@ export async function GET(
     select: { userId: true, grade: true },
   });
   if (!request) {
-    return NextResponse.json({ error: "Заявка не найдена" }, { status: 404 });
+    return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
 
   const candidates = await suggestAssessors({

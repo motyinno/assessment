@@ -73,10 +73,10 @@ import {
 } from "@/components/ui/table";
 
 const statusLabels: Record<string, string> = {
-  PLANNED: "Запланирован",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершён",
-  CANCELLED: "Отменён",
+  PLANNED: "Planned",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info" | "warning"> = {
@@ -87,10 +87,10 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
 };
 
 const pdpStatusLabels: Record<string, string> = {
-  DRAFT: "Черновик",
-  ON_REVIEW: "На проверке",
-  ACTIVE: "Активен",
-  COMPLETED: "Завершён",
+  DRAFT: "Draft",
+  ON_REVIEW: "In review",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
 };
 
 export default async function DashboardPage() {
@@ -152,9 +152,9 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Привет, {firstName} 👋</h1>
+          <h1 className="page-title">Hi, {firstName} 👋</h1>
           <p className="page-subtitle mt-1">
-            Обзор ваших ассессментов и планов развития
+            Overview of your assessments and development plans
           </p>
         </div>
       </div>
@@ -166,7 +166,7 @@ export default async function DashboardPage() {
         )}
       >
         <StatCard
-          label="Мои ассессменты"
+          label="My assessments"
           value={myAssessments.length}
           tone="primary"
           icon={
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
           }
         />
         <StatCard
-          label="Мои ИПР"
+          label="My PDPs"
           value={pdps.length}
           tone="success"
           icon={
@@ -192,7 +192,7 @@ export default async function DashboardPage() {
         />
         {(role === "ASSESSOR" || role === "ADMIN") && (
           <StatCard
-            label={role === "ADMIN" ? "Заявки на рассмотрении" : "Провожу ассессментов"}
+            label={role === "ADMIN" ? "Pending requests" : "Conducting assessments"}
             value={role === "ADMIN" ? pendingRequestsCount : conductingAssessments.length}
             tone={role === "ADMIN" && pendingRequestsCount > 0 ? "warning" : "muted"}
             icon={
@@ -204,7 +204,7 @@ export default async function DashboardPage() {
             footer={
               role === "ADMIN" && pendingRequestsCount > 0 ? (
                 <Link href="/requests" className="text-xs font-medium text-primary hover:underline">
-                  Перейти к заявкам →
+                  Go to requests →
                 </Link>
               ) : null
             }
@@ -212,7 +212,7 @@ export default async function DashboardPage() {
         )}
         {role === "ADMIN" && (
           <StatCard
-            label="ИПР на проверке"
+            label="PDPs in review"
             value={pendingPdpReviewCount}
             tone={pendingPdpReviewCount > 0 ? "warning" : "muted"}
             icon={
@@ -225,7 +225,7 @@ export default async function DashboardPage() {
             footer={
               pendingPdpReviewCount > 0 ? (
                 <Link href="/pdp-review" className="text-xs font-medium text-primary hover:underline">
-                  Перейти к проверке →
+                  Go to review →
                 </Link>
               ) : null
             }
@@ -236,19 +236,19 @@ export default async function DashboardPage() {
       {/* My Assessments as Subject */}
       <Card>
         <CardHeader>
-          <CardTitle>Мои ассессменты</CardTitle>
+          <CardTitle>My assessments</CardTitle>
         </CardHeader>
         <CardContent>
           {myAssessments.length === 0 ? (
-            <EmptyState title="Нет ассессментов" description="Когда вам назначат ассессмент, он появится здесь." />
+            <EmptyState title="No assessments" description="When an assessment is assigned to you, it will appear here." />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Название</TableHead>
-                  <TableHead>Грейд</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Дата</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -270,12 +270,12 @@ export default async function DashboardPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {p.assessment.scheduledAt
-                        ? new Date(p.assessment.scheduledAt).toLocaleDateString("ru-RU")
+                        ? new Date(p.assessment.scheduledAt).toLocaleDateString("en-US")
                         : "—"}
                     </TableCell>
                     <TableCell>
                       <Link href={`/assessments/${p.assessment.id}`} className="text-sm text-primary hover:underline">
-                          Открыть
+                          Open
                       </Link>
                     </TableCell>
                   </TableRow>
@@ -290,16 +290,16 @@ export default async function DashboardPage() {
       {(role === "ASSESSOR" || role === "ADMIN") && conductingAssessments.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Ассессменты которые я провожу</CardTitle>
+            <CardTitle>Assessments I'm conducting</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Название</TableHead>
-                  <TableHead>Грейд</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Участники</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Participants</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -328,7 +328,7 @@ export default async function DashboardPage() {
                       </TableCell>
                       <TableCell>
                         <Link href={`/assessments/${p.assessment.id}`} className="text-sm text-primary hover:underline">
-                            Открыть
+                            Open
                         </Link>
                       </TableCell>
                     </TableRow>
@@ -344,16 +344,16 @@ export default async function DashboardPage() {
       {role !== "ADMIN" && myRequests.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Мои заявки на ассессмент</CardTitle>
+            <CardTitle>My assessment requests</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Грейд</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Асессор</TableHead>
-                  <TableHead>Дата</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assessor</TableHead>
+                  <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -371,7 +371,7 @@ export default async function DashboardPage() {
                           req.status === "REJECTED" ? "destructive" : "outline"
                         }
                       >
-                        {{ PENDING: "На рассмотрении", APPROVED: "Одобрена", REJECTED: "Отклонена" }[req.status] || req.status}
+                        {{ PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected" }[req.status] || req.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -391,19 +391,19 @@ export default async function DashboardPage() {
       {/* My PDPs */}
       <Card>
         <CardHeader>
-          <CardTitle>Мои ИПР</CardTitle>
+          <CardTitle>My PDPs</CardTitle>
         </CardHeader>
         <CardContent>
           {pdps.length === 0 ? (
-            <EmptyState title="Нет планов развития" description="ИПР появятся после завершения ассессмента." />
+            <EmptyState title="No development plans" description="PDPs will appear after an assessment is completed." />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Файл</TableHead>
-                  <TableHead>Ассессмент</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Дата создания</TableHead>
+                  <TableHead>File</TableHead>
+                  <TableHead>Assessment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -430,7 +430,7 @@ export default async function DashboardPage() {
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline"
                         >
-                          Открыть в Drive
+                          Open in Drive
                         </a>
                       )}
                     </TableCell>

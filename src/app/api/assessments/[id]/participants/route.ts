@@ -14,7 +14,7 @@ export async function POST(
 
   if (!userId || !participantRole) {
     return NextResponse.json(
-      { error: "userId и participantRole обязательны" },
+      { error: "userId and participantRole are required" },
       { status: 400 }
     );
   }
@@ -46,7 +46,7 @@ export async function DELETE(
 
   if (!participantId) {
     return NextResponse.json(
-      { error: "participantId обязателен" },
+      { error: "participantId is required" },
       { status: 400 }
     );
   }

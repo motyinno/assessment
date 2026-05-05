@@ -177,7 +177,7 @@ export default function GeneratePdpPage() {
     setMessage("");
 
     const selectedTopics = topics.filter((t) => t.selected);
-    const outputName = `ИПР_${subject.name.replace(/\s+/g, "_")}.docx`;
+    const outputName = `PDP_${subject.name.replace(/\s+/g, "_")}.docx`;
 
     const body = {
       weakTopics: selectedTopics,
@@ -185,7 +185,7 @@ export default function GeneratePdpPage() {
         employee: subject.name,
         manager: subject.manager || "",
         grade: assessment.grade,
-        date: new Date().toLocaleDateString("ru-RU"),
+        date: new Date().toLocaleDateString("en-US"),
         level_before: gradeLabel(assessment.grade),
         next_date: "",
         project: subject.project || "",
@@ -209,7 +209,7 @@ export default function GeneratePdpPage() {
       });
 
       if (!res.ok) {
-        setMessage("Ошибка генерации");
+        setMessage("Failed to generate");
         setGenerating(false);
         return;
       }
@@ -232,15 +232,15 @@ export default function GeneratePdpPage() {
       a.click();
       URL.revokeObjectURL(url);
 
-      setMessage("ИПР сгенерирован и сохранён");
+      setMessage("PDP generated and saved");
     } catch {
-      setMessage("Ошибка генерации");
+      setMessage("Failed to generate");
     }
     setGenerating(false);
   }
 
   if (!assessment) {
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return <p className="text-muted-foreground">Loading...</p>;
   }
 
   const selectedCount = topics.filter((t) => t.selected).length;
@@ -267,7 +267,7 @@ export default function GeneratePdpPage() {
     const key = meta?.sectionId ?? "_other";
     if (!grouped[key]) {
       grouped[key] = {
-        sectionTitle: meta?.sectionTitle ?? "Прочее",
+        sectionTitle: meta?.sectionTitle ?? "Other",
         items: [],
       };
     }
@@ -282,7 +282,7 @@ export default function GeneratePdpPage() {
           {assessment.title}
         </Link>
         <span>/</span>
-        <span className="text-foreground/70">Генерация ИПР</span>
+        <span className="text-foreground/70">Generate PDP</span>
       </div>
 
       {/* Identity + settings banner */}
@@ -297,7 +297,7 @@ export default function GeneratePdpPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-semibold tracking-tight">
-                    {subject?.name ?? "Нет сотрудника"}
+                    {subject?.name ?? "No employee"}
                   </h1>
                   <Badge variant="outline">{gradeLabel(assessment.grade)}</Badge>
                 </div>
@@ -305,14 +305,14 @@ export default function GeneratePdpPage() {
                   {subject?.email ?? "—"}
                 </p>
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                  <MetaItem label="Проект" value={subject?.project ?? null} />
-                  <MetaItem label="Руководитель" value={subject?.manager ?? null} />
+                  <MetaItem label="Project" value={subject?.project ?? null} />
+                  <MetaItem label="Manager" value={subject?.manager ?? null} />
                   <MetaItem
-                    label="Средний балл"
+                    label="Average score"
                     value={avgScore !== null ? avgScore : null}
                   />
                   <MetaItem
-                    label="Слабых тем"
+                    label="Weak topics"
                     value={`${weakCount} < ${settings.threshold}`}
                   />
                 </div>
@@ -323,7 +323,7 @@ export default function GeneratePdpPage() {
             <div className="grid grid-cols-2 gap-3 lg:w-[360px] lg:shrink-0">
               <div className="space-y-1">
                 <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Вопросов на тему
+                  Questions per topic
                 </Label>
                 <Input
                   inputMode="numeric"
@@ -341,7 +341,7 @@ export default function GeneratePdpPage() {
               </div>
               <div className="space-y-1">
                 <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Порог (ниже = в ИПР)
+                  Threshold (below = include)
                 </Label>
                 <Input
                   inputMode="numeric"
@@ -362,7 +362,7 @@ export default function GeneratePdpPage() {
                     setSettings({ ...settings, useAI: e.target.checked })
                   }
                 />
-                AI-вопросы и задания на основе оценки
+                AI-generated questions and tasks based on the score
               </label>
             </div>
           </div>
@@ -374,7 +374,7 @@ export default function GeneratePdpPage() {
                 {selectedCount}
               </span>
               <span className="text-xs text-muted-foreground">
-                из {topics.length} тем выбрано
+                of {topics.length} topics selected
               </span>
             </div>
             <div className="flex items-center gap-1.5 ml-auto">
@@ -390,7 +390,7 @@ export default function GeneratePdpPage() {
                   )
                 }
               >
-                По порогу ({weakCount})
+                By threshold ({weakCount})
               </Button>
               <Button
                 variant="outline"
@@ -399,7 +399,7 @@ export default function GeneratePdpPage() {
                   setTopics((prev) => prev.map((t) => ({ ...t, selected: true })))
                 }
               >
-                Все
+                All
               </Button>
               <Button
                 variant="outline"
@@ -408,7 +408,7 @@ export default function GeneratePdpPage() {
                   setTopics((prev) => prev.map((t) => ({ ...t, selected: false })))
                 }
               >
-                Сбросить
+                Clear
               </Button>
             </div>
           </div>
@@ -418,12 +418,12 @@ export default function GeneratePdpPage() {
       {/* Topics — grouped grid */}
       <Card>
         <CardHeader>
-          <CardTitle>Темы для ИПР</CardTitle>
+          <CardTitle>PDP topics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           {topics.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
-              Нет оценок по темам — сначала заполните тех. матрицу.
+              No topic scores — fill in the tech matrix first.
             </p>
           ) : (
             Object.entries(grouped).map(([sectionId, group]) => (
@@ -514,19 +514,19 @@ export default function GeneratePdpPage() {
           size="lg"
         >
           {generating
-            ? "Генерация..."
-            : `Сгенерировать ИПР (${selectedCount} ${
-                selectedCount === 1 ? "тема" : "тем"
+            ? "Generating..."
+            : `Generate PDP (${selectedCount} ${
+                selectedCount === 1 ? "topic" : "topics"
               })`}
         </Button>
         <Button variant="outline" onClick={() => router.push(`/assessments/${id}`)}>
-          Назад
+          Back
         </Button>
         {message && (
           <p
             className={cn(
               "text-sm ml-auto",
-              message.includes("Ошибка") ? "text-destructive" : "text-success"
+              message.toLowerCase().includes("failed") ? "text-destructive" : "text-success"
             )}
           >
             {message}

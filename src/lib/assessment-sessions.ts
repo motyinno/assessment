@@ -19,23 +19,23 @@ export const ASSESSMENT_TYPES = {
 } as const;
 
 export const ASSESSMENT_TYPE_LABELS: Record<string, string> = {
-  GENERAL: "Общий ассессмент",
-  PDP_CHECK: "Проверка ИПР",
+  GENERAL: "General assessment",
+  PDP_CHECK: "PDP review",
 };
 
 export const SESSION_TYPE_LABELS: Record<string, string> = {
   SOFT_AI: "Soft + AI",
-  TECHNICAL_1: "Техническая 1",
-  TECHNICAL_2: "Техническая 2",
-  TECHNICAL_3: "Техническая 3",
-  PDP_TECH: "Проверка ИПР",
+  TECHNICAL_1: "Technical 1",
+  TECHNICAL_2: "Technical 2",
+  TECHNICAL_3: "Technical 3",
+  PDP_TECH: "PDP review",
 };
 
 export const SESSION_STATUS_LABELS: Record<string, string> = {
-  NOT_STARTED: "Не начата",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершена",
-  SKIPPED: "Пропущена",
+  NOT_STARTED: "Not started",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  SKIPPED: "Skipped",
 };
 
 import { baseGrade } from "./grades";

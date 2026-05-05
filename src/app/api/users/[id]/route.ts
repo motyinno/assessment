@@ -79,7 +79,7 @@ export async function PATCH(
 
   if (name !== undefined) {
     if (typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "Некорректное имя" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid name" }, { status: 400 });
     }
     data.name = name.trim();
   }
@@ -95,29 +95,29 @@ export async function PATCH(
   // Grade and role are admin-only.
   if (grade !== undefined) {
     if (!isAdmin) {
-      return NextResponse.json({ error: "Только администратор может менять грейд" }, { status: 403 });
+      return NextResponse.json({ error: "Only administrators can change grade" }, { status: 403 });
     }
     if (grade === null || grade === "") {
       data.grade = null;
     } else if (isValidGrade(grade)) {
       data.grade = grade;
     } else {
-      return NextResponse.json({ error: "Некорректный грейд" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid grade" }, { status: 400 });
     }
   }
 
   if (role !== undefined) {
     if (!isAdmin) {
-      return NextResponse.json({ error: "Только администратор может менять роль" }, { status: 403 });
+      return NextResponse.json({ error: "Only administrators can change role" }, { status: 403 });
     }
     if (typeof role !== "string" || !VALID_ROLES.has(role)) {
-      return NextResponse.json({ error: "Некорректная роль" }, { status: 400 });
+      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
     // Prevent an admin from demoting themselves — otherwise they could
     // lock the whole system out of admin access.
     if (isSelf && role !== "ADMIN") {
       return NextResponse.json(
-        { error: "Нельзя сменить свою роль с администратора" },
+        { error: "Can't change your own role away from administrator" },
         { status: 400 }
       );
     }
@@ -152,7 +152,7 @@ export async function DELETE(
 
   if (session!.user.id === id) {
     return NextResponse.json(
-      { error: "Нельзя удалить свой аккаунт" },
+      { error: "Can't delete your own account" },
       { status: 400 }
     );
   }
@@ -166,14 +166,14 @@ export async function DELETE(
   });
 
   if (!target) {
-    return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   if (target._count.participations > 0 || target._count.pdps > 0) {
     return NextResponse.json(
       {
         error:
-          "У пользователя есть связанные ассессменты или ИПР. Удаление заблокировано.",
+          "User has associated assessments or PDPs. Deletion blocked.",
       },
       { status: 409 }
     );

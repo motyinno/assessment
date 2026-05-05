@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" })
 
 export const metadata: Metadata = {
   title: "PDP Generator",
-  description: "Генерация индивидуального плана развития (ИПР)",
+  description: "Personal Development Plan (PDP) generator",
 };
 
 export default function RootLayout({
@@ -17,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru" className={cn("font-sans", inter.variable)}>
+    <html lang="en" className={cn("font-sans", inter.variable)}>
       <body className="antialiased">
         <SessionProvider>{children}</SessionProvider>
       </body>

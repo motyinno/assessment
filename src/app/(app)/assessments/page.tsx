@@ -17,10 +17,10 @@ import {
 } from "@/components/ui/table";
 
 const statusLabels: Record<string, string> = {
-  PLANNED: "Запланирован",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершён",
-  CANCELLED: "Отменён",
+  PLANNED: "Planned",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline" | "success" | "info" | "warning"> = {
@@ -69,9 +69,9 @@ export default function AssessmentsPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Ассессменты</h1>
+          <h1 className="page-title">Assessments</h1>
           <p className="page-subtitle mt-1">
-            {isPrivileged ? "Все ассессменты в системе" : "Ассессменты с вашим участием"}
+            {isPrivileged ? "All assessments in the system" : "Assessments you're involved in"}
           </p>
         </div>
         {isAssessor && (
@@ -80,7 +80,7 @@ export default function AssessmentsPage() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            Создать ассессмент
+            Create assessment
           </Link>
         )}
       </div>
@@ -103,7 +103,7 @@ export default function AssessmentsPage() {
                   : "bg-card text-muted-foreground hover:text-foreground ring-1 ring-border hover:ring-primary/30")
               }
             >
-              {s === "ALL" ? "Все" : statusLabels[s]}
+              {s === "ALL" ? "All" : statusLabels[s]}
               <span
                 className={
                   "inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-semibold " +
@@ -127,18 +127,18 @@ export default function AssessmentsPage() {
                   <rect x="8" y="2" width="8" height="4" rx="1" />
                 </svg>
               </div>
-              <p className="text-sm font-medium text-foreground">Ассессменты не найдены</p>
-              <p className="text-xs text-muted-foreground">Попробуйте изменить фильтр или создать новый ассессмент.</p>
+              <p className="text-sm font-medium text-foreground">No assessments found</p>
+              <p className="text-xs text-muted-foreground">Try changing the filter or creating a new assessment.</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Название</TableHead>
-                  <TableHead>Грейд</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Участники</TableHead>
-                  <TableHead>Дата</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Participants</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead className="text-right pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -167,7 +167,7 @@ export default function AssessmentsPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {a.scheduledAt
-                          ? new Date(a.scheduledAt).toLocaleDateString("ru-RU")
+                          ? new Date(a.scheduledAt).toLocaleDateString("en-US")
                           : "—"}
                       </TableCell>
                       <TableCell className="text-right pr-4">
@@ -175,7 +175,7 @@ export default function AssessmentsPage() {
                           href={`/assessments/${a.id}`}
                           className={buttonVariants({ variant: "ghost", size: "sm" })}
                         >
-                          Открыть →
+                          Open →
                         </Link>
                       </TableCell>
                     </TableRow>

@@ -24,9 +24,9 @@ interface AssessmentRequest {
 }
 
 const statusLabels: Record<string, string> = {
-  PENDING: "На рассмотрении",
-  APPROVED: "Одобрена",
-  REJECTED: "Отклонена",
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
 };
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -49,11 +49,11 @@ export default function RequestAssessmentPage() {
   const fetchRequests = async () => {
     try {
       const res = await fetch("/api/assessment-requests");
-      if (!res.ok) throw new Error("Не удалось загрузить заявки");
+      if (!res.ok) throw new Error("Failed to load requests");
       const data = await res.json();
       setRequests(data);
     } catch (e: unknown) {
-      console.error("Ошибка загрузки заявок:", e);
+      console.error("Failed to load requests:", e);
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function RequestAssessmentPage() {
         setUserGrade(me.grade ?? null);
       }
     } catch (e) {
-      console.error("Ошибка загрузки профиля:", e);
+      console.error("Failed to load profile:", e);
     }
   };
 
@@ -92,13 +92,13 @@ export default function RequestAssessmentPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось отправить заявку");
+        throw new Error(data.error || "Failed to submit request");
       }
 
       setNotes("");
       await fetchRequests();
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Произошла ошибка");
+      setError(e instanceof Error ? e.message : "An error occurred");
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +107,7 @@ export default function RequestAssessmentPage() {
   if (sessionStatus === "loading") {
     return (
       <div className="flex items-center justify-center py-12">
-        <p className="text-muted-foreground">Загрузка...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -120,37 +120,37 @@ export default function RequestAssessmentPage() {
   return (
     <div className="mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="page-title">Запрос на ассессмент</h1>
+        <h1 className="page-title">Request assessment</h1>
         <p className="page-subtitle mt-1">
-          Отправьте заявку на прохождение ассессмента — администратор рассмотрит её и назначит асессоров.
+          Submit a request to take an assessment — an administrator will review it and assign assessors.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Новая заявка</CardTitle>
+          <CardTitle>New request</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
-              <Label>Ваш грейд</Label>
+              <Label>Your grade</Label>
               <div className="rounded-lg border border-input bg-muted/40 px-3 py-2 text-sm">
                 {userGrade ? (
                   gradeLabel(userGrade)
                 ) : (
                   <span className="text-muted-foreground">
-                    Грейд не указан. Обратитесь к администратору, чтобы назначить грейд перед подачей заявки.
+                    No grade set. Contact an administrator to assign your grade before submitting a request.
                   </span>
                 )}
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Комментарий</Label>
+              <Label>Comment</Label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Дополнительная информация (необязательно)"
+                placeholder="Additional information (optional)"
                 rows={3}
                 className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
               />
@@ -161,19 +161,19 @@ export default function RequestAssessmentPage() {
             )}
 
             <Button type="submit" disabled={submitting || !userGrade}>
-              {submitting ? "Отправка..." : "Отправить заявку"}
+              {submitting ? "Submitting..." : "Submit request"}
             </Button>
           </form>
         </CardContent>
       </Card>
 
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Мои заявки</h2>
+        <h2 className="text-xl font-semibold">My requests</h2>
 
         {loading ? (
-          <p className="text-muted-foreground">Загрузка...</p>
+          <p className="text-muted-foreground">Loading...</p>
         ) : requests.length === 0 ? (
-          <p className="text-muted-foreground">Заявок пока нет</p>
+          <p className="text-muted-foreground">No requests yet</p>
         ) : (
           <div className="space-y-3">
             {requests.map((req) => (
@@ -199,7 +199,7 @@ export default function RequestAssessmentPage() {
                   </div>
 
                   <p className="text-xs text-muted-foreground">
-                    {new Date(req.createdAt).toLocaleDateString("ru-RU", {
+                    {new Date(req.createdAt).toLocaleDateString("en-US", {
                       day: "numeric",
                       month: "long",
                       year: "numeric",
@@ -212,7 +212,7 @@ export default function RequestAssessmentPage() {
 
                   {req.status === "APPROVED" && req.assessor && (
                     <p className="text-sm">
-                      Ассессор: {req.assessor.name || "Не указан"}
+                      Assessor: {req.assessor.name || "Not assigned"}
                     </p>
                   )}
 
@@ -221,7 +221,7 @@ export default function RequestAssessmentPage() {
                       href={`/assessments/${req.assessment.id}`}
                       className="text-sm text-primary underline underline-offset-4 hover:text-primary/80"
                     >
-                      Перейти к ассессменту
+                      Go to assessment
                     </a>
                   )}
                 </CardContent>

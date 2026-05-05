@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 
   if (!name || !email) {
     return NextResponse.json(
-      { error: "Имя и email обязательны" },
+      { error: "Name and email are required" },
       { status: 400 }
     );
   }
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   if (!isEmailAllowed(email)) {
     return NextResponse.json(
       {
-        error: `Допустимы только корпоративные email (${allowedEmailDomains
+        error: `Only corporate emails are allowed (${allowedEmailDomains
           .map((d) => `@${d}`)
           .join(", ")})`,
       },
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     return NextResponse.json(
-      { error: "Пользователь с таким email уже существует" },
+      { error: "A user with this email already exists" },
       { status: 400 }
     );
   }

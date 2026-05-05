@@ -83,8 +83,8 @@ export default function TechMatrixPage() {
 
   const totalTopics = matrix?.sections.reduce((sum, s) => sum + s.topics.length, 0) || 0;
 
-  if (loading) return <p className="text-muted-foreground p-8">Загрузка матрицы...</p>;
-  if (!matrix) return <p className="text-destructive p-8">Ошибка загрузки</p>;
+  if (loading) return <p className="text-muted-foreground p-8">Loading matrix...</p>;
+  if (!matrix) return <p className="text-destructive p-8">Failed to load</p>;
 
   const showJun = gradeFilter === "all" || gradeFilter === "jun";
   const showMid = gradeFilter === "all" || gradeFilter === "mid";
@@ -94,9 +94,9 @@ export default function TechMatrixPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-bold">Техническая матрица</h1>
+        <h1 className="text-2xl font-bold">Tech matrix</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          {matrix.sections.length} секций &middot; {totalTopics} тем
+          {matrix.sections.length} sections &middot; {totalTopics} topics
         </p>
       </div>
 
@@ -106,7 +106,7 @@ export default function TechMatrixPage() {
           <div className="relative flex-1 min-w-[200px] max-w-[300px]">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <Input
-              placeholder="Поиск по навыкам..."
+              placeholder="Search by skill..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -114,10 +114,10 @@ export default function TechMatrixPage() {
           </div>
           <Select value={sectionFilter} onValueChange={(v) => v && setSectionFilter(v)}>
             <SelectTrigger className="w-52">
-              <SelectValue placeholder="Все секции" />
+              <SelectValue placeholder="All sections" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Все секции</SelectItem>
+              <SelectItem value="all">All sections</SelectItem>
               {matrix.sections.map((s) => (
                 <SelectItem key={s.id} value={s.id}>{s.title}</SelectItem>
               ))}
@@ -125,10 +125,10 @@ export default function TechMatrixPage() {
           </Select>
           <Select value={gradeFilter} onValueChange={(v) => v && setGradeFilter(v)}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="Все грейды" />
+              <SelectValue placeholder="All grades" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Все грейды</SelectItem>
+              <SelectItem value="all">All grades</SelectItem>
               <SelectItem value="jun">Junior</SelectItem>
               <SelectItem value="mid">Middle</SelectItem>
               <SelectItem value="sen">Senior</SelectItem>
@@ -136,7 +136,7 @@ export default function TechMatrixPage() {
           </Select>
           {search && (
             <button onClick={() => setSearch("")} className="text-xs text-muted-foreground hover:text-foreground">
-              Сбросить
+              Clear
             </button>
           )}
         </div>
@@ -144,7 +144,7 @@ export default function TechMatrixPage() {
 
       {/* Sections */}
       {filteredSections.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">Ничего не найдено</div>
+        <div className="text-center py-16 text-muted-foreground">Nothing found</div>
       ) : (
         <div className="space-y-4">
           {filteredSections.map((section) => {

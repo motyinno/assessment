@@ -83,11 +83,11 @@ export async function buildPdpDocx(
   const tblProps = tblXml.substring(6, firstTrStart);
 
   const rows = pdpData.map((data) => {
-    let content = mkP("Необходимо изучить:") + mkP("");
+    let content = mkP("Topics to study:") + mkP("");
     for (const q of data.questions) content += mkBullet(q);
     if (data.practicalTask && includeTasks) {
       content += mkP("");
-      content += mkP("Практическое задание:", { italic: true, underline: true });
+      content += mkP("Practical task:", { italic: true, underline: true });
       content += mkP(
         data.practicalTask.length > 250
           ? data.practicalTask.slice(0, 250) + "..."

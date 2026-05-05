@@ -46,9 +46,9 @@ interface ReviewPdp {
 }
 
 const CREATOR_ROLE_LABEL: Record<string, string> = {
-  ADMIN: "Админ",
-  ASSESSOR: "Асессор",
-  USER: "Пользователь",
+  ADMIN: "Admin",
+  ASSESSOR: "Assessor",
+  USER: "User",
 };
 
 export default function PdpReviewPage() {
@@ -122,11 +122,11 @@ export default function PdpReviewPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">ИПР на проверке</h1>
+          <h1 className="page-title">PDPs in review</h1>
           <p className="page-subtitle mt-1">
             {pdps.length > 0
-              ? `${pdps.length} ИПР ожидают проверки`
-              : "Нет ИПР на проверке"}
+              ? `${pdps.length} PDPs awaiting review`
+              : "No PDPs awaiting review"}
           </p>
         </div>
       </div>
@@ -136,13 +136,13 @@ export default function PdpReviewPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Сотрудник</TableHead>
-                <TableHead>Кем создан</TableHead>
-                <TableHead>Файл</TableHead>
-                <TableHead>Источник</TableHead>
-                <TableHead>Дата</TableHead>
-                <TableHead>Замечания</TableHead>
-                <TableHead>Действия</TableHead>
+                <TableHead>Employee</TableHead>
+                <TableHead>Created by</TableHead>
+                <TableHead>File</TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -185,11 +185,11 @@ export default function PdpReviewPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(pdp.createdAt).toLocaleDateString("ru-RU")}
+                    {new Date(pdp.createdAt).toLocaleDateString("en-US")}
                   </TableCell>
                   <TableCell>
                     {pdp.reviewNotes ? (
-                      <Badge variant="warning">Есть</Badge>
+                      <Badge variant="warning">Yes</Badge>
                     ) : (
                       <span className="text-muted-foreground text-xs">—</span>
                     )}
@@ -200,7 +200,7 @@ export default function PdpReviewPage() {
                       size="sm"
                       onClick={() => openReview(pdp)}
                     >
-                      Рассмотреть
+                      Review
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -213,19 +213,19 @@ export default function PdpReviewPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Проверка ИПР</DialogTitle>
+            <DialogTitle>PDP review</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Сотрудник</p>
+                <p className="text-sm text-muted-foreground">Employee</p>
                 <p className="font-medium">{selected.user.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {selected.user.email}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Кем создан</p>
+                <p className="text-sm text-muted-foreground">Created by</p>
                 {selected.createdBy ? (
                   <>
                     <p className="font-medium">
@@ -240,15 +240,15 @@ export default function PdpReviewPage() {
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Неизвестно</p>
+                  <p className="text-sm text-muted-foreground">Unknown</p>
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Файл</p>
+                <p className="text-sm text-muted-foreground">File</p>
                 <p className="font-medium break-words">{selected.fileName}</p>
                 <p className="text-xs text-muted-foreground">
-                  Создан{" "}
-                  {new Date(selected.createdAt).toLocaleString("ru-RU")}
+                  Created{" "}
+                  {new Date(selected.createdAt).toLocaleString("en-US")}
                 </p>
               </div>
 
@@ -273,22 +273,21 @@ export default function PdpReviewPage() {
                       <polyline points="15 3 21 3 21 9" />
                       <line x1="10" y1="14" x2="21" y2="3" />
                     </svg>
-                    Открыть в Drive
+                    Open in Drive
                   </a>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label>Замечания для асессора</Label>
+                <Label>Notes for the assessor</Label>
                 <textarea
                   className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Что нужно поправить в ИПР"
+                  placeholder="What needs to be fixed in the PDP"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Замечания увидит асессор на странице сотрудника. После
-                  одобрения они будут очищены.
+                  The assessor will see these notes on the employee's page. They will be cleared after approval.
                 </p>
               </div>
 
@@ -298,10 +297,10 @@ export default function PdpReviewPage() {
                   onClick={saveNotes}
                   disabled={saving || approving}
                 >
-                  {saving ? "Сохранение..." : "Сохранить замечания"}
+                  {saving ? "Saving..." : "Save notes"}
                 </Button>
                 <Button onClick={approve} disabled={saving || approving}>
-                  {approving ? "Одобрение..." : "Одобрить"}
+                  {approving ? "Approving..." : "Approve"}
                 </Button>
               </div>
             </div>

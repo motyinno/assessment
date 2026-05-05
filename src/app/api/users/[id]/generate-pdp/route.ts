@@ -26,16 +26,16 @@ export async function POST(
   const body = (await req.json()) as Body;
   const topicIds = Array.isArray(body.topicIds) ? body.topicIds : [];
   if (topicIds.length === 0) {
-    return NextResponse.json({ error: "Выберите хотя бы одну тему" }, { status: 400 });
+    return NextResponse.json({ error: "Select at least one topic" }, { status: 400 });
   }
 
   const user = await prisma.user.findUnique({ where: { id: targetUserId } });
   if (!user) {
-    return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
   if (!user.grade) {
     return NextResponse.json(
-      { error: "В профиле пользователя не указан грейд" },
+      { error: "User profile has no grade set" },
       { status: 400 }
     );
   }
@@ -44,7 +44,7 @@ export async function POST(
   const driveToken = await getValidAccessToken(assessorId);
   if (!driveToken) {
     return NextResponse.json(
-      { error: "Подключите Google Drive в профиле — без него ИПР сохранить негде" },
+      { error: "Connect Google Drive in your profile — PDPs need somewhere to be saved" },
       { status: 400 }
     );
   }
@@ -63,7 +63,7 @@ export async function POST(
   }
   if (selected.length === 0) {
     return NextResponse.json(
-      { error: "Ни одна из выбранных тем не соответствует грейду" },
+      { error: "None of the selected topics match the grade" },
       { status: 400 }
     );
   }
@@ -115,7 +115,7 @@ async function generatePdpInBackground(opts: {
 
     const driveResult = await uploadPdpToDrive(assessorId, fileName, buffer);
     if (!driveResult) {
-      throw new Error("Не удалось загрузить ИПР в Google Drive");
+      throw new Error("Failed to upload PDP to Google Drive");
     }
 
     await prisma.pdp.update({
@@ -135,7 +135,7 @@ async function generatePdpInBackground(opts: {
         where: { id: pdpId },
         data: {
           status: "FAILED",
-          error: e instanceof Error ? e.message : "Ошибка генерации",
+          error: e instanceof Error ? e.message : "Generation error",
         },
       })
       .catch(() => {});

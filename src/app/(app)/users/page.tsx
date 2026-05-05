@@ -47,9 +47,9 @@ const ROLE_META: Record<
   string,
   { label: string; tone: "warning" | "default" | "secondary"; accent: string }
 > = {
-  ADMIN: { label: "Админ", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
-  ASSESSOR: { label: "Асессор", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
-  USER: { label: "Пользователь", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
+  ADMIN: { label: "Admin", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
+  ASSESSOR: { label: "Assessor", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
+  USER: { label: "User", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
 };
 
 function userInitials(name: string) {
@@ -110,7 +110,7 @@ export default function UsersPage() {
       fetchUsers();
     } else {
       const data = await res.json();
-      setError(data.error || "Ошибка создания");
+      setError(data.error || "Failed to create user");
     }
   }
 
@@ -118,22 +118,22 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Пользователи</h1>
+          <h1 className="page-title">Users</h1>
           <p className="page-subtitle mt-1">
-            Всего в системе: <span className="font-medium text-foreground">{users.length}</span>
+            Total: <span className="font-medium text-foreground">{users.length}</span>
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button size="lg" />}>
-            Создать пользователя
+            Create user
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Новый пользователь</DialogTitle>
+              <DialogTitle>New user</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreate} className="space-y-4">
               <div className="space-y-2">
-                <Label>Имя</Label>
+                <Label>Name</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -146,36 +146,36 @@ export default function UsersPage() {
                   type="email"
                   placeholder="name.surname@innowise.com"
                   pattern=".+@innowise\.com$"
-                  title="Только корпоративные email @innowise.com"
+                  title="Only @innowise.com corporate emails"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   required
                 />
                 <p className="text-xs text-muted-foreground">
-                  Только корпоративные email @innowise.com
+                  Only @innowise.com corporate emails
                 </p>
               </div>
               <div className="space-y-2">
-                <Label>Роль</Label>
+                <Label>Role</Label>
                 <Select value={form.role} onValueChange={(v) => v && setForm({ ...form, role: v })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="USER">Пользователь</SelectItem>
-                    <SelectItem value="ASSESSOR">Асессор</SelectItem>
-                    <SelectItem value="ADMIN">Админ</SelectItem>
+                    <SelectItem value="USER">User</SelectItem>
+                    <SelectItem value="ASSESSOR">Assessor</SelectItem>
+                    <SelectItem value="ADMIN">Admin</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Грейд</Label>
+                  <Label>Grade</Label>
                   <Select value={form.grade} onValueChange={(v) => v && setForm({ ...form, grade: v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите">
+                      <SelectValue placeholder="Select">
                         {(v: unknown) =>
-                          typeof v === "string" && v ? gradeLabel(v) : "Выберите"
+                          typeof v === "string" && v ? gradeLabel(v) : "Select"
                         }
                       </SelectValue>
                     </SelectTrigger>
@@ -189,7 +189,7 @@ export default function UsersPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Проект</Label>
+                  <Label>Project</Label>
                   <Input
                     value={form.project}
                     onChange={(e) => setForm({ ...form, project: e.target.value })}
@@ -197,7 +197,7 @@ export default function UsersPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Руководитель</Label>
+                <Label>Manager</Label>
                 <Input
                   value={form.manager}
                   onChange={(e) => setForm({ ...form, manager: e.target.value })}
@@ -205,7 +205,7 @@ export default function UsersPage() {
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full">
-                Создать
+                Create
               </Button>
             </form>
           </DialogContent>
@@ -219,7 +219,7 @@ export default function UsersPage() {
             r === "ALL" ? users.length : users.filter((u) => u.role === r).length;
           const active = roleFilter === r;
           const label =
-            r === "ALL" ? "Все" : ROLE_META[r]?.label ?? r;
+            r === "ALL" ? "All" : ROLE_META[r]?.label ?? r;
           return (
             <button
               key={r}
@@ -261,7 +261,7 @@ export default function UsersPage() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск по имени или email"
+              placeholder="Search by name or email"
               className="h-8 pl-8 text-xs"
             />
           </div>
@@ -291,8 +291,8 @@ export default function UsersPage() {
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                 </div>
-                <p className="text-sm font-medium">Пользователи не найдены</p>
-                <p className="text-xs text-muted-foreground">Попробуйте изменить фильтр или поиск.</p>
+                <p className="text-sm font-medium">No users found</p>
+                <p className="text-xs text-muted-foreground">Try adjusting the filter or search.</p>
               </CardContent>
             </Card>
           );
@@ -304,11 +304,11 @@ export default function UsersPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Пользователь</TableHead>
-                    <TableHead>Роль</TableHead>
-                    <TableHead>Грейд</TableHead>
-                    <TableHead>Проект</TableHead>
-                    <TableHead>Руководитель</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Grade</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Manager</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   if (!title || !grade) {
     return NextResponse.json(
-      { error: "Название и грейд обязательны" },
+      { error: "Title and grade are required" },
       { status: 400 }
     );
   }

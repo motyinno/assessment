@@ -181,7 +181,7 @@ export function AssessmentProgress({
                       disabled={loading}
                       onClick={() => onSessionAction(session.id, "start")}
                     >
-                      Начать
+                      Start
                     </button>
                   )}
                 </div>
@@ -195,7 +195,7 @@ export function AssessmentProgress({
                       rel="noopener noreferrer"
                       className="text-center text-[11px] px-2 py-1 rounded-md border border-primary text-primary hover:bg-primary/5 whitespace-nowrap"
                     >
-                      Открыть встречу
+                      Open meeting
                     </a>
                   )}
                   <button
@@ -206,7 +206,7 @@ export function AssessmentProgress({
                       setCompleteNotes("");
                     }}
                   >
-                    Завершить
+                    Complete
                   </button>
                 </div>
               )}
@@ -219,7 +219,7 @@ export function AssessmentProgress({
       <div className="pt-4 border-t space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">
-            Прогресс: <span className="text-foreground font-medium">{completedCount}</span> из {totalCount} сессий · {completedHours} из {totalHours} ч.
+            Progress: <span className="text-foreground font-medium">{completedCount}</span> of {totalCount} sessions · {completedHours} of {totalHours} hr
           </span>
           <span className="font-semibold text-foreground">{progressPercent}%</span>
         </div>
@@ -279,26 +279,25 @@ function CompleteSessionDialog({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-5 pb-3 border-b">
-          <h2 className="text-base font-semibold">Завершить сессию</h2>
+          <h2 className="text-base font-semibold">Complete session</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            {label} · заполните фидбек по проведённой сессии — он будет
-            сохранён в истории.
+            {label} · add feedback about this session — it will be saved in the history.
           </p>
         </div>
         <div className="px-6 py-4 space-y-2">
           <label className="text-xs font-medium text-foreground">
-            Фидбек по сессии <span className="text-destructive">*</span>
+            Session feedback <span className="text-destructive">*</span>
           </label>
           <textarea
             autoFocus
             value={notes}
             onChange={(e) => onNotesChange(e.target.value)}
-            placeholder="Опишите, как прошла сессия: сильные стороны, зоны роста, замечания..."
+            placeholder="Describe how the session went: strengths, growth areas, notes..."
             rows={6}
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <p className="text-[11px] text-muted-foreground">
-            Этот текст будет виден в разделе «История проведения».
+            This text will appear in the "Session history" section.
           </p>
         </div>
         <div className="px-6 pb-5 flex justify-end gap-2">
@@ -307,7 +306,7 @@ function CompleteSessionDialog({
             onClick={onCancel}
             className="text-sm font-medium px-4 py-2 rounded-md border border-border hover:bg-muted transition-colors"
           >
-            Отмена
+            Cancel
           </button>
           <button
             type="button"
@@ -315,7 +314,7 @@ function CompleteSessionDialog({
             disabled={!canSubmit}
             className="text-sm font-medium px-4 py-2 rounded-md bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "Сохранение..." : "Завершить сессию"}
+            {loading ? "Saving..." : "Complete session"}
           </button>
         </div>
       </div>
@@ -352,12 +351,12 @@ function ScheduleMeetingControl({
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Не удалось создать встречу");
+        throw new Error(data.error || "Failed to create meeting");
       }
       await onMeetingChange();
       setOpen(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Ошибка");
+      setError(e instanceof Error ? e.message : "Error");
     } finally {
       setSaving(false);
     }
@@ -373,11 +372,11 @@ function ScheduleMeetingControl({
           className="text-center text-[11px] px-2 py-1 rounded-md border border-primary text-primary hover:bg-primary/5 whitespace-nowrap"
           title={
             session.meetingScheduledAt
-              ? `Запланировано на ${new Date(session.meetingScheduledAt).toLocaleString("ru-RU")}`
+              ? `Scheduled for ${new Date(session.meetingScheduledAt).toLocaleString("en-US")}`
               : undefined
           }
         >
-          Открыть встречу
+          Open meeting
         </a>
       )}
       <button
@@ -388,7 +387,7 @@ function ScheduleMeetingControl({
         }}
         className="text-center text-[11px] px-2 py-1 rounded-md border border-primary/60 text-primary hover:bg-primary/5 whitespace-nowrap"
       >
-        {hasMeeting ? "Перенести" : "Назначить встречу"}
+        {hasMeeting ? "Reschedule" : "Schedule meeting"}
       </button>
       <MeetingSchedulerDialog
         open={open}
@@ -407,20 +406,20 @@ function ScheduleMeetingControl({
 
 // ---------- DateTime picker dialog ----------
 
-const WEEKDAY_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
-  "Январь",
-  "Февраль",
-  "Март",
-  "Апрель",
-  "Май",
-  "Июнь",
-  "Июль",
-  "Август",
-  "Сентябрь",
-  "Октябрь",
-  "Ноябрь",
-  "Декабрь",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function startOfDay(d: Date): Date {
@@ -469,13 +468,13 @@ function isValidTime(s: string): boolean {
 }
 
 function formatSummary(d: Date): string {
-  const date = d.toLocaleDateString("ru-RU", {
+  const date = d.toLocaleDateString("en-US", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
-  const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-  return `${date[0].toUpperCase()}${date.slice(1)}, ${time}`;
+  const time = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+  return `${date}, ${time}`;
 }
 
 function MeetingSchedulerDialog({
@@ -556,19 +555,19 @@ function MeetingSchedulerDialog({
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
-            {hasMeeting ? "Перенести встречу" : "Назначить встречу"}
+            {hasMeeting ? "Reschedule meeting" : "Schedule meeting"}
             <span className="block text-sm font-normal text-muted-foreground mt-1">
-              {sessionLabel} · {sessionDurationMin} мин
+              {sessionLabel} · {sessionDurationMin} min
             </span>
           </DialogTitle>
         </DialogHeader>
 
         {/* Presets */}
         <div className="flex flex-wrap gap-1.5">
-          <PresetChip label="Сегодня, 14:00" onClick={() => pickPreset("today-14")} />
-          <PresetChip label="Завтра, 10:00" onClick={() => pickPreset("tomorrow-10")} />
-          <PresetChip label="Завтра, 14:00" onClick={() => pickPreset("tomorrow-14")} />
-          <PresetChip label="Через неделю" onClick={() => pickPreset("next-week")} />
+          <PresetChip label="Today, 2:00 PM" onClick={() => pickPreset("today-14")} />
+          <PresetChip label="Tomorrow, 10:00 AM" onClick={() => pickPreset("tomorrow-10")} />
+          <PresetChip label="Tomorrow, 2:00 PM" onClick={() => pickPreset("tomorrow-14")} />
+          <PresetChip label="Next week" onClick={() => pickPreset("next-week")} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-[1fr_130px]">
@@ -577,7 +576,7 @@ function MeetingSchedulerDialog({
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
-                aria-label="Предыдущий месяц"
+                aria-label="Previous month"
                 className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground"
                 onClick={() =>
                   setViewMonth((v) => {
@@ -597,7 +596,7 @@ function MeetingSchedulerDialog({
               </span>
               <button
                 type="button"
-                aria-label="Следующий месяц"
+                aria-label="Next month"
                 className="w-7 h-7 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground"
                 onClick={() =>
                   setViewMonth((v) => {
@@ -658,7 +657,7 @@ function MeetingSchedulerDialog({
           <div className="rounded-lg border border-border bg-background flex flex-col max-h-[260px]">
             <div className="sticky top-0 bg-background px-2 py-2 border-b space-y-1">
               <label className="block text-[11px] font-medium text-muted-foreground px-1">
-                Время
+                Time
               </label>
               <input
                 type="time"
@@ -710,7 +709,7 @@ function MeetingSchedulerDialog({
           </svg>
           <span className="font-medium">{formatSummary(combined)}</span>
           {isInPast && (
-            <span className="text-xs text-destructive ml-auto">В прошлом</span>
+            <span className="text-xs text-destructive ml-auto">In the past</span>
           )}
         </div>
 
@@ -718,14 +717,14 @@ function MeetingSchedulerDialog({
 
         <div className="flex justify-end gap-2 pt-1">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            Отмена
+            Cancel
           </Button>
           <Button
             type="button"
             onClick={() => onConfirm(combined)}
             disabled={saving || isInPast}
           >
-            {saving ? "Сохранение..." : hasMeeting ? "Перенести" : "Создать встречу"}
+            {saving ? "Saving..." : hasMeeting ? "Reschedule" : "Create meeting"}
           </Button>
         </div>
       </DialogContent>

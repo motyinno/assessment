@@ -17,11 +17,11 @@ export async function PATCH(
 
   const pdp = await prisma.pdp.findUnique({ where: { id } });
   if (!pdp) {
-    return NextResponse.json({ error: "ИПР не найден" }, { status: 404 });
+    return NextResponse.json({ error: "PDP not found" }, { status: 404 });
   }
   if (pdp.status !== "ON_REVIEW") {
     return NextResponse.json(
-      { error: "ИПР уже не на проверке" },
+      { error: "PDP is no longer in review" },
       { status: 400 }
     );
   }
@@ -45,7 +45,7 @@ export async function PATCH(
   }
 
   return NextResponse.json(
-    { error: "Неизвестное действие" },
+    { error: "Unknown action" },
     { status: 400 }
   );
 }

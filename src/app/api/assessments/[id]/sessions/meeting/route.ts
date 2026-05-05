@@ -31,13 +31,13 @@ export async function POST(
   const startsAtRaw: string | undefined = body.startsAt;
   if (!sessionId || !startsAtRaw) {
     return NextResponse.json(
-      { error: "sessionId и startsAt обязательны" },
+      { error: "sessionId and startsAt are required" },
       { status: 400 }
     );
   }
   const startsAt = new Date(startsAtRaw);
   if (isNaN(startsAt.getTime())) {
-    return NextResponse.json({ error: "Некорректная дата" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
 
   const sess = await prisma.assessmentSession.findUnique({
@@ -45,17 +45,17 @@ export async function POST(
     include: { assessment: true },
   });
   if (!sess || sess.assessmentId !== id) {
-    return NextResponse.json({ error: "Сессия не найдена" }, { status: 404 });
+    return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
   if (sess.assessment.status === "CANCELLED") {
     return NextResponse.json(
-      { error: "Ассессмент отменён" },
+      { error: "Assessment is cancelled" },
       { status: 400 }
     );
   }
   if (sess.status === "COMPLETED" || sess.status === "SKIPPED") {
     return NextResponse.json(
-      { error: "Нельзя планировать встречу для завершённой сессии" },
+      { error: "Can't schedule a meeting for a completed session" },
       { status: 400 }
     );
   }
@@ -70,7 +70,7 @@ export async function POST(
 
   if (!subject?.user) {
     return NextResponse.json(
-      { error: "Субъект ассессмента не найден" },
+      { error: "Assessment subject not found" },
       { status: 400 }
     );
   }
@@ -119,7 +119,7 @@ export async function POST(
     return NextResponse.json(
       {
         error:
-          "Не удалось создать встречу в Google Calendar. Проверьте, что вы вошли через Google и выдали доступ к календарю.",
+          "Failed to create the Google Calendar meeting. Check that you signed in with Google and granted calendar access.",
       },
       { status: 500 }
     );

@@ -18,7 +18,7 @@ export async function PATCH(
 
   if (!status || !["APPROVED", "REJECTED"].includes(status)) {
     return NextResponse.json(
-      { error: "Статус должен быть APPROVED или REJECTED" },
+      { error: "Status must be APPROVED or REJECTED" },
       { status: 400 }
     );
   }
@@ -32,12 +32,12 @@ export async function PATCH(
   });
 
   if (!request) {
-    return NextResponse.json({ error: "Заявка не найдена" }, { status: 404 });
+    return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
 
   if (request.status !== "PENDING") {
     return NextResponse.json(
-      { error: "Заявка уже обработана" },
+      { error: "Request has already been processed" },
       { status: 400 }
     );
   }
@@ -47,7 +47,7 @@ export async function PATCH(
 
   if (status === "REJECTED" && !trimmedAdminNotes) {
     return NextResponse.json(
-      { error: "Комментарий обязателен при отклонении заявки" },
+      { error: "Comment is required when rejecting a request" },
       { status: 400 }
     );
   }
@@ -55,13 +55,13 @@ export async function PATCH(
   if (status === "APPROVED") {
     if (allAssessorIds.length === 0) {
       return NextResponse.json(
-        { error: "Необходимо назначить хотя бы одного асессора" },
+        { error: "At least one assessor must be assigned" },
         { status: 400 }
       );
     }
 
     // Create assessment with subject + all assessors as participants
-    const titlePrefix = resolvedAssessmentType === "PDP_CHECK" ? "Проверка ИПР" : "Ассессмент";
+    const titlePrefix = resolvedAssessmentType === "PDP_CHECK" ? "PDP review" : "Assessment";
     const assessment = await prisma.assessment.create({
       data: {
         title: `${titlePrefix}: ${request.user.name}`,

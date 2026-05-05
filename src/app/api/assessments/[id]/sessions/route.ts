@@ -60,7 +60,7 @@ export async function POST(
 
   if (existing) {
     return NextResponse.json(
-      { error: "Сессии для этой аттестации уже созданы" },
+      { error: "Sessions for this assessment have already been created" },
       { status: 400 }
     );
   }
@@ -81,7 +81,7 @@ export async function POST(
 
   if (!assessment) {
     return NextResponse.json(
-      { error: "Аттестация не найдена" },
+      { error: "Assessment not found" },
       { status: 404 }
     );
   }
@@ -93,7 +93,7 @@ export async function POST(
 
   if (!subject) {
     return NextResponse.json(
-      { error: "Субъект аттестации не найден" },
+      { error: "Assessment subject not found" },
       { status: 400 }
     );
   }
@@ -130,13 +130,13 @@ export async function PATCH(
   const { sessionId, status, notes, recordingLink, meetingLink } = body;
 
   if (!sessionId) {
-    return NextResponse.json({ error: "sessionId обязателен" }, { status: 400 });
+    return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
   }
 
   // Status is optional now — PATCH can also be called just to update
   // `recordingLink` (or `notes`) on an already-completed session.
   if (status && !["IN_PROGRESS", "COMPLETED", "SKIPPED"].includes(status)) {
-    return NextResponse.json({ error: "Некорректный статус" }, { status: 400 });
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
   // Fetch session with its assessment
@@ -147,7 +147,7 @@ export async function PATCH(
 
   if (!session || session.assessmentId !== id) {
     return NextResponse.json(
-      { error: "Сессия не найдена" },
+      { error: "Session not found" },
       { status: 404 }
     );
   }
@@ -155,7 +155,7 @@ export async function PATCH(
   // Validate assessment is not cancelled
   if (session.assessment.status === "CANCELLED") {
     return NextResponse.json(
-      { error: "Нельзя изменить сессию отменённой аттестации" },
+      { error: "Can't modify a session of a cancelled assessment" },
       { status: 400 }
     );
   }
@@ -169,7 +169,7 @@ export async function PATCH(
 
   if (status && validTransitions[currentStatus] !== status) {
     return NextResponse.json(
-      { error: `Невозможно перевести сессию из "${currentStatus}" в "${status}"` },
+      { error: `Can't transition session from "${currentStatus}" to "${status}"` },
       { status: 400 }
     );
   }
@@ -191,7 +191,7 @@ export async function PATCH(
 
     if (!allPreviousDone) {
       return NextResponse.json(
-        { error: "Все предыдущие сессии должны быть завершены или пропущены" },
+        { error: "All previous sessions must be completed or skipped" },
         { status: 400 }
       );
     }

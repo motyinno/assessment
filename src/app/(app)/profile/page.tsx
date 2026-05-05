@@ -17,9 +17,9 @@ import {
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 
 const ROLE_LABEL: Record<string, string> = {
-  ADMIN: "Админ",
-  ASSESSOR: "Асессор",
-  USER: "Пользователь",
+  ADMIN: "Admin",
+  ASSESSOR: "Assessor",
+  USER: "User",
 };
 
 function initialsOf(name: string) {
@@ -83,11 +83,11 @@ export default function ProfilePage() {
     });
 
     if (res.ok) {
-      setMessage("Профиль обновлён");
+      setMessage("Profile updated");
       update();
     } else {
       const d = await res.json();
-      setError(d.error || "Ошибка сохранения");
+      setError(d.error || "Failed to save");
     }
     setSaving(false);
   }
@@ -95,7 +95,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-sm text-muted-foreground">Загрузка...</p>
+        <p className="text-sm text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -107,9 +107,9 @@ export default function ProfilePage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h1 className="page-title">Профиль</h1>
+        <h1 className="page-title">Profile</h1>
         <p className="page-subtitle mt-1">
-          Ваши персональные данные и предпочтения в системе
+          Your personal information and preferences
         </p>
       </div>
 
@@ -150,13 +150,13 @@ export default function ProfilePage() {
       {/* Edit form */}
       <Card>
         <CardHeader>
-          <CardTitle>Личные данные</CardTitle>
+          <CardTitle>Personal information</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSave} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label>Имя</Label>
+                <Label>Name</Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -173,20 +173,20 @@ export default function ProfilePage() {
                   className="h-10"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Email управляется через Google SSO
+                  Email is managed via Google SSO
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label>Грейд</Label>
+                <Label>Grade</Label>
                 {role === "ADMIN" ? (
                   <Select
                     value={form.grade}
                     onValueChange={(v) => v && setForm({ ...form, grade: v })}
                   >
                     <SelectTrigger className="!h-10 w-full">
-                      <SelectValue placeholder="Выберите грейд">
+                      <SelectValue placeholder="Select grade">
                         {(v: unknown) =>
-                          typeof v === "string" && v ? gradeLabel(v) : "Выберите грейд"
+                          typeof v === "string" && v ? gradeLabel(v) : "Select grade"
                         }
                       </SelectValue>
                     </SelectTrigger>
@@ -204,34 +204,34 @@ export default function ProfilePage() {
                       value={form.grade ? gradeLabel(form.grade) : ""}
                       disabled
                       readOnly
-                      placeholder="Грейд не назначен"
+                      placeholder="No grade assigned"
                       className="h-10"
                     />
                     <p className="text-[11px] text-muted-foreground">
-                      Грейд назначает администратор
+                      Grade is assigned by an administrator
                     </p>
                   </>
                 )}
               </div>
               <div className="space-y-1.5">
-                <Label>Проект</Label>
+                <Label>Project</Label>
                 <Input
                   value={form.project}
                   onChange={(e) =>
                     setForm({ ...form, project: e.target.value })
                   }
-                  placeholder="Например, Innowise Core"
+                  placeholder="e.g. Innowise Core"
                   className="h-10"
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <Label>Руководитель</Label>
+                <Label>Manager</Label>
                 <Input
                   value={form.manager}
                   onChange={(e) =>
                     setForm({ ...form, manager: e.target.value })
                   }
-                  placeholder="Имя и фамилия руководителя"
+                  placeholder="Manager's full name"
                   className="h-10"
                 />
               </div>
@@ -239,7 +239,7 @@ export default function ProfilePage() {
 
             <div className="flex items-center gap-3 pt-2 border-t">
               <Button type="submit" size="lg" disabled={saving}>
-                {saving ? "Сохранение..." : "Сохранить изменения"}
+                {saving ? "Saving..." : "Save changes"}
               </Button>
               {message && (
                 <span className="text-sm text-success inline-flex items-center gap-1">

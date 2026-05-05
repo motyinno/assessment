@@ -122,7 +122,7 @@ export default function ConductAssessmentPage() {
 
     const res = await fetch("/api/parse-excel", { method: "POST", body: formData });
     if (!res.ok) {
-      setUploadError("Ошибка разбора файла");
+      setUploadError("Failed to parse file");
       return;
     }
 
@@ -137,7 +137,7 @@ export default function ConductAssessmentPage() {
         subtopics: c.subtopics || [],
       }))
     );
-    setMessage("Данные из Excel загружены. Нажмите «Сохранить» для сохранения.");
+    setMessage("Data loaded from Excel. Click \"Save\" to persist.");
   }
 
   const handleDrop = useCallback(
@@ -162,19 +162,19 @@ export default function ConductAssessmentPage() {
 
     setSaving(false);
     if (res.ok) {
-      setMessage("Результаты сохранены");
+      setMessage("Results saved");
     } else {
-      setMessage("Ошибка сохранения");
+      setMessage("Failed to save");
     }
   }
 
   if (!assessment)
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return <p className="text-muted-foreground">Loading...</p>;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Проведение ассессмента</h1>
+        <h1 className="text-2xl font-bold">Conduct assessment</h1>
         <p className="text-muted-foreground">{assessment.title}</p>
       </div>
 
@@ -185,7 +185,7 @@ export default function ConductAssessmentPage() {
               {SESSION_TYPE_LABELS[currentSession.type] || currentSession.type}
             </Badge>
             <span className="text-sm text-blue-700">
-              Длительность: {currentSession.durationMin} мин.
+              Duration: {currentSession.durationMin} min
             </span>
           </CardContent>
         </Card>
@@ -193,8 +193,8 @@ export default function ConductAssessmentPage() {
 
       <Tabs defaultValue="manual">
         <TabsList>
-          <TabsTrigger value="manual">Ввод вручную</TabsTrigger>
-          <TabsTrigger value="excel">Загрузить Excel</TabsTrigger>
+          <TabsTrigger value="manual">Manual entry</TabsTrigger>
+          <TabsTrigger value="excel">Upload Excel</TabsTrigger>
         </TabsList>
 
         <TabsContent value="excel" className="space-y-4">
@@ -214,7 +214,7 @@ export default function ConductAssessmentPage() {
                 }`}
               >
                 <p className="text-sm text-muted-foreground mb-2">
-                  Перетащите файл Excel (.xlsx) сюда или
+                  Drop an Excel file (.xlsx) here, or
                 </p>
                 <Button
                   variant="outline"
@@ -229,7 +229,7 @@ export default function ConductAssessmentPage() {
                     input.click();
                   }}
                 >
-                  Выбрать файл
+                  Choose file
                 </Button>
                 {uploadError && (
                   <p className="text-sm text-destructive mt-2">{uploadError}</p>
@@ -242,15 +242,15 @@ export default function ConductAssessmentPage() {
         <TabsContent value="manual" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Оценки по категориям</CardTitle>
+              <CardTitle>Scores by category</CardTitle>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Категория</TableHead>
-                    <TableHead className="w-24">Оценка (1-10)</TableHead>
-                    <TableHead>Комментарий</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="w-24">Score (1-10)</TableHead>
+                    <TableHead>Comment</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -280,7 +280,7 @@ export default function ConductAssessmentPage() {
                           onChange={(e) =>
                             updateResult(i, "comment", e.target.value)
                           }
-                          placeholder="Комментарий..."
+                          placeholder="Comment..."
                         />
                       </TableCell>
                     </TableRow>
@@ -295,7 +295,7 @@ export default function ConductAssessmentPage() {
       {results.length > 0 && (
         <div className="flex items-center gap-4">
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Сохранение..." : "Сохранить результаты"}
+            {saving ? "Saving..." : "Save results"}
           </Button>
           {currentSession && (
             <Button
@@ -313,14 +313,14 @@ export default function ConductAssessmentPage() {
                 }
               }}
             >
-              Сохранить и завершить сессию
+              Save and complete session
             </Button>
           )}
           <Button variant="outline" onClick={() => router.push(`/assessments/${id}`)}>
-            Назад
+            Back
           </Button>
           {message && (
-            <p className={`text-sm ${message.includes("Ошибка") ? "text-destructive" : "text-green-600"}`}>
+            <p className={`text-sm ${message.toLowerCase().includes("failed") ? "text-destructive" : "text-green-600"}`}>
               {message}
             </p>
           )}

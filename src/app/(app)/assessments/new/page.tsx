@@ -105,37 +105,37 @@ export default function NewAssessmentPage() {
       router.push(`/assessments/${assessment.id}`);
     } else {
       const data = await res.json();
-      setError(data.error || "Ошибка создания");
+      setError(data.error || "Failed to create assessment");
     }
   }
 
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="page-title">Новый ассессмент</h1>
+        <h1 className="page-title">New assessment</h1>
         <p className="page-subtitle mt-1">
-          Создайте ассессмент и назначьте участников
+          Create an assessment and assign participants
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Основная информация</CardTitle>
+            <CardTitle>Basic information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Название</Label>
+              <Label>Title</Label>
               <Input
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Например: Ассессмент Node.js Q2 2026"
+                placeholder="e.g. Node.js Assessment Q2 2026"
                 required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Грейд</Label>
+                <Label>Grade</Label>
                 <Select
                   value={form.grade}
                   onValueChange={(v) => v && setForm({ ...form, grade: v })}
@@ -157,7 +157,7 @@ export default function NewAssessmentPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Запланированная дата</Label>
+                <Label>Scheduled date</Label>
                 <Input
                   type="date"
                   value={form.scheduledAt}
@@ -168,11 +168,11 @@ export default function NewAssessmentPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Заметки</Label>
+              <Label>Notes</Label>
               <Input
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                placeholder="Дополнительные комментарии"
+                placeholder="Additional comments"
               />
             </div>
           </CardContent>
@@ -180,13 +180,13 @@ export default function NewAssessmentPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Участники</CardTitle>
+            <CardTitle>Participants</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
               <Select value={selectedUser} onValueChange={(v) => v && setSelectedUser(v)}>
                 <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Выберите пользователя" />
+                  <SelectValue placeholder="Select a user" />
                 </SelectTrigger>
                 <SelectContent>
                   {users.map((u) => (
@@ -206,18 +206,18 @@ export default function NewAssessmentPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="SUBJECT">Оцениваемый</SelectItem>
-                  <SelectItem value="ASSESSOR">Асессор</SelectItem>
+                  <SelectItem value="SUBJECT">Subject</SelectItem>
+                  <SelectItem value="ASSESSOR">Assessor</SelectItem>
                 </SelectContent>
               </Select>
               <Button type="button" variant="outline" onClick={addParticipant}>
-                Добавить
+                Add
               </Button>
             </div>
 
             {participants.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Добавьте участников ассессмента
+                Add assessment participants
               </p>
             ) : (
               <div className="space-y-2">
@@ -236,8 +236,8 @@ export default function NewAssessmentPage() {
                         }
                       >
                         {p.participantRole === "ASSESSOR"
-                          ? "Асессор"
-                          : "Оцениваемый"}
+                          ? "Assessor"
+                          : "Subject"}
                       </Badge>
                     </div>
                     <Button
@@ -246,7 +246,7 @@ export default function NewAssessmentPage() {
                       size="sm"
                       onClick={() => removeParticipant(i)}
                     >
-                      Удалить
+                      Remove
                     </Button>
                   </div>
                 ))}
@@ -258,9 +258,9 @@ export default function NewAssessmentPage() {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <div className="flex gap-2">
-          <Button type="submit">Создать ассессмент</Button>
+          <Button type="submit">Create assessment</Button>
           <Button type="button" variant="outline" onClick={() => router.back()}>
-            Отмена
+            Cancel
           </Button>
         </div>
       </form>

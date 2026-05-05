@@ -23,10 +23,10 @@ import {
 } from "@/lib/assessment-sessions";
 
 const assessmentStatusLabels: Record<string, string> = {
-  PLANNED: "Запланирован",
-  IN_PROGRESS: "В процессе",
-  COMPLETED: "Завершён",
-  CANCELLED: "Отменён",
+  PLANNED: "Planned",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
 };
 
 const assessmentStatusVariants: Record<
@@ -74,7 +74,7 @@ interface AssessmentLog {
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("ru-RU", {
+  return new Date(iso).toLocaleDateString("en-US", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -146,7 +146,7 @@ export default function AssessmentLogsPage() {
   }, [logs, search, statusFilter]);
 
   if (status === "loading" || loading) {
-    return <p className="text-muted-foreground">Загрузка...</p>;
+    return <p className="text-muted-foreground">Loading...</p>;
   }
   if (!canAccess) return null;
 
@@ -154,9 +154,9 @@ export default function AssessmentLogsPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Журнал ассессментов</h1>
+          <h1 className="page-title">Assessment log</h1>
           <p className="page-subtitle mt-1">
-            Все проведённые ассессменты: участники, этапы, записи и фидбек.
+            All conducted assessments: participants, stages, recordings, and feedback.
           </p>
         </div>
       </div>
@@ -166,7 +166,7 @@ export default function AssessmentLogsPage() {
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Поиск по названию, ассесируемому, асессору..."
+          placeholder="Search by title, subject, or assessor..."
           className="h-9 min-w-[260px] flex-1 max-w-md rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
         <div className="flex flex-wrap items-center gap-2">
@@ -185,7 +185,7 @@ export default function AssessmentLogsPage() {
                     : "bg-card text-muted-foreground hover:text-foreground ring-1 ring-border hover:ring-primary/30")
                 }
               >
-                {s === "ALL" ? "Все" : assessmentStatusLabels[s]}
+                {s === "ALL" ? "All" : assessmentStatusLabels[s]}
                 <span
                   className={
                     "inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-semibold " +
@@ -210,8 +210,8 @@ export default function AssessmentLogsPage() {
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
-            <p className="text-sm font-medium">Записей не найдено</p>
-            <p className="text-xs text-muted-foreground">Попробуйте изменить фильтр или запрос.</p>
+            <p className="text-sm font-medium">No records found</p>
+            <p className="text-xs text-muted-foreground">Try adjusting the filter or search.</p>
           </CardContent>
         </Card>
       ) : (
@@ -274,31 +274,31 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span>
-                  <span className="text-foreground/60">Ассесируемый:</span>{" "}
+                  <span className="text-foreground/60">Subject:</span>{" "}
                   <span className="text-foreground/90">
                     {subjects.map((s) => s.user.name).join(", ") || "—"}
                   </span>
                 </span>
                 <span>
-                  <span className="text-foreground/60">Асессоры:</span>{" "}
+                  <span className="text-foreground/60">Assessors:</span>{" "}
                   <span className="text-foreground/90">
                     {assessors.map((a) => a.user.name).join(", ") || "—"}
                   </span>
                 </span>
                 <span>
-                  <span className="text-foreground/60">Создан:</span>{" "}
+                  <span className="text-foreground/60">Created:</span>{" "}
                   <span className="text-foreground/90">{formatDate(log.createdAt)}</span>
                 </span>
                 {log.completedAt && (
                   <span>
-                    <span className="text-foreground/60">Завершён:</span>{" "}
+                    <span className="text-foreground/60">Completed:</span>{" "}
                     <span className="text-foreground/90">{formatDate(log.completedAt)}</span>
                   </span>
                 )}
               </div>
             </div>
             <div className="text-xs text-muted-foreground shrink-0">
-              Этапы: {sessionStats.completed} / {sessionStats.total}
+              Stages: {sessionStats.completed} / {sessionStats.total}
             </div>
           </div>
         </div>
@@ -311,20 +311,20 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[44px]"></TableHead>
-                  <TableHead>Этап</TableHead>
-                  <TableHead>Статус</TableHead>
-                  <TableHead>Асессор</TableHead>
-                  <TableHead>Начат</TableHead>
-                  <TableHead>Завершён</TableHead>
-                  <TableHead>Запись</TableHead>
-                  <TableHead>Фидбек</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Assessor</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Recording</TableHead>
+                  <TableHead>Feedback</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {log.sessions.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-xs text-muted-foreground py-6">
-                      Этапы ещё не созданы
+                      No stages created yet
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -360,7 +360,7 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                               <polygon points="23 7 16 12 23 17 23 7" />
                               <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                             </svg>
-                            Открыть
+                            Open
                           </a>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
@@ -383,7 +383,7 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
           {log.aiFeedback && (
             <div className="rounded-md border border-border/60 bg-muted/30 p-3">
               <p className="text-xs font-medium text-muted-foreground mb-1.5">
-                Фидбек по ассессменту
+                Assessment feedback
               </p>
               <p className="text-sm whitespace-pre-wrap leading-relaxed">{log.aiFeedback}</p>
             </div>
@@ -407,7 +407,7 @@ function SessionNotes({ notes }: { notes: string }) {
           onClick={() => setExpanded((v) => !v)}
           className="ml-1 text-primary hover:underline"
         >
-          {expanded ? "Свернуть" : "Ещё"}
+          {expanded ? "Collapse" : "More"}
         </button>
       )}
     </div>

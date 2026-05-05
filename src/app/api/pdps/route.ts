@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   if (!file || !fileName) {
     return NextResponse.json(
-      { error: "file и fileName обязательны" },
+      { error: "file and fileName are required" },
       { status: 400 }
     );
   }
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   const driveToken = await getValidAccessToken(uploaderId);
   if (!driveToken) {
     return NextResponse.json(
-      { error: "Подключите Google Drive в профиле — без него ИПР сохранить негде" },
+      { error: "Connect Google Drive in your profile — PDPs need somewhere to be saved" },
       { status: 400 }
     );
   }
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   const driveResult = await uploadPdpToDrive(uploaderId, fileName, buffer);
   if (!driveResult) {
     return NextResponse.json(
-      { error: "Не удалось загрузить файл в Google Drive" },
+      { error: "Failed to upload the file to Google Drive" },
       { status: 502 }
     );
   }

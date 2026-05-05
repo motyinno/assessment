@@ -42,11 +42,11 @@ export async function POST(
   const body = (await req.json()) as Body;
   const driveLink = body.driveLink?.trim();
   if (!driveLink) {
-    return NextResponse.json({ error: "Ссылка обязательна" }, { status: 400 });
+    return NextResponse.json({ error: "Link is required" }, { status: 400 });
   }
   if (!isProbablyDriveUrl(driveLink)) {
     return NextResponse.json(
-      { error: "Похоже, это не ссылка на Google Drive / Docs" },
+      { error: "This doesn't look like a Google Drive / Docs link" },
       { status: 400 }
     );
   }
@@ -56,13 +56,13 @@ export async function POST(
     select: { id: true, name: true },
   });
   if (!user) {
-    return NextResponse.json({ error: "Пользователь не найден" }, { status: 404 });
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   const driveFileId = parseDriveFileId(driveLink);
   const fileName =
     body.fileName?.trim() ||
-    `PDP (ссылка) - ${user.name} - ${new Date().toISOString().slice(0, 10)}`;
+    `PDP (link) - ${user.name} - ${new Date().toISOString().slice(0, 10)}`;
 
   const pdp = await prisma.pdp.create({
     data: {

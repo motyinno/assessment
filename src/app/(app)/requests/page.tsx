@@ -189,11 +189,11 @@ export default function RequestsPage() {
   function renderStatusBadge(s: string) {
     switch (s) {
       case "PENDING":
-        return <Badge variant="warning">На рассмотрении</Badge>;
+        return <Badge variant="warning">Pending</Badge>;
       case "APPROVED":
-        return <Badge variant="success">Одобрена</Badge>;
+        return <Badge variant="success">Approved</Badge>;
       case "REJECTED":
-        return <Badge variant="destructive">Отклонена</Badge>;
+        return <Badge variant="destructive">Rejected</Badge>;
       default:
         return <Badge variant="secondary">{s}</Badge>;
     }
@@ -205,11 +205,11 @@ export default function RequestsPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Заявки на ассессмент</h1>
+          <h1 className="page-title">Assessment requests</h1>
           <p className="page-subtitle mt-1">
             {pendingCount > 0
-              ? `${pendingCount} заявок ожидают рассмотрения`
-              : "Все заявки рассмотрены"}
+              ? `${pendingCount} pending requests`
+              : "All requests reviewed"}
           </p>
         </div>
       </div>
@@ -219,11 +219,11 @@ export default function RequestsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Сотрудник</TableHead>
-                <TableHead>Грейд</TableHead>
-                <TableHead>Дата</TableHead>
-                <TableHead>Статус</TableHead>
-                <TableHead>Действия</TableHead>
+                <TableHead>Employee</TableHead>
+                <TableHead>Grade</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -232,13 +232,13 @@ export default function RequestsPage() {
                   <TableCell className="font-medium">{req.user.name}</TableCell>
                   <TableCell>{gradeLabel(req.grade)}</TableCell>
                   <TableCell className="text-muted-foreground">
-                    {new Date(req.createdAt).toLocaleDateString("ru-RU")}
+                    {new Date(req.createdAt).toLocaleDateString("en-US")}
                   </TableCell>
                   <TableCell>{renderStatusBadge(req.status)}</TableCell>
                   <TableCell>
                     {req.status === "PENDING" && (
                       <Button variant="outline" size="sm" onClick={() => openReview(req)}>
-                        Рассмотреть
+                        Review
                       </Button>
                     )}
                   </TableCell>
@@ -252,27 +252,27 @@ export default function RequestsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Рассмотрение заявки</DialogTitle>
+            <DialogTitle>Review request</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-4">
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Сотрудник</p>
+                <p className="text-sm text-muted-foreground">Employee</p>
                 <p className="font-medium">{selected.user.name}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Грейд</p>
+                <p className="text-sm text-muted-foreground">Grade</p>
                 <p className="font-medium">{gradeLabel(selected.grade)}</p>
               </div>
               {selected.notes && (
                 <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Комментарий сотрудника</p>
+                  <p className="text-sm text-muted-foreground">Employee comment</p>
                   <p className="text-sm">{selected.notes}</p>
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label>Тип ассессмента</Label>
+                <Label>Assessment type</Label>
                 <div className="grid grid-cols-2 gap-2">
                   <label
                     className={`flex flex-col gap-1 rounded-md border p-3 cursor-pointer text-sm transition-colors ${
@@ -288,10 +288,10 @@ export default function RequestsPage() {
                         checked={assessmentType === "GENERAL"}
                         onChange={() => onAssessmentTypeChange("GENERAL")}
                       />
-                      <span className="font-medium">Общий ассессмент</span>
+                      <span className="font-medium">General assessment</span>
                     </div>
                     <span className="text-xs text-muted-foreground ml-5">
-                      Soft+AI {baseGrade(selected.grade) === "jun" ? "+ 2 тех." : "+ 3 тех."} сессии по 1 ч.
+                      Soft+AI {baseGrade(selected.grade) === "jun" ? "+ 2 tech" : "+ 3 tech"} sessions, 1 hr each
                     </span>
                   </label>
                   <label
@@ -308,10 +308,10 @@ export default function RequestsPage() {
                         checked={assessmentType === "PDP_CHECK"}
                         onChange={() => onAssessmentTypeChange("PDP_CHECK")}
                       />
-                      <span className="font-medium">Проверка ИПР</span>
+                      <span className="font-medium">PDP review</span>
                     </div>
                     <span className="text-xs text-muted-foreground ml-5">
-                      1 тех. сессия 1 ч.
+                      1 tech session, 1 hr
                     </span>
                   </label>
                 </div>
@@ -320,10 +320,10 @@ export default function RequestsPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <Label>
-                    Назначить асессоров
+                    Assign assessors
                     {suggestion && (
                       <span className="text-xs font-normal text-muted-foreground ml-1.5">
-                        (нужно {suggestion.need})
+                        (need {suggestion.need})
                       </span>
                     )}
                   </Label>
@@ -334,7 +334,7 @@ export default function RequestsPage() {
                     disabled={!suggestion || loadingSuggestion}
                     onClick={applyAutoSelection}
                   >
-                    {loadingSuggestion ? "Подбор..." : "Авто-подбор"}
+                    {loadingSuggestion ? "Picking..." : "Auto-pick"}
                   </Button>
                 </div>
                 <div className="rounded-md border divide-y divide-border max-h-64 overflow-y-auto">
@@ -383,20 +383,20 @@ export default function RequestsPage() {
                           <div className="flex items-center gap-2 shrink-0">
                             {isPicked && (
                               <Badge variant="success" className="whitespace-nowrap">
-                                Рекомендуем
+                                Recommended
                               </Badge>
                             )}
                             {!eligible && suggestion && (
                               <Badge variant="outline" className="whitespace-nowrap">
-                                не подходит
+                                not eligible
                               </Badge>
                             )}
                             {ongoing !== undefined && (
                               <span
                                 className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums"
-                                title="Активных ассессментов сейчас"
+                                title="Currently active assessments"
                               >
-                                {ongoing} актив.
+                                {ongoing} active
                               </span>
                             )}
                           </div>
@@ -407,26 +407,26 @@ export default function RequestsPage() {
                 </div>
                 {suggestion && suggestion.eligibleIds.length === 0 && (
                   <p className="text-xs text-destructive">
-                    Нет подходящих асессоров по правилам (грейд ≥ кандидата, не руководитель).
+                    No eligible assessors per the rules (grade ≥ candidate, not the manager).
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Выбрано: {selectedAssessorIds.length}
+                  Selected: {selectedAssessorIds.length}
                   {suggestion && (
                     <>
-                      {" · "}Правила: грейд ≥ сотрудника · не руководитель · приоритет с меньшей нагрузкой
+                      {" · "}Rules: grade ≥ employee · not the manager · prefer those with lower load
                     </>
                   )}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label>Комментарий администратора</Label>
+                <Label>Administrator comment</Label>
                 <textarea
                   className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Обязателен при отклонении, иначе необязателен"
+                  placeholder="Required when rejecting, optional otherwise"
                 />
               </div>
 
@@ -437,17 +437,17 @@ export default function RequestsPage() {
                   disabled={!adminNotes.trim()}
                   title={
                     !adminNotes.trim()
-                      ? "Укажите причину отклонения в комментарии"
+                      ? "Provide a rejection reason in the comment"
                       : undefined
                   }
                 >
-                  Отклонить
+                  Reject
                 </Button>
                 <Button
                   onClick={() => handleDecision("APPROVED")}
                   disabled={selectedAssessorIds.length === 0}
                 >
-                  Одобрить
+                  Approve
                 </Button>
               </div>
             </div>

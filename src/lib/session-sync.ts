@@ -31,7 +31,7 @@ export async function syncSessionAssets(input: SyncInput): Promise<SyncResult> {
     where: { id: input.sessionId },
   });
   if (!sess || sess.assessmentId !== input.assessmentId) {
-    return { error: "Сессия не найдена", status: 404 };
+    return { error: "Session not found", status: 404 };
   }
 
   const subject = await prisma.assessmentParticipant.findFirst({
@@ -42,7 +42,7 @@ export async function syncSessionAssets(input: SyncInput): Promise<SyncResult> {
     include: { user: { select: { name: true } } },
   });
   if (!subject?.user) {
-    return { error: "Субъект ассессмента не найден", status: 400 };
+    return { error: "Assessment subject not found", status: 400 };
   }
 
   const subjectTokens = subject.user.name.trim().split(/\s+/);

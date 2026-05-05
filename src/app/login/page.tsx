@@ -35,7 +35,7 @@ function LoginForm() {
     });
     setDevLoading(false);
     if (res?.error) {
-      setDevError("Неверный email или пароль");
+      setDevError("Invalid email or password");
       return;
     }
     window.location.href = res?.url || callbackUrl;
@@ -58,21 +58,21 @@ function LoginForm() {
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">PDP Generator</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Управление ассессментами и планами развития
+            Manage assessments and development plans
           </p>
         </div>
 
         <Card className="border-border/60 shadow-xl shadow-foreground/5">
           <CardHeader className="pb-4 pt-6 px-6">
-            <h2 className="text-base font-semibold text-center">Вход в систему</h2>
+            <h2 className="text-base font-semibold text-center">Sign in</h2>
           </CardHeader>
           <CardContent className="px-6 pb-6 space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Войдите с помощью корпоративного аккаунта Google (@innowise.com).
+              Sign in with your corporate Google account (@innowise.com).
             </p>
             {authError && (
               <p className="text-sm text-destructive text-center">
-                Доступ разрешён только для корпоративных аккаунтов Innowise.
+                Access is restricted to Innowise corporate accounts.
               </p>
             )}
             <button
@@ -106,7 +106,7 @@ function LoginForm() {
                   d="M9 3.5795c1.3214 0 2.5077.4541 3.4405 1.346l2.5813-2.5814C13.4632.8918 11.426 0 9 0 5.4818 0 2.4382 2.0168.9573 4.9582L3.964 7.29C4.6718 5.1627 6.6559 3.5795 9 3.5795z"
                 />
               </svg>
-              {loading ? "Перенаправление..." : "Sign in with Google"}
+              {loading ? "Redirecting..." : "Sign in with Google"}
             </button>
 
             {devLoginEnabled && (
@@ -147,11 +147,11 @@ function LoginForm() {
                     className="w-full h-9"
                     disabled={devLoading}
                   >
-                    {devLoading ? "Вход..." : "Войти (dev)"}
+                    {devLoading ? "Signing in..." : "Sign in (dev)"}
                   </Button>
                 </form>
                 <p className="text-[11px] text-muted-foreground text-center leading-snug">
-                  admin@test.dev · assessor@test.dev · user-jun@test.dev · user-mid@test.dev — пароль: dev
+                  admin@test.dev · assessor@test.dev · user-jun@test.dev · user-mid@test.dev — password: dev
                 </p>
               </>
             )}

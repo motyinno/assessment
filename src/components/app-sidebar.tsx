@@ -16,20 +16,20 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { href: "/dashboard", label: "Главная", icon: "home" },
-  { href: "/assessments", label: "Ассессменты", icon: "clipboard" },
-  { href: "/tech-matrix", label: "Тех. матрица", icon: "grid" },
-  { href: "/request-assessment", label: "Запрос ассессмента", icon: "send", hideForAdmin: true },
+  { href: "/dashboard", label: "Dashboard", icon: "home" },
+  { href: "/assessments", label: "Assessments", icon: "clipboard" },
+  { href: "/tech-matrix", label: "Tech Matrix", icon: "grid" },
+  { href: "/request-assessment", label: "Request Assessment", icon: "send", hideForAdmin: true },
 ];
 
 const assessorItems = [
-  { href: "/assessment-logs", label: "Журнал ассессментов", icon: "file-text" },
+  { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
 ];
 
 const adminItems = [
-  { href: "/requests", label: "Заявки", icon: "inbox" },
-  { href: "/pdp-review", label: "ИПР на проверке", icon: "file-text" },
-  { href: "/users", label: "Пользователи", icon: "users" },
+  { href: "/requests", label: "Requests", icon: "inbox" },
+  { href: "/pdp-review", label: "PDPs in Review", icon: "file-text" },
+  { href: "/users", label: "Users", icon: "users" },
 ];
 
 function NavIcon({ name, className }: { name: string; className?: string }) {
@@ -128,7 +128,7 @@ export function AppSidebar({ user }: SidebarProps) {
           </div>
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-sidebar-foreground leading-tight">PDP Generator</h1>
-            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Ассессменты и ИПР</p>
+            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Assessments & PDPs</p>
           </div>
         </Link>
       </div>
@@ -168,7 +168,7 @@ export function AppSidebar({ user }: SidebarProps) {
           <>
             <div className="pt-5 pb-2 px-3">
               <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
-                Работа с ассессментами
+                Assessment Tools
               </p>
             </div>
             {assessorItems.map((item) => {
@@ -202,7 +202,7 @@ export function AppSidebar({ user }: SidebarProps) {
           <>
             <div className="pt-5 pb-2 px-3">
               <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
-                Администрирование
+                Administration
               </p>
             </div>
             {adminItems.map((item) => {
@@ -245,7 +245,7 @@ export function AppSidebar({ user }: SidebarProps) {
           </div>
           {user.role !== "USER" && (
             <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-              {user.role === "ADMIN" ? "Админ" : "Асессор"}
+              {user.role === "ADMIN" ? "Admin" : "Assessor"}
             </span>
           )}
         </Link>
@@ -256,7 +256,7 @@ export function AppSidebar({ user }: SidebarProps) {
           onClick={() => signOut({ callbackUrl: "/login" })}
         >
           <NavIcon name="logout" className="w-4 h-4" />
-          Выйти
+          Sign out
         </Button>
       </div>
     </aside>

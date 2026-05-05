@@ -39,7 +39,7 @@ export async function PUT(
 
   if (!participant) {
     return NextResponse.json(
-      { error: "Только оцениваемый может заполнять самооценку" },
+      { error: "Only the subject can submit a self-assessment" },
       { status: 403 }
     );
   }
@@ -50,7 +50,7 @@ export async function PUT(
   };
 
   if (!items || !Array.isArray(items)) {
-    return NextResponse.json({ error: "items обязателен" }, { status: 400 });
+    return NextResponse.json({ error: "items is required" }, { status: 400 });
   }
 
   // Upsert all items

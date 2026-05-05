@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "Content-Disposition": `attachment; filename="${encodeURIComponent(
-          settings.outputName || "ИПР.docx"
+          settings.outputName || "PDP.docx"
         )}"`,
       },
     });

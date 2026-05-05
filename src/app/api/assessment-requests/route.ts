@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   if (!user?.grade) {
     return NextResponse.json(
-      { error: "В вашем профиле не указан грейд. Обратитесь к администратору." },
+      { error: "Your profile has no grade set. Contact an administrator." },
       { status: 400 }
     );
   }
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   });
   if (existing) {
     return NextResponse.json(
-      { error: "У вас уже есть активная заявка на рассмотрении" },
+      { error: "You already have a pending request" },
       { status: 400 }
     );
   }
