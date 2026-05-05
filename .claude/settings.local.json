@@ -24,7 +24,21 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/assessments/cmo027beh0002rto0xgh7kde7)",
       "Bash(curl -s -o /dev/null -w \"meeting-endpoint:%{http_code}\\\\n\" -X POST http://localhost:3000/api/assessments/xxx/sessions/meeting -H 'Content-Type: application/json' -d '{}')",
       "Bash(curl -s -o /dev/null -w \"transcript-route:%{http_code}\\\\n\" -X POST http://localhost:3000/api/assessments/xxx/sessions/yyy/transcript)",
-      "Bash(python3 -c \"import json; d = json.load\\(open\\('/Users/user/Downloads/parsed.json'\\)\\); print\\('count:', len\\(d\\)\\); grades = {}; [grades.update\\({g: grades.get\\(g, 0\\)+1}\\) for g in [x.get\\('grade'\\) for x in d]]; print\\('grades:', grades\\); print\\('first keys:', list\\(d[0].keys\\(\\)\\)\\)\")"
+      "Bash(python3 -c \"import json; d = json.load\\(open\\('/Users/user/Downloads/parsed.json'\\)\\); print\\('count:', len\\(d\\)\\); grades = {}; [grades.update\\({g: grades.get\\(g, 0\\)+1}\\) for g in [x.get\\('grade'\\) for x in d]]; print\\('grades:', grades\\); print\\('first keys:', list\\(d[0].keys\\(\\)\\)\\)\")",
+      "Bash(docker version *)",
+      "Bash(docker run *)",
+      "Bash(docker exec *)",
+      "Bash(docker stop *)",
+      "Bash(docker compose *)",
+      "Bash(docker volume *)",
+      "Bash(docker rm *)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:dev@localhost:5433/postgres\" npx prisma migrate dev --name drop_pdp_filepath --skip-seed)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && grep -B 3 -A 3 \"placeholder=\\\\\"\" {}')",
+      "Bash(DATABASE_URL=\"postgresql://pdp:devpass@localhost:5432/pdp\" npx prisma migrate deploy)",
+      "Bash(PGPASSWORD=devpass psql -h localhost -p 5432 -U pdp -d pdp -c \"SELECT email, role FROM \\\\\"User\\\\\";\")",
+      "Bash(PGPASSWORD=devpass psql -h localhost -p 5432 -U pdp -d pdp -c \"SELECT id, status, \\\\\"userId\\\\\" FROM \\\\\"AssessmentRequest\\\\\" WHERE status='PENDING';\")",
+      "Bash(DATABASE_URL=\"postgresql://pdp:devpass@localhost:5432/pdp\" npx prisma db seed)",
+      "Bash(DATABASE_URL=\"postgresql://pdp:devpass@localhost:5432/pdp\" npx tsx prisma/seed.ts)"
     ]
   }
 }

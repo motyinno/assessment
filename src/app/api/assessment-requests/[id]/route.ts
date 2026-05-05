@@ -42,6 +42,16 @@ export async function PATCH(
     );
   }
 
+  const trimmedAdminNotes =
+    typeof adminNotes === "string" ? adminNotes.trim() : "";
+
+  if (status === "REJECTED" && !trimmedAdminNotes) {
+    return NextResponse.json(
+      { error: "Комментарий обязателен при отклонении заявки" },
+      { status: 400 }
+    );
+  }
+
   if (status === "APPROVED") {
     if (allAssessorIds.length === 0) {
       return NextResponse.json(
@@ -88,7 +98,7 @@ export async function PATCH(
         assessor: { connect: { id: allAssessorIds[0] } },
         assessorIds: JSON.stringify(allAssessorIds),
         assessment: { connect: { id: assessment.id } },
-        adminNotes,
+        adminNotes: trimmedAdminNotes || null,
       },
       include: {
         user: { select: { id: true, name: true, email: true } },
@@ -103,7 +113,7 @@ export async function PATCH(
   // REJECTED
   const updated = await prisma.assessmentRequest.update({
     where: { id },
-    data: { status: "REJECTED", adminNotes },
+    data: { status: "REJECTED", adminNotes: trimmedAdminNotes },
     include: {
       user: { select: { id: true, name: true, email: true } },
     },

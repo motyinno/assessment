@@ -7,8 +7,11 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth();
+  const { error, session } = await requireAuth();
   if (error) return error;
+
+  const viewerRole = session!.user.role;
+  const isStaff = viewerRole === "ASSESSOR" || viewerRole === "ADMIN";
 
   const { id } = params;
   const user = await prisma.user.findUnique({
@@ -39,6 +42,7 @@ export async function GET(
         },
       },
       pdps: {
+        where: isStaff ? undefined : { status: { not: "ON_REVIEW" } },
         orderBy: { createdAt: "desc" },
         include: {
           assessment: { select: { id: true, title: true } },

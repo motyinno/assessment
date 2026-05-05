@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
 import { uploadPdpToDrive } from "@/lib/google-drive";
-import path from "path";
-import fs from "fs/promises";
+import { getValidAccessToken } from "@/lib/google-auth";
 
 export async function GET() {
   const { error, session } = await requireAuth();
   if (error) return error;
 
+  const role = session!.user.role;
   const where =
-    session!.user.role === "ASSESSOR"
+    role === "ASSESSOR" || role === "ADMIN"
       ? {}
-      : { userId: session!.user.id };
+      : {
+          userId: session!.user.id,
+          status: { not: "ON_REVIEW" },
+        };
 
   const pdps = await prisma.pdp.findMany({
     where,
@@ -44,41 +47,36 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Save file to disk
-  const pdpsDir = path.join(process.cwd(), "data", "pdps");
-  await fs.mkdir(pdpsDir, { recursive: true });
+  const uploaderId = session!.user.id;
+  const driveToken = await getValidAccessToken(uploaderId);
+  if (!driveToken) {
+    return NextResponse.json(
+      { error: "Подключите Google Drive в профиле — без него ИПР сохранить негде" },
+      { status: 400 }
+    );
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const driveResult = await uploadPdpToDrive(uploaderId, fileName, buffer);
+  if (!driveResult) {
+    return NextResponse.json(
+      { error: "Не удалось загрузить файл в Google Drive" },
+      { status: 502 }
+    );
+  }
 
   const pdp = await prisma.pdp.create({
     data: {
       userId,
+      createdById: uploaderId,
       assessmentId: assessmentId || null,
       fileName,
-      filePath: "", // will update after we know the id
+      driveFileId: driveResult.fileId,
+      driveLink: driveResult.webViewLink,
       topicsJson: topicsJson || "[]",
+      status: "ON_REVIEW",
     },
   });
 
-  const filePath = path.join(pdpsDir, `${pdp.id}.docx`);
-  const buffer = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(filePath, buffer);
-
-  // Upload to Google Drive of the uploader (the assessor/admin generating the PDP).
-  // Falls back silently if the user hasn't connected Google (e.g. dev-credentials logins).
-  const driveResult = await uploadPdpToDrive(session!.user.id, fileName, buffer).catch(
-    (e) => {
-      console.error("Drive upload threw:", e);
-      return null;
-    }
-  );
-
-  const updated = await prisma.pdp.update({
-    where: { id: pdp.id },
-    data: {
-      filePath: `data/pdps/${pdp.id}.docx`,
-      driveFileId: driveResult?.fileId ?? null,
-      driveLink: driveResult?.webViewLink ?? null,
-    },
-  });
-
-  return NextResponse.json(updated, { status: 201 });
+  return NextResponse.json(pdp, { status: 201 });
 }

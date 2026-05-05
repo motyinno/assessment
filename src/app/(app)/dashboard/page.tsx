@@ -88,6 +88,7 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
 
 const pdpStatusLabels: Record<string, string> = {
   DRAFT: "Черновик",
+  ON_REVIEW: "На проверке",
   ACTIVE: "Активен",
   COMPLETED: "Завершён",
 };
@@ -100,7 +101,13 @@ export default async function DashboardPage() {
 
   const role = session.user.role;
 
-  const [assessments, pdps, pendingRequestsCount, myRequests] = await Promise.all([
+  const [
+    assessments,
+    pdps,
+    pendingRequestsCount,
+    pendingPdpReviewCount,
+    myRequests,
+  ] = await Promise.all([
     prisma.assessmentParticipant.findMany({
       where: { userId },
       include: {
@@ -113,12 +120,15 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.pdp.findMany({
-      where: { userId },
+      where: { userId, status: { not: "ON_REVIEW" } },
       include: { assessment: true },
       orderBy: { createdAt: "desc" },
     }),
     role === "ADMIN"
       ? prisma.assessmentRequest.count({ where: { status: "PENDING" } })
+      : Promise.resolve(0),
+    role === "ADMIN"
+      ? prisma.pdp.count({ where: { status: "ON_REVIEW" } })
       : Promise.resolve(0),
     role !== "ADMIN"
       ? prisma.assessmentRequest.findMany({
@@ -149,7 +159,12 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div
+        className={cn(
+          "grid gap-4 md:grid-cols-3",
+          role === "ADMIN" && "md:grid-cols-2 xl:grid-cols-4"
+        )}
+      >
         <StatCard
           label="Мои ассессменты"
           value={myAssessments.length}
@@ -190,6 +205,27 @@ export default async function DashboardPage() {
               role === "ADMIN" && pendingRequestsCount > 0 ? (
                 <Link href="/requests" className="text-xs font-medium text-primary hover:underline">
                   Перейти к заявкам →
+                </Link>
+              ) : null
+            }
+          />
+        )}
+        {role === "ADMIN" && (
+          <StatCard
+            label="ИПР на проверке"
+            value={pendingPdpReviewCount}
+            tone={pendingPdpReviewCount > 0 ? "warning" : "muted"}
+            icon={
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="9" y1="15" x2="15" y2="15" />
+              </svg>
+            }
+            footer={
+              pendingPdpReviewCount > 0 ? (
+                <Link href="/pdp-review" className="text-xs font-medium text-primary hover:underline">
+                  Перейти к проверке →
                 </Link>
               ) : null
             }
@@ -396,14 +432,6 @@ export default async function DashboardPage() {
                         >
                           Открыть в Drive
                         </a>
-                      )}
-                      {pdp.filePath && (
-                        <Link
-                          href={`/api/pdps/${pdp.id}/download`}
-                          className="text-sm text-primary hover:underline"
-                        >
-                          Скачать
-                        </Link>
                       )}
                     </TableCell>
                   </TableRow>

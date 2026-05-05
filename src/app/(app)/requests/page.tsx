@@ -160,7 +160,13 @@ export default function RequestsPage() {
   async function handleDecision(newStatus: "APPROVED" | "REJECTED") {
     if (!selected) return;
 
-    const payload: Record<string, unknown> = { status: newStatus, adminNotes };
+    const trimmedNotes = adminNotes.trim();
+    if (newStatus === "REJECTED" && !trimmedNotes) return;
+
+    const payload: Record<string, unknown> = {
+      status: newStatus,
+      adminNotes: trimmedNotes,
+    };
     if (newStatus === "APPROVED") {
       if (selectedAssessorIds.length === 0) return;
       payload.assessorIds = selectedAssessorIds;
@@ -420,7 +426,7 @@ export default function RequestsPage() {
                   className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Комментарий (необязательно)"
+                  placeholder="Обязателен при отклонении, иначе необязателен"
                 />
               </div>
 
@@ -428,6 +434,12 @@ export default function RequestsPage() {
                 <Button
                   variant="destructive"
                   onClick={() => handleDecision("REJECTED")}
+                  disabled={!adminNotes.trim()}
+                  title={
+                    !adminNotes.trim()
+                      ? "Укажите причину отклонения в комментарии"
+                      : undefined
+                  }
                 >
                   Отклонить
                 </Button>

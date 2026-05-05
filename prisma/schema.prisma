@@ -1,6 +1,6 @@
 datasource db {
-  provider = "sqlite"
-  url      = "file:../data/pdp.db"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -25,6 +25,7 @@ model User {
 
   participations      AssessmentParticipant[]
   pdps                Pdp[]
+  createdPdps         Pdp[] @relation("createdPdps")
   requestedAssessments AssessmentRequest[] @relation("requestedBy")
   assignedAssessments  AssessmentRequest[] @relation("assignedAssessor")
 }
@@ -81,17 +82,19 @@ model AssessmentResult {
 model Pdp {
   id           String   @id @default(cuid())
   userId       String
+  createdById  String?
   assessmentId String?
   fileName     String
-  filePath     String
   driveFileId  String?
   driveLink    String?
-  status       String   @default("DRAFT") // GENERATING | DRAFT | ACTIVE | COMPLETED | FAILED
+  status       String   @default("DRAFT") // GENERATING | ON_REVIEW | DRAFT | ACTIVE | COMPLETED | FAILED
   error        String?
+  reviewNotes  String?
   topicsJson   String
   createdAt    DateTime @default(now())
 
   user       User        @relation(fields: [userId], references: [id])
+  createdBy  User?       @relation("createdPdps", fields: [createdById], references: [id])
   assessment Assessment? @relation(fields: [assessmentId], references: [id])
 }
 

@@ -28,6 +28,7 @@ const assessorItems = [
 
 const adminItems = [
   { href: "/requests", label: "Заявки", icon: "inbox" },
+  { href: "/pdp-review", label: "ИПР на проверке", icon: "file-text" },
   { href: "/users", label: "Пользователи", icon: "users" },
 ];
 

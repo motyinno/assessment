@@ -6,8 +6,7 @@ import { baseGrade, gradeLabel } from "@/lib/grades";
 import { generateStandalonePDP } from "@/lib/ai-service";
 import { buildPdpDocx } from "@/lib/pdp-builder";
 import { uploadPdpToDrive } from "@/lib/google-drive";
-import path from "path";
-import fs from "fs/promises";
+import { getValidAccessToken } from "@/lib/google-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -41,6 +40,15 @@ export async function POST(
     );
   }
 
+  const assessorId = session!.user.id;
+  const driveToken = await getValidAccessToken(assessorId);
+  if (!driveToken) {
+    return NextResponse.json(
+      { error: "Подключите Google Drive в профиле — без него ИПР сохранить негде" },
+      { status: 400 }
+    );
+  }
+
   // Filter tech matrix to selected topic ids, pulling grade-relevant skills
   const base = baseGrade(user.grade);
   const matrix = loadTechMatrix();
@@ -65,26 +73,20 @@ export async function POST(
   const pdp = await prisma.pdp.create({
     data: {
       userId: user.id,
+      createdById: assessorId,
       fileName,
-      filePath: "",
       status: "GENERATING",
       topicsJson: "[]",
     },
   });
 
   // Fire and forget — do the heavy work (AI + docx + Drive) after we've returned.
-  const pdpId = pdp.id;
-  const assessorId = session!.user.id;
-  const userGradeLabel = gradeLabel(user.grade);
-  const userName = user.name;
-  const userManager = user.manager ?? "";
-
   void generatePdpInBackground({
-    pdpId,
+    pdpId: pdp.id,
     assessorId,
-    userName,
-    userManager,
-    userGradeLabel,
+    userName: user.name,
+    userManager: user.manager ?? "",
+    userGradeLabel: gradeLabel(user.grade),
     selected,
     fileName,
   });
@@ -111,24 +113,18 @@ async function generatePdpInBackground(opts: {
       { includeTasks: true }
     );
 
-    const pdpsDir = path.join(process.cwd(), "data", "pdps");
-    await fs.mkdir(pdpsDir, { recursive: true });
-    const filePath = path.join(pdpsDir, `${pdpId}.docx`);
-    await fs.writeFile(filePath, buffer);
-
-    const driveResult = await uploadPdpToDrive(assessorId, fileName, buffer).catch((e) => {
-      console.error("Drive upload threw:", e);
-      return null;
-    });
+    const driveResult = await uploadPdpToDrive(assessorId, fileName, buffer);
+    if (!driveResult) {
+      throw new Error("Не удалось загрузить ИПР в Google Drive");
+    }
 
     await prisma.pdp.update({
       where: { id: pdpId },
       data: {
-        filePath: `data/pdps/${pdpId}.docx`,
-        driveFileId: driveResult?.fileId ?? null,
-        driveLink: driveResult?.webViewLink ?? null,
+        driveFileId: driveResult.fileId,
+        driveLink: driveResult.webViewLink,
         topicsJson: JSON.stringify(ai.pdpTopics),
-        status: "DRAFT",
+        status: "ON_REVIEW",
         error: null,
       },
     });

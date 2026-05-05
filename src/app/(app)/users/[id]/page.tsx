@@ -53,10 +53,10 @@ interface Pdp {
   id: string;
   fileName: string;
   createdAt: string;
-  filePath: string;
   driveLink: string | null;
   status: string;
   error: string | null;
+  reviewNotes: string | null;
   assessment: { id: string; title: string } | null;
 }
 
@@ -478,14 +478,22 @@ export default function UserProfilePage() {
                 );
                 const [latest, ...older] = sortedPdps;
                 const visible = pdpsExpanded ? sortedPdps : [latest];
+                const latestActiveId = sortedPdps.find(
+                  (p) => p.status === "ACTIVE"
+                )?.id;
+                const activeCount = sortedPdps.filter(
+                  (p) => p.status === "ACTIVE"
+                ).length;
 
                 return (
                   <>
                     <ul className="divide-y divide-border">
-                      {visible.map((pdp, idx) => {
-                        const isLatest = idx === 0 && !pdpsExpanded ? true : pdp.id === latest.id;
+                      {visible.map((pdp) => {
+                        const isLatestActive =
+                          pdp.id === latestActiveId && activeCount > 1;
                         const isGenerating = pdp.status === "GENERATING";
                         const isFailed = pdp.status === "FAILED";
+                        const isOnReview = pdp.status === "ON_REVIEW";
                         return (
                           <li
                             key={pdp.id}
@@ -498,7 +506,9 @@ export default function UserProfilePage() {
                                   ? "bg-destructive/10 text-destructive"
                                   : isGenerating
                                     ? "bg-info/15 text-info"
-                                    : "bg-primary/10 text-primary")
+                                    : isOnReview
+                                      ? "bg-warning/20 text-warning-foreground"
+                                      : "bg-primary/10 text-primary")
                               }
                             >
                               {isGenerating ? (
@@ -541,9 +551,12 @@ export default function UserProfilePage() {
                                       <Badge variant="destructive" className="shrink-0">
                                         Ошибка
                                       </Badge>
+                                    ) : isOnReview ? (
+                                      <Badge variant="warning" className="shrink-0">
+                                        На проверке
+                                      </Badge>
                                     ) : (
-                                      isLatest &&
-                                      older.length > 0 && (
+                                      isLatestActive && (
                                         <Badge variant="success" className="shrink-0">
                                           Актуальный
                                         </Badge>
@@ -572,6 +585,16 @@ export default function UserProfilePage() {
                                       {pdp.error}
                                     </p>
                                   )}
+                                  {isOnReview && pdp.reviewNotes && (
+                                    <div className="mt-1.5 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-1.5">
+                                      <p className="text-[10px] font-semibold uppercase tracking-wide text-warning-foreground/80">
+                                        Замечания администратора
+                                      </p>
+                                      <p className="text-[11px] text-foreground whitespace-pre-wrap mt-0.5">
+                                        {pdp.reviewNotes}
+                                      </p>
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                   {!isGenerating && !isFailed && pdp.driveLink && (
@@ -589,19 +612,6 @@ export default function UserProfilePage() {
                                       </svg>
                                       Drive
                                     </a>
-                                  )}
-                                  {!isGenerating && !isFailed && pdp.filePath && (
-                                    <Link
-                                      href={`/api/pdps/${pdp.id}/download`}
-                                      title="Скачать"
-                                      className="inline-flex items-center text-xs font-medium text-primary hover:bg-primary/5 px-1.5 py-1 rounded-md"
-                                    >
-                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                        <polyline points="7 10 12 15 17 10" />
-                                        <line x1="12" y1="15" x2="12" y2="3" />
-                                      </svg>
-                                    </Link>
                                   )}
                                 </div>
                               </div>

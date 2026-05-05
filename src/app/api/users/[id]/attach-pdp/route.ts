@@ -35,7 +35,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAssessor();
+  const { error, session } = await requireAssessor();
   if (error) return error;
 
   const { id: targetUserId } = await params;
@@ -67,8 +67,8 @@ export async function POST(
   const pdp = await prisma.pdp.create({
     data: {
       userId: user.id,
+      createdById: session!.user.id,
       fileName,
-      filePath: "", // link-only PDP has no local file
       driveLink,
       driveFileId,
       topicsJson: "[]",
