@@ -141,7 +141,11 @@ export default function NewAssessmentPage() {
                   onValueChange={(v) => v && setForm({ ...form, grade: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue>
+                      {(v: unknown) =>
+                        typeof v === "string" && v ? gradeLabel(v) : ""
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {GRADE_VALUES.map((g) => (

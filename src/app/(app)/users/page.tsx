@@ -173,7 +173,11 @@ export default function UsersPage() {
                   <Label>Грейд</Label>
                   <Select value={form.grade} onValueChange={(v) => v && setForm({ ...form, grade: v })}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Выберите" />
+                      <SelectValue placeholder="Выберите">
+                        {(v: unknown) =>
+                          typeof v === "string" && v ? gradeLabel(v) : "Выберите"
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {GRADE_VALUES.map((g) => (

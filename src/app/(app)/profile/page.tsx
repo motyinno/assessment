@@ -184,7 +184,11 @@ export default function ProfilePage() {
                     onValueChange={(v) => v && setForm({ ...form, grade: v })}
                   >
                     <SelectTrigger className="!h-10 w-full">
-                      <SelectValue placeholder="Выберите грейд" />
+                      <SelectValue placeholder="Выберите грейд">
+                        {(v: unknown) =>
+                          typeof v === "string" && v ? gradeLabel(v) : "Выберите грейд"
+                        }
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {GRADE_VALUES.map((g) => (
