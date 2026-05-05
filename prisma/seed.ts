@@ -5,7 +5,19 @@ import { join } from "node:path";
 const prisma = new PrismaClient();
 
 type Role = "USER" | "ASSESSOR" | "ADMIN";
-type Grade = "jun-" | "jun" | "jun+" | "mid-" | "mid" | "mid+" | "sen-" | "sen" | "sen+" | null;
+type Grade =
+  | "Trainee"
+  | "Intern"
+  | "jun-"
+  | "jun"
+  | "jun+"
+  | "mid-"
+  | "mid"
+  | "mid+"
+  | "sen-"
+  | "sen"
+  | "sen+"
+  | null;
 
 type SeedUser = {
   name: string;
@@ -28,8 +40,8 @@ interface EmployeeRecord {
 }
 
 // Map the HR grade strings to the internal grade enum.
-// Trainee/Intern/Other are modeled as "no assigned grade" (null).
-// Lead is treated as sen+.
+// Trainee/Intern are first-class grades (treated as Junior for assessments
+// via baseGrade()). Lead is treated as sen+. Only "Other" is null.
 const GRADE_MAP: Record<string, Grade> = {
   "Junior-": "jun-",
   "Junior": "jun",
@@ -41,8 +53,8 @@ const GRADE_MAP: Record<string, Grade> = {
   "Senior": "sen",
   "Senior+": "sen+",
   "Lead": "sen+",
-  "Trainee": null,
-  "Intern": null,
+  "Trainee": "Trainee",
+  "Intern": "Intern",
   "Other": null,
 };
 

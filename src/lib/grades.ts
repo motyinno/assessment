@@ -1,4 +1,6 @@
 export const GRADE_VALUES = [
+  "Trainee",
+  "Intern",
   "jun-",
   "jun",
   "jun+",
@@ -13,6 +15,8 @@ export const GRADE_VALUES = [
 export type Grade = (typeof GRADE_VALUES)[number];
 
 export const GRADE_LABELS: Record<string, string> = {
+  Trainee: "Trainee",
+  Intern: "Intern",
   "jun-": "Junior-",
   jun: "Junior",
   "jun+": "Junior+",
@@ -26,10 +30,12 @@ export const GRADE_LABELS: Record<string, string> = {
 
 /**
  * Strip +/- modifier from a grade to the base grade used by session-building
- * and tech-matrix topic filtering (jun/mid/sen).
+ * and tech-matrix topic filtering (jun/mid/sen). Trainee and Intern are
+ * treated as Junior for assessment purposes.
  */
 export function baseGrade(grade: string | null | undefined): "jun" | "mid" | "sen" {
   if (!grade) return "jun";
+  if (grade === "Trainee" || grade === "Intern") return "jun";
   const stripped = grade.replace(/[+\-]$/, "");
   if (stripped === "jun" || stripped === "mid" || stripped === "sen") {
     return stripped;
