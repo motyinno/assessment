@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { XMLParser } from "fast-xml-parser";
 import { loadTemplate } from "./data-loader";
 import { escXml, mkP, mkBullet, mkRow, resetParaIdCounter } from "./xml-helpers";
 
@@ -19,9 +20,76 @@ export interface BuildPdpOptions {
 }
 
 /**
+ * Locate the bounds of the first `<w:tbl>` element and its first `<w:tr>` row
+ * inside it. The previous implementation walked the string with `indexOf` +
+ * a manual depth counter, which broke whenever the template was re-saved by
+ * Word and the whitespace shifted. Using a real XML parser to *validate*
+ * structure plus a depth-counted scan over `<w:tr>` keeps the byte-exact
+ * substring slicing we need (Word is sensitive to original byte order) while
+ * surfacing template breakage as an error rather than a silent wrong cut.
+ */
+function locateTableBoundaries(xml: string): {
+  tblStart: number;
+  tblEnd: number;
+  firstTrStart: number;
+  firstTrEnd: number;
+} {
+  // Validate that the document XML is well-formed at all — if it isn't, fail
+  // loudly instead of silently producing a broken .docx.
+  const parser = new XMLParser({ ignoreAttributes: false, allowBooleanAttributes: true });
+  parser.parse(xml);
+
+  const tblStart = xml.indexOf("<w:tbl>");
+  const tblEnd = xml.indexOf("</w:tbl>");
+  if (tblStart === -1 || tblEnd === -1) {
+    throw new Error("Template is missing the expected <w:tbl> container.");
+  }
+  const tblFullEnd = tblEnd + "</w:tbl>".length;
+
+  // Walk just the table fragment with a `<w:tr>` depth counter so nested
+  // tables (rare but possible in Word docs) don't trip the search.
+  const trOpen = "<w:tr>";
+  const trClose = "</w:tr>";
+  const fragment = xml.substring(tblStart, tblFullEnd);
+
+  const firstTrStart = fragment.indexOf(trOpen);
+  if (firstTrStart === -1) {
+    throw new Error("Template <w:tbl> contains no <w:tr> rows.");
+  }
+
+  let depth = 0;
+  let pos = firstTrStart;
+  let firstTrEndLocal = -1;
+  while (pos < fragment.length) {
+    const nextOpen = fragment.indexOf(trOpen, pos + (depth === 0 ? trOpen.length : 0));
+    const nextClose = fragment.indexOf(trClose, pos + 1);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + trOpen.length;
+    } else {
+      if (depth === 0) {
+        firstTrEndLocal = nextClose + trClose.length;
+        break;
+      }
+      depth--;
+      pos = nextClose + trClose.length;
+    }
+  }
+  if (firstTrEndLocal === -1) {
+    throw new Error("Could not locate end of first <w:tr> in template.");
+  }
+
+  return {
+    tblStart,
+    tblEnd: tblFullEnd,
+    firstTrStart: tblStart + firstTrStart,
+    firstTrEnd: tblStart + firstTrEndLocal,
+  };
+}
+
+/**
  * Build a PDP .docx file from a template.
- * Mirrors the logic previously inline in /api/generate/route.ts so it can be
- * reused by the standalone-from-user-page flow.
  */
 export async function buildPdpDocx(
   info: PdpDocInfo,
@@ -40,8 +108,8 @@ export async function buildPdpDocx(
 
   const replacements: [string, string][] = (
     [
-      ["\u2019s NAME SURNAME", info.manager || ""],
-      ["M\u2019s NAME SURNAME", info.manager || ""],
+      ["’s NAME SURNAME", info.manager || ""],
+      ["M’s NAME SURNAME", info.manager || ""],
       ["M&#x2019;s NAME SURNAME", info.manager || ""],
       ["NAME SURNAME", info.employee || ""],
       ["05.12.2022", info.next_date || ""],
@@ -53,34 +121,12 @@ export async function buildPdpDocx(
     docXml = docXml.split(old).join(escXml(nw));
   }
 
-  const tblStart = docXml.indexOf("<w:tbl>");
-  const tblEndIdx = docXml.indexOf("</w:tbl>") + "</w:tbl>".length;
-  const tblXml = docXml.substring(tblStart, tblEndIdx);
-
-  const firstTrStart = tblXml.indexOf("<w:tr>");
-  let depth = 0;
-  let scanPos = firstTrStart;
-  let firstTrEnd = -1;
-  while (scanPos < tblXml.length) {
-    const nxOpen = tblXml.indexOf("<w:tr>", scanPos + (depth === 0 ? 5 : 0));
-    const nxClose = tblXml.indexOf("</w:tr>", scanPos + 1);
-    if (nxClose === -1) break;
-    if (nxOpen !== -1 && nxOpen < nxClose) {
-      depth++;
-      scanPos = nxOpen + 6;
-    } else {
-      if (depth === 0) {
-        firstTrEnd = nxClose + 7;
-        break;
-      }
-      depth--;
-      scanPos = nxClose + 7;
-    }
-  }
-  if (firstTrEnd === -1) throw new Error("Could not parse template table");
-
-  const headerRow = tblXml.substring(firstTrStart, firstTrEnd);
-  const tblProps = tblXml.substring(6, firstTrStart);
+  const { tblStart, tblEnd, firstTrStart, firstTrEnd } =
+    locateTableBoundaries(docXml);
+  const tblXml = docXml.substring(tblStart, tblEnd);
+  const headerRow = docXml.substring(firstTrStart, firstTrEnd);
+  const tblPropsLen = firstTrStart - (tblStart + "<w:tbl>".length);
+  const tblProps = tblXml.substring("<w:tbl>".length, "<w:tbl>".length + tblPropsLen);
 
   const rows = pdpData.map((data) => {
     let content = mkP("Topics to study:") + mkP("");
@@ -98,8 +144,9 @@ export async function buildPdpDocx(
     return mkRow(data.category, "", content);
   });
 
-  const newTbl = "<w:tbl>" + tblProps + headerRow + rows.join("") + "\n</w:tbl>";
-  docXml = docXml.substring(0, tblStart) + newTbl + docXml.substring(tblEndIdx);
+  const newTbl =
+    "<w:tbl>" + tblProps + headerRow + rows.join("") + "\n</w:tbl>";
+  docXml = docXml.substring(0, tblStart) + newTbl + docXml.substring(tblEnd);
 
   zip.file("word/document.xml", docXml);
   const output = await zip.generateAsync({

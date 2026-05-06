@@ -15,9 +15,10 @@ interface AssessmentRequest {
   notes: string | null;
   status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
-  assessor?: {
-    name: string | null;
-  } | null;
+  assessors?: Array<{
+    isPrimary: boolean;
+    assessor: { name: string | null };
+  }>;
   assessment?: {
     id: string;
   } | null;
@@ -210,9 +211,12 @@ export default function RequestAssessmentPage() {
                     <p className="text-sm text-muted-foreground">{req.notes}</p>
                   )}
 
-                  {req.status === "APPROVED" && req.assessor && (
+                  {req.status === "APPROVED" && req.assessors && req.assessors.length > 0 && (
                     <p className="text-sm">
-                      Assessor: {req.assessor.name || "Not assigned"}
+                      {req.assessors.length === 1 ? "Assessor" : "Assessors"}:{" "}
+                      {req.assessors
+                        .map((a) => a.assessor.name || "Not assigned")
+                        .join(", ")}
                     </p>
                   )}
 

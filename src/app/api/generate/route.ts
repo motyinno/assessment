@@ -2,129 +2,114 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
+
 import {
   loadMapping,
   loadAliases,
   resolveMapping,
 } from "@/lib/data-loader";
-import type { CategoryInfo, EmployeeInfo, GenerateSettings } from "@/lib/types";
 import prisma from "@/lib/prisma";
 import { buildPdpDocx } from "@/lib/pdp-builder";
-
-interface GenerateBody {
-  weakTopics: CategoryInfo[];
-  info: EmployeeInfo;
-  settings: GenerateSettings;
-  useAI?: boolean;
-  assessmentId?: string;
-}
+import { requireAuth } from "@/lib/auth-helpers";
+import { isStaff } from "@/lib/roles";
+import { generateBodySchema } from "@/lib/schemas";
+import {
+  badRequest,
+  forbidden,
+  notFound,
+  parseJsonBody,
+  parseJsonField,
+  log,
+} from "@/lib/api-helpers";
+import { generatePDPTopics } from "@/lib/ai-service";
+import { loadPdpTopicsMarkdown } from "@/lib/data-loader";
+import { parsePdpTopicsMd, selectQuestions } from "@/lib/pdp-topics-parser";
+import { baseGrade } from "@/lib/grades";
 
 /**
  * POST /api/generate
- * Generates the PDP .docx file.
- * Body: { weakTopics, info, settings, useAI }
- * Returns the .docx as binary (application/octet-stream).
+ * Generates the PDP .docx file. Auth required; if `assessmentId` is provided
+ * the caller must be staff or a participant of that assessment so we don't
+ * leak feedback / scores via the AI path.
  */
 export async function POST(request: NextRequest) {
-  try {
-    const body: GenerateBody = await request.json();
-    const { weakTopics, info, settings, useAI = false, assessmentId } = body;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
-    console.log("Generate PDP - useAI:", useAI, "assessmentId:", assessmentId);
+  const parsed = await parseJsonBody(request, generateBodySchema);
+  if (parsed.error) return parsed.error;
+  const { weakTopics, info, settings, useAI, assessmentId } = parsed.data;
 
-    if (!weakTopics || weakTopics.length === 0) {
-      return NextResponse.json(
-        { error: "No topics selected" },
-        { status: 400 }
-      );
+  if (weakTopics.length === 0) {
+    return badRequest("No topics selected");
+  }
+
+  let pdpData: Array<{ category: string; questions: string[]; practicalTask: string }> = [];
+
+  if (useAI) {
+    if (!assessmentId) {
+      return badRequest("assessmentId is required when useAI is true");
     }
 
-    let pdpData: Array<{ category: string; questions: string[]; practicalTask: string }> = [];
-
-    if (useAI) {
-      // Generate AI feedback on-the-fly
-      console.log("Using AI mode - generating on-the-fly");
-      if (!assessmentId) {
-        return NextResponse.json(
-          { error: "assessmentId is required when useAI is true" },
-          { status: 400 }
-        );
-      }
-
-      const { generatePDPTopics } = await import("@/lib/ai-service");
-
-      // Get assessment results from database
-      const assessment = await prisma.assessment.findUnique({
-        where: { id: assessmentId },
-        include: {
-          participants: {
-            where: { participantRole: "SUBJECT" },
-            include: { user: true },
-          },
-          results: {
-            orderBy: { category: "asc" },
-          },
+    const assessment = await prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      include: {
+        participants: {
+          where: { participantRole: "SUBJECT" },
+          include: { user: true },
         },
+        results: { orderBy: { category: "asc" } },
+      },
+    });
+    if (!assessment) return notFound("Assessment not found");
+
+    if (!isStaff(me.role)) {
+      const isParticipant = await prisma.assessmentParticipant.findFirst({
+        where: { assessmentId, userId: me.id },
+        select: { id: true },
       });
-
-      if (!assessment) {
-        return NextResponse.json(
-          { error: "Assessment not found" },
-          { status: 404 }
-        );
-      }
-
-      const subject = assessment.participants[0]?.user;
-      if (!subject) {
-        return NextResponse.json(
-          { error: "No subject found for assessment" },
-          { status: 400 }
-        );
-      }
-
-      // Convert results to AI service format
-      const assessmentResults = assessment.results.map((r) => ({
-        category: r.category,
-        score: r.score,
-        comment: r.comment || "",
-        subtopics: r.subtopics ? JSON.parse(r.subtopics) : [],
-      }));
-
-      // Generate AI feedback and PDP topics
-      const aiResponse = await generatePDPTopics(
-        assessmentResults,
-        subject.name,
-        assessment.grade,
-        assessmentId
-      );
-
-      pdpData = aiResponse.pdpTopics;
-      console.log("AI data generated, pdpData length:", pdpData.length);
-      console.log("Sample pdpData item:", JSON.stringify(pdpData[0], null, 2));
-    } else {
-      // Use the old method with pre-defined topics
-      console.log("Using old logic (non-AI mode)");
-      const { loadPdpTopicsMarkdown } = await import("@/lib/data-loader");
-      const { parsePdpTopicsMd, selectQuestions } = await import("@/lib/pdp-topics-parser");
-
-      const md = loadPdpTopicsMarkdown();
-      const pdpTopics = parsePdpTopicsMd(md);
-      const { baseGrade } = await import("@/lib/grades");
-      const mapping = loadMapping(baseGrade(info.grade) || "jun");
-      const aliases = loadAliases();
-      const maxQ = settings.maxQuestions || 2;
-
-      pdpData = weakTopics.map((cat) => {
-        const matched = resolveMapping(cat.name, mapping, aliases);
-        const { questions, task } = selectQuestions(pdpTopics, matched, maxQ);
-        return {
-          category: cat.name,
-          questions: questions.length ? questions : (cat.subtopics || []).slice(0, maxQ),
-          practicalTask: task || "",
-        };
-      });
+      if (!isParticipant) return forbidden();
     }
 
+    const subject = assessment.participants[0]?.user;
+    if (!subject) return badRequest("No subject found for assessment");
+
+    // subtopics is now a Json column — Prisma deserializes it into the
+    // native shape, so no JSON.parse needed.
+    const assessmentResults = assessment.results.map((r) => ({
+      category: r.category,
+      score: r.score,
+      comment: r.comment || "",
+      subtopics: (r.subtopics as string[] | null) ?? [],
+    }));
+
+    const aiResponse = await generatePDPTopics(
+      assessmentResults,
+      subject.name,
+      assessment.grade,
+      assessmentId
+    );
+    pdpData = aiResponse.pdpTopics;
+  } else {
+    const md = loadPdpTopicsMarkdown();
+    const pdpTopics = parsePdpTopicsMd(md);
+    const mapping = loadMapping(baseGrade(info.grade) || "jun");
+    const aliases = loadAliases();
+    const maxQ = settings.maxQuestions || 2;
+
+    pdpData = weakTopics.map((cat) => {
+      const matched = resolveMapping(cat.name, mapping, aliases);
+      const { questions, task } = selectQuestions(pdpTopics, matched, maxQ);
+      return {
+        category: cat.name,
+        questions: questions.length ? questions : (cat.subtopics || []).slice(0, maxQ),
+        practicalTask: task || "",
+      };
+    });
+  }
+
+  try {
     const output = await buildPdpDocx(
       { employee: info.employee, manager: info.manager, next_date: info.next_date },
       pdpData,
@@ -141,8 +126,16 @@ export async function POST(request: NextRequest) {
         )}"`,
       },
     });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (e) {
+    log.error("PDP docx build failed", {
+      error: e instanceof Error ? e.message : String(e),
+      assessmentId,
+      userId: me.id,
+    });
+    return badRequest("Failed to build PDP document");
   }
 }
+
+// `parseJsonField` re-exported here just in case other call sites later need
+// to consume topicsJson stored on disk; current route does not use it.
+void parseJsonField;

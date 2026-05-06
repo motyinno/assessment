@@ -3,8 +3,8 @@ import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
 
 export async function GET() {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
 
   const pdps = await prisma.pdp.findMany({
     where: { status: "ON_REVIEW" },

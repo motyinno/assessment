@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
+import {
+  requireAssessmentRead,
+  requireAssessmentAssessor,
+} from "@/lib/auth-helpers";
 import { buildSessionsForGrade, SESSION_STATUSES } from "@/lib/assessment-sessions";
 import { syncSessionAssets } from "@/lib/session-sync";
+import { sessionPatchSchema } from "@/lib/schemas";
+import {
+  badRequest,
+  notFound,
+  parseJsonBody,
+  log,
+} from "@/lib/api-helpers";
 
 /**
  * After a session is marked COMPLETED, Google publishes the recording to
@@ -22,7 +32,11 @@ function scheduleDelayedSync(args: {
   const delayMs = 3 * 60 * 1000; // 3 min
   setTimeout(() => {
     syncSessionAssets(args).catch((e) => {
-      console.error("Delayed session sync failed:", e);
+      log.warn("Delayed session sync failed", {
+        error: e instanceof Error ? e.message : String(e),
+        assessmentId: args.assessmentId,
+        sessionId: args.sessionId,
+      });
     });
   }, delayMs).unref?.();
 }
@@ -31,10 +45,9 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
-
   const { id } = await params;
+  const guard = await requireAssessmentRead(id);
+  if (guard.error) return guard.error;
 
   const sessions = await prisma.assessmentSession.findMany({
     where: { assessmentId: id },
@@ -48,65 +61,47 @@ export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAssessor();
-  if (error) return error;
-
   const { id } = await params;
+  const guard = await requireAssessmentAssessor(id);
+  if (guard.error) return guard.error;
 
-  // Check if sessions already exist
   const existing = await prisma.assessmentSession.findFirst({
     where: { assessmentId: id },
   });
-
   if (existing) {
-    return NextResponse.json(
-      { error: "Sessions for this assessment have already been created" },
-      { status: 400 }
-    );
+    return badRequest("Sessions for this assessment have already been created");
   }
 
-  // Fetch assessment with participants
   const assessment = await prisma.assessment.findUnique({
     where: { id },
     include: {
       participants: {
         include: {
-          user: {
-            select: { id: true, softAiInterviewPassed: true },
-          },
+          user: { select: { id: true, softAiInterviewPassed: true } },
         },
       },
     },
   });
+  if (!assessment) return notFound("Assessment not found");
 
-  if (!assessment) {
-    return NextResponse.json(
-      { error: "Assessment not found" },
-      { status: 404 }
-    );
-  }
-
-  // Find the SUBJECT participant
   const subject = assessment.participants.find(
     (p) => p.participantRole === "SUBJECT"
   );
+  if (!subject) return badRequest("Assessment subject not found");
 
-  if (!subject) {
-    return NextResponse.json(
-      { error: "Assessment subject not found" },
-      { status: 400 }
-    );
-  }
-
-  const grade = assessment.grade;
-  const softAiPassed = subject.user.softAiInterviewPassed;
-
-  const templates = buildSessionsForGrade(grade, softAiPassed, assessment.assessmentType);
+  const templates = buildSessionsForGrade(
+    assessment.grade,
+    subject.user.softAiInterviewPassed,
+    assessment.assessmentType
+  );
 
   await prisma.assessmentSession.createMany({
     data: templates.map((t) => ({
       assessmentId: id,
-      ...t,
+      type: t.type as never,
+      status: t.status as never,
+      order: t.order,
+      durationMin: t.durationMin,
     })),
   });
 
@@ -122,161 +117,126 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, session: authSession } = await requireAssessor();
-  if (error) return error;
-
   const { id } = await params;
-  const body = await req.json();
-  const { sessionId, status, notes, recordingLink, meetingLink } = body;
+  const guard = await requireAssessmentAssessor(id);
+  if (guard.error) return guard.error;
+  const me = guard.session.user;
 
-  if (!sessionId) {
-    return NextResponse.json({ error: "sessionId is required" }, { status: 400 });
-  }
+  const parsed = await parseJsonBody(req, sessionPatchSchema);
+  if (parsed.error) return parsed.error;
+  const { sessionId, status, notes, recordingLink, meetingLink } = parsed.data;
 
-  // Status is optional now — PATCH can also be called just to update
-  // `recordingLink` (or `notes`) on an already-completed session.
-  if (status && !["IN_PROGRESS", "COMPLETED", "SKIPPED"].includes(status)) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-  }
-
-  // Fetch session with its assessment
   const session = await prisma.assessmentSession.findUnique({
     where: { id: sessionId },
     include: { assessment: true },
   });
-
   if (!session || session.assessmentId !== id) {
-    return NextResponse.json(
-      { error: "Session not found" },
-      { status: 404 }
-    );
+    return notFound("Session not found");
   }
 
-  // Validate assessment is not cancelled
   if (session.assessment.status === "CANCELLED") {
-    return NextResponse.json(
-      { error: "Can't modify a session of a cancelled assessment" },
-      { status: 400 }
-    );
+    return badRequest("Can't modify a session of a cancelled assessment");
   }
 
-  // Validate status transitions (only when status is being changed)
-  const currentStatus = session.status;
-  const validTransitions: Record<string, string> = {
-    [SESSION_STATUSES.NOT_STARTED]: SESSION_STATUSES.IN_PROGRESS,
-    [SESSION_STATUSES.IN_PROGRESS]: SESSION_STATUSES.COMPLETED,
+  const validTransitions: Partial<Record<typeof session.status, typeof session.status>> = {
+    NOT_STARTED: "IN_PROGRESS",
+    IN_PROGRESS: "COMPLETED",
   };
 
-  if (status && validTransitions[currentStatus] !== status) {
-    return NextResponse.json(
-      { error: `Can't transition session from "${currentStatus}" to "${status}"` },
-      { status: 400 }
+  if (status && validTransitions[session.status] !== status) {
+    return badRequest(
+      `Can't transition session from "${session.status}" to "${status}"`
     );
   }
 
-  // For IN_PROGRESS: check all previous sessions are COMPLETED or SKIPPED
-  if (status === SESSION_STATUSES.IN_PROGRESS) {
+  if (status === "IN_PROGRESS") {
     const previousSessions = await prisma.assessmentSession.findMany({
-      where: {
-        assessmentId: id,
-        order: { lt: session.order },
-      },
+      where: { assessmentId: id, order: { lt: session.order } },
     });
-
     const allPreviousDone = previousSessions.every(
       (s) =>
         s.status === SESSION_STATUSES.COMPLETED ||
         s.status === SESSION_STATUSES.SKIPPED
     );
-
     if (!allPreviousDone) {
-      return NextResponse.json(
-        { error: "All previous sessions must be completed or skipped" },
-        { status: 400 }
-      );
+      return badRequest("All previous sessions must be completed or skipped");
     }
   }
 
-  // Build update data
   const updateData: Record<string, unknown> = {};
   if (status) {
     updateData.status = status;
-    if (status === SESSION_STATUSES.IN_PROGRESS) {
+    if (status === "IN_PROGRESS") {
       updateData.startedAt = new Date();
-      updateData.assessorId = authSession.user.id;
-      updateData.assessorName = authSession.user.name;
+      updateData.assessorId = me.id;
+      updateData.assessorName = me.name;
     }
-    if (status === SESSION_STATUSES.COMPLETED) {
-      updateData.completedAt = new Date();
-    }
+    if (status === "COMPLETED") updateData.completedAt = new Date();
   }
   if (notes !== undefined) updateData.notes = notes;
   if (recordingLink !== undefined) updateData.recordingLink = recordingLink;
   if (meetingLink !== undefined) updateData.meetingLink = meetingLink;
 
-  const updatedSession = await prisma.assessmentSession.update({
-    where: { id: sessionId },
-    data: updateData,
-  });
-
-  // Side effects
-
-  // 1. If SOFT_AI session completed, mark user as softAiInterviewPassed
-  if (
-    session.type === "SOFT_AI" &&
-    status === SESSION_STATUSES.COMPLETED
-  ) {
-    const subject = await prisma.assessmentParticipant.findFirst({
-      where: {
-        assessmentId: session.assessmentId,
-        participantRole: "SUBJECT",
-      },
+  // The session update + cascading assessment-status update + soft-AI flag
+  // should be atomic — one transaction so a partial update can't leave the
+  // assessment "completed" while sessions still show otherwise.
+  const updatedSession = await prisma.$transaction(async (tx) => {
+    const updated = await tx.assessmentSession.update({
+      where: { id: sessionId },
+      data: updateData,
     });
 
-    if (subject) {
-      await prisma.user.update({
-        where: { id: subject.userId },
-        data: { softAiInterviewPassed: true },
+    // 1. SOFT_AI completion → mark user as having passed it.
+    if (
+      session.type === "SOFT_AI" &&
+      status === SESSION_STATUSES.COMPLETED
+    ) {
+      const subject = await tx.assessmentParticipant.findFirst({
+        where: { assessmentId: session.assessmentId, participantRole: "SUBJECT" },
+      });
+      if (subject) {
+        await tx.user.update({
+          where: { id: subject.userId },
+          data: { softAiInterviewPassed: true },
+        });
+      }
+    }
+
+    // 2. Roll the assessment status forward when sessions transition.
+    const allSessions = await tx.assessmentSession.findMany({
+      where: { assessmentId: id },
+    });
+    const hasInProgress = allSessions.some(
+      (s) => s.status === SESSION_STATUSES.IN_PROGRESS
+    );
+    const nonSkipped = allSessions.filter(
+      (s) => s.status !== SESSION_STATUSES.SKIPPED
+    );
+    const allDone =
+      nonSkipped.length > 0 &&
+      nonSkipped.every((s) => s.status === SESSION_STATUSES.COMPLETED);
+
+    if (hasInProgress && session.assessment.status === "PLANNED") {
+      await tx.assessment.update({
+        where: { id },
+        data: { status: "IN_PROGRESS" },
       });
     }
-  }
+    if (allDone) {
+      await tx.assessment.update({
+        where: { id },
+        data: { status: "COMPLETED", completedAt: new Date() },
+      });
+    }
 
-  // 1b. On completion, schedule a delayed Drive sync so we auto-pull the
-  // recording once Google finishes publishing it.
+    return updated;
+  });
+
   if (status === SESSION_STATUSES.COMPLETED) {
     scheduleDelayedSync({
       assessmentId: id,
       sessionId,
-      actorUserId: authSession.user.id,
-    });
-  }
-
-  // 2. Auto-sync assessment status
-  const allSessions = await prisma.assessmentSession.findMany({
-    where: { assessmentId: id },
-  });
-
-  const hasInProgress = allSessions.some(
-    (s) => s.status === SESSION_STATUSES.IN_PROGRESS
-  );
-  const nonSkippedSessions = allSessions.filter(
-    (s) => s.status !== SESSION_STATUSES.SKIPPED
-  );
-  const allNonSkippedCompleted = nonSkippedSessions.every(
-    (s) => s.status === SESSION_STATUSES.COMPLETED
-  );
-
-  if (hasInProgress && session.assessment.status === "PLANNED") {
-    await prisma.assessment.update({
-      where: { id },
-      data: { status: "IN_PROGRESS" },
-    });
-  }
-
-  if (allNonSkippedCompleted && nonSkippedSessions.length > 0) {
-    await prisma.assessment.update({
-      where: { id },
-      data: { status: "COMPLETED", completedAt: new Date() },
+      actorUserId: me.id,
     });
   }
 

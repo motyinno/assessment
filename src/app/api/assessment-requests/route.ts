@@ -1,19 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
+import { isAdmin } from "@/lib/roles";
+import { createRequestSchema } from "@/lib/schemas";
+import {
+  badRequest,
+  conflict,
+  parseJsonBody,
+} from "@/lib/api-helpers";
 
 export async function GET() {
-  const { error, session } = await requireAuth();
-  if (error) return error;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
-  const role = session!.user.role;
-  const where = role === "ADMIN" ? {} : { userId: session!.user.id };
+  const where = isAdmin(me.role) ? {} : { userId: me.id };
 
   const requests = await prisma.assessmentRequest.findMany({
     where,
     include: {
       user: { select: { id: true, name: true, email: true, grade: true } },
-      assessor: { select: { id: true, name: true, email: true } },
+      assessors: {
+        include: {
+          assessor: { select: { id: true, name: true, email: true } },
+        },
+        orderBy: { isPrimary: "desc" },
+      },
       assessment: { select: { id: true, title: true, status: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -23,44 +35,34 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { error, session } = await requireAuth();
-  if (error) return error;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
-  const body = await req.json();
-  const { notes } = body;
+  const parsed = await parseJsonBody(req, createRequestSchema);
+  if (parsed.error) return parsed.error;
+  const { notes } = parsed.data;
 
   const user = await prisma.user.findUnique({
-    where: { id: session!.user.id },
+    where: { id: me.id },
     select: { grade: true },
   });
-
   if (!user?.grade) {
-    return NextResponse.json(
-      { error: "Your profile has no grade set. Contact an administrator." },
-      { status: 400 }
-    );
+    return badRequest("Your profile has no grade set. Contact an administrator.");
   }
 
-  // Check for existing pending request
   const existing = await prisma.assessmentRequest.findFirst({
-    where: { userId: session!.user.id, status: "PENDING" },
+    where: { userId: me.id, status: "PENDING" },
   });
-  if (existing) {
-    return NextResponse.json(
-      { error: "You already have a pending request" },
-      { status: 400 }
-    );
-  }
+  if (existing) return conflict("You already have a pending request");
 
   const request = await prisma.assessmentRequest.create({
     data: {
-      userId: session!.user.id,
+      userId: me.id,
       grade: user.grade,
-      notes,
+      notes: notes ?? null,
     },
-    include: {
-      user: { select: { id: true, name: true, email: true } },
-    },
+    include: { user: { select: { id: true, name: true, email: true } } },
   });
 
   return NextResponse.json(request, { status: 201 });

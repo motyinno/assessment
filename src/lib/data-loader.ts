@@ -21,15 +21,6 @@ export function loadMapping(grade: Grade): TopicMapping {
 }
 
 /**
- * Load skip-names list from data/mappings/skip-names.json.
- */
-export function loadSkipNames(): string[] {
-  const filePath = path.join(getDataDir(), "mappings", "skip-names.json");
-  const content = fs.readFileSync(filePath, "utf-8");
-  return JSON.parse(content);
-}
-
-/**
  * Load aliases mapping from data/mappings/aliases.json.
  * Maps messy Excel category names → clean mapping keys.
  */

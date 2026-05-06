@@ -1,10 +1,10 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma, UserRole } from "@prisma/client";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const prisma = new PrismaClient();
 
-type Role = "USER" | "ASSESSOR" | "MANAGER" | "ADMIN";
+type Role = UserRole;
 type Grade =
   | "Trainee"
   | "Intern"
@@ -145,7 +145,8 @@ async function main() {
     });
   }
 
-  // Pass 2: resolve manager names to ids.
+  // Pass 2: resolve manager names to ids. Batched via $transaction so a
+  // partial run can't leave the DB with half the manager links applied.
   const all = await prisma.user.findMany({ select: { id: true, name: true } });
   const byName = new Map<string, string>();
   for (const u of all) {
@@ -154,6 +155,7 @@ async function main() {
 
   let resolved = 0;
   let unresolved = 0;
+  const updates: Prisma.PrismaPromise<unknown>[] = [];
   for (const u of users) {
     if (!u.managerName) continue;
     const managerId = byName.get(u.managerName.trim().toLowerCase()) ?? null;
@@ -164,11 +166,18 @@ async function main() {
       );
       continue;
     }
-    await prisma.user.update({
-      where: { email: u.email },
-      data: { managerId },
-    });
+    updates.push(
+      prisma.user.update({
+        where: { email: u.email },
+        data: { managerId },
+      })
+    );
     resolved++;
+  }
+  if (updates.length > 0) {
+    // PrismaPromise[] is compatible with $transaction at runtime; the cast
+    // satisfies the strict overload typing.
+    await prisma.$transaction(updates as Prisma.PrismaPromise<unknown>[] & []);
   }
 
   console.log(

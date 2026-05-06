@@ -1,4 +1,23 @@
 {$DOMAIN} {
     encode gzip
+
+    # Security headers — applied to every response
+    header {
+        # Force HTTPS for one year (preload-eligible). Caddy auto-terminates TLS.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Block MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        # Don't render the site inside iframes from other origins
+        X-Frame-Options "DENY"
+        # Trim referrer leaks
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # No old-Flash/PDF/etc cross-domain policies
+        X-Permitted-Cross-Domain-Policies "none"
+        # Restrict powerful browser APIs the app does not use
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+        # Hide upstream Server header
+        -Server
+    }
+
     reverse_proxy app:3000
 }

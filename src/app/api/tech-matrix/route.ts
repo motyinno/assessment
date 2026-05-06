@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { loadTechMatrix } from "@/lib/data-loader";
+import { requireAuth } from "@/lib/auth-helpers";
+import { notFound, serverError } from "@/lib/api-helpers";
+
+export const runtime = "nodejs";
+// Tech matrix is loaded from disk and never changes between deploys.
+export const revalidate = 3600;
 
 export async function GET(request: Request) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
   try {
     const matrix = loadTechMatrix();
     const { searchParams } = new URL(request.url);
@@ -9,15 +18,16 @@ export async function GET(request: Request) {
 
     if (sectionId) {
       const section = matrix.sections.find((s) => s.id === sectionId);
-      if (!section) {
-        return NextResponse.json({ error: "Section not found" }, { status: 404 });
-      }
-      return NextResponse.json(section);
+      if (!section) return notFound("Section not found");
+      return NextResponse.json(section, {
+        headers: { "Cache-Control": "private, max-age=3600" },
+      });
     }
 
-    return NextResponse.json(matrix);
+    return NextResponse.json(matrix, {
+      headers: { "Cache-Control": "private, max-age=3600" },
+    });
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return serverError(e instanceof Error ? e.message : String(e));
   }
 }

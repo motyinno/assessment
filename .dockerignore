@@ -6,6 +6,7 @@ node_modules
 .env.*
 !.env.production.example
 data/*.db
+*.tsbuildinfo
 Dockerfile
 docker-compose.yml
 Caddyfile
@@ -16,3 +17,4 @@ README*
 .DS_Store
 npm-debug.log*
 .claude
+.cursor

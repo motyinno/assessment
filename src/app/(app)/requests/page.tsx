@@ -50,7 +50,10 @@ interface AssessmentRequest {
   adminNotes: string | null;
   createdAt: string;
   user: RequestUser;
-  assessor: Assessor | null;
+  assessors: Array<{
+    isPrimary: boolean;
+    assessor: Assessor;
+  }>;
   assessment: Assessment | null;
 }
 
@@ -89,12 +92,11 @@ export default function RequestsPage() {
   }
 
   async function fetchAssessors() {
-    const res = await fetch("/api/users");
+    // Filter server-side instead of pulling the whole directory and trimming
+    // it in the browser.
+    const res = await fetch("/api/users?role=ASSESSOR,ADMIN,MANAGER");
     if (res.ok) {
-      const users = await res.json();
-      setAssessors(
-        users.filter((u: { role: string }) => u.role === "ASSESSOR" || u.role === "ADMIN")
-      );
+      setAssessors(await res.json());
     }
   }
 
@@ -180,9 +182,15 @@ export default function RequestsPage() {
     });
 
     if (res.ok) {
+      // Optimistic update: splice the updated row into local state instead
+      // of re-fetching the whole list. The PATCH response carries the new
+      // shape (with assessors join + assessment relation included).
+      const updated = (await res.json()) as AssessmentRequest;
+      setRequests((prev) =>
+        prev.map((r) => (r.id === updated.id ? updated : r))
+      );
       setOpen(false);
       setSelected(null);
-      fetchRequests();
     }
   }
 

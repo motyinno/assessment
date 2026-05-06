@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { countForType, suggestAssessors } from "@/lib/assessor-suggestion";
+import { notFound } from "@/lib/api-helpers";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
   const typeParam = req.nextUrl.searchParams.get("assessmentType");
@@ -19,9 +20,7 @@ export async function GET(
     where: { id },
     select: { userId: true, grade: true },
   });
-  if (!request) {
-    return NextResponse.json({ error: "Request not found" }, { status: 404 });
-  }
+  if (!request) return notFound("Request not found");
 
   const candidates = await suggestAssessors({
     subjectId: request.userId,

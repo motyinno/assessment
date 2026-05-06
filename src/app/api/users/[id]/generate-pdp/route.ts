@@ -1,92 +1,85 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAssessor } from "@/lib/auth-helpers";
+import { requireUserAccess } from "@/lib/auth-helpers";
 import { loadTechMatrix } from "@/lib/data-loader";
 import { baseGrade, gradeLabel } from "@/lib/grades";
 import { generateStandalonePDP } from "@/lib/ai-service";
 import { buildPdpDocx } from "@/lib/pdp-builder";
 import { uploadPdpToDrive } from "@/lib/google-drive";
 import { getValidAccessToken } from "@/lib/google-auth";
+import { generatePdpSchema } from "@/lib/schemas";
+import {
+  badRequest,
+  notFound,
+  parseJsonBody,
+  log,
+} from "@/lib/api-helpers";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-interface Body {
-  topicIds: string[];
-}
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, session } = await requireAssessor();
-  if (error) return error;
-
   const { id: targetUserId } = await params;
-  const body = (await req.json()) as Body;
-  const topicIds = Array.isArray(body.topicIds) ? body.topicIds : [];
-  if (topicIds.length === 0) {
-    return NextResponse.json({ error: "Select at least one topic" }, { status: 400 });
-  }
+
+  // Caller must be ADMIN, the user themselves, or the user's manager.
+  const guard = await requireUserAccess(targetUserId);
+  if (guard.error) return guard.error;
+  const me = guard.session.user;
+
+  const parsed = await parseJsonBody(req, generatePdpSchema);
+  if (parsed.error) return parsed.error;
+  const { topicIds } = parsed.data;
 
   const user = await prisma.user.findUnique({
     where: { id: targetUserId },
     include: { manager: { select: { name: true } } },
   });
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
-  if (!user.grade) {
-    return NextResponse.json(
-      { error: "User profile has no grade set" },
-      { status: 400 }
-    );
-  }
+  if (!user) return notFound("User not found");
+  if (!user.grade) return badRequest("User profile has no grade set");
 
-  const assessorId = session!.user.id;
-  const driveToken = await getValidAccessToken(assessorId);
+  const driveToken = await getValidAccessToken(me.id);
   if (!driveToken) {
-    return NextResponse.json(
-      { error: "Connect Google Drive in your profile — PDPs need somewhere to be saved" },
-      { status: 400 }
-    );
+    return badRequest("Connect Google Drive in your profile — PDPs need somewhere to be saved");
   }
 
   // Filter tech matrix to selected topic ids, pulling grade-relevant skills
   const base = baseGrade(user.grade);
   const matrix = loadTechMatrix();
-  const selected: { title: string; skills: string[] }[] = [];
+  // Build an O(1) topic lookup once instead of scanning the matrix N×M times.
+  const topicById = new Map<string, { title: string; jun: string[]; mid: string[]; sen: string[] }>();
   for (const section of matrix.sections) {
     for (const topic of section.topics) {
-      if (topicIds.includes(topic.id)) {
-        const skills = (topic[base as keyof typeof topic] as unknown as string[]) ?? [];
-        selected.push({ title: topic.title, skills });
-      }
+      topicById.set(topic.id, topic);
     }
   }
+  const selected: { title: string; skills: string[] }[] = [];
+  for (const tid of topicIds) {
+    const topic = topicById.get(tid);
+    if (!topic) continue;
+    const skills = (topic[base as keyof typeof topic] as unknown as string[]) ?? [];
+    selected.push({ title: topic.title, skills });
+  }
   if (selected.length === 0) {
-    return NextResponse.json(
-      { error: "None of the selected topics match the grade" },
-      { status: 400 }
-    );
+    return badRequest("None of the selected topics match the grade");
   }
 
-  // Create the placeholder row up-front so the client can show progress immediately.
   const fileName = `PDP - ${user.name} - ${new Date().toISOString().slice(0, 10)}.docx`;
   const pdp = await prisma.pdp.create({
     data: {
       userId: user.id,
-      createdById: assessorId,
+      createdById: me.id,
       fileName,
       status: "GENERATING",
-      topicsJson: "[]",
+      topicsJson: [],
     },
   });
 
-  // Fire and forget — do the heavy work (AI + docx + Drive) after we've returned.
   void generatePdpInBackground({
     pdpId: pdp.id,
-    assessorId,
+    assessorId: me.id,
     userName: user.name,
     userManager: user.manager?.name ?? "",
     userGradeLabel: gradeLabel(user.grade),
@@ -117,22 +110,23 @@ async function generatePdpInBackground(opts: {
     );
 
     const driveResult = await uploadPdpToDrive(assessorId, fileName, buffer);
-    if (!driveResult) {
-      throw new Error("Failed to upload PDP to Google Drive");
-    }
+    if (!driveResult) throw new Error("Failed to upload PDP to Google Drive");
 
     await prisma.pdp.update({
       where: { id: pdpId },
       data: {
         driveFileId: driveResult.fileId,
         driveLink: driveResult.webViewLink,
-        topicsJson: JSON.stringify(ai.pdpTopics),
+        topicsJson: ai.pdpTopics,
         status: "ON_REVIEW",
         error: null,
       },
     });
   } catch (e) {
-    console.error("PDP background generation failed:", e);
+    log.error("PDP background generation failed", {
+      pdpId,
+      error: e instanceof Error ? e.message : String(e),
+    });
     await prisma.pdp
       .update({
         where: { id: pdpId },

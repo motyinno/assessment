@@ -7,46 +7,111 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id             String   @id @default(cuid())
-  name           String
-  email          String   @unique
-  hashedPassword String?
-  role           String   @default("USER") // "USER" | "ASSESSOR" | "MANAGER" | "ADMIN"
-  grade          String? // "jun" | "mid" | "sen"
-  project        String?
-  managerId              String?
-  softAiInterviewPassed  Boolean  @default(false)
-  googleAccessToken      String?
-  googleRefreshToken     String?
-  googleTokenExpiresAt   DateTime?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+// ---- Enums ----
+//
+// Grade values like "jun-", "jun+" contain non-identifier characters that are
+// not valid for Postgres native enums; grade therefore stays as a String,
+// validated at the API edge via Zod (see lib/schemas.ts).
 
-  manager             User?   @relation("manages", fields: [managerId], references: [id], onDelete: SetNull)
-  reports             User[]  @relation("manages")
-  participations      AssessmentParticipant[]
-  pdps                Pdp[]
-  createdPdps         Pdp[] @relation("createdPdps")
-  requestedAssessments AssessmentRequest[] @relation("requestedBy")
-  assignedAssessments  AssessmentRequest[] @relation("assignedAssessor")
+enum UserRole {
+  USER
+  ASSESSOR
+  MANAGER
+  ADMIN
+}
+
+enum AssessmentStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AssessmentTypeEnum {
+  GENERAL
+  PDP_CHECK
+}
+
+enum ParticipantRole {
+  SUBJECT
+  ASSESSOR
+}
+
+enum SessionType {
+  SOFT_AI
+  TECHNICAL_1
+  TECHNICAL_2
+  TECHNICAL_3
+  PDP_TECH
+}
+
+enum SessionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum PdpStatus {
+  GENERATING
+  ON_REVIEW
+  DRAFT
+  ACTIVE
+  COMPLETED
+  FAILED
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ---- Models ----
+
+model User {
+  id                    String    @id @default(cuid())
+  name                  String
+  email                 String    @unique
+  role                  UserRole  @default(USER)
+  grade                 String? // "jun-" / "jun" / "jun+" / "mid-" / ... see lib/grades.ts
+  project               String?
+  managerId             String?
+  softAiInterviewPassed Boolean   @default(false)
+  googleAccessToken     String?
+  googleRefreshToken    String?
+  googleTokenExpiresAt  DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  manager              User?                       @relation("manages", fields: [managerId], references: [id], onDelete: SetNull)
+  reports              User[]                      @relation("manages")
+  participations       AssessmentParticipant[]
+  pdps                 Pdp[]
+  createdPdps          Pdp[]                       @relation("createdPdps")
+  requestedAssessments AssessmentRequest[]         @relation("requestedBy")
+  requestAssessors     AssessmentRequestAssessor[]
 
   @@index([managerId])
 }
 
 model Assessment {
-  id          String    @id @default(cuid())
-  title       String
-  status      String    @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
-  assessmentType String @default("GENERAL") // GENERAL | PDP_CHECK
-  grade       String // "jun" | "mid" | "sen"
-  scheduledAt DateTime?
-  completedAt DateTime?
-  notes       String?
-  aiFeedback  String?   // AI-generated general feedback
-  pdpTopics   String?   // JSON string of AI-generated PDP topics
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String             @id @default(cuid())
+  title              String
+  status             AssessmentStatus   @default(PLANNED)
+  assessmentType     AssessmentTypeEnum @default(GENERAL)
+  grade              String
+  scheduledAt        DateTime?
+  completedAt        DateTime?
+  notes              String?
+  aiFeedback         String?
+  pdpTopics          Json?
+  /// Optional Google Calendar guest auto-invited to every Meet for this
+  /// assessment. Falls back to OPTIONAL_MEETING_GUEST_EMAIL env var when
+  /// unset. Empty string and null both mean "no guest".
+  optionalGuestEmail String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   participants    AssessmentParticipant[]
   results         AssessmentResult[]
@@ -57,26 +122,30 @@ model Assessment {
 }
 
 model AssessmentParticipant {
-  id              String   @id @default(cuid())
-  assessmentId    String
-  userId          String
-  participantRole String // "SUBJECT" | "ASSESSOR"
-  assignedSections String? // JSON array of section names
-  createdAt       DateTime @default(now())
+  id               String          @id @default(cuid())
+  assessmentId     String
+  userId           String
+  participantRole  ParticipantRole
+  assignedSections Json?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id])
 
   @@unique([assessmentId, userId, participantRole])
+  @@index([userId])
 }
 
 model AssessmentResult {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   assessmentId String
   category     String
   score        Float?
   comment      String?
-  subtopics    String? // JSON array
+  subtopics    Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
@@ -84,63 +153,86 @@ model AssessmentResult {
 }
 
 model Pdp {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   userId       String
   createdById  String?
   assessmentId String?
   fileName     String
   driveFileId  String?
   driveLink    String?
-  status       String   @default("DRAFT") // GENERATING | ON_REVIEW | DRAFT | ACTIVE | COMPLETED | FAILED
+  status       PdpStatus @default(DRAFT)
   error        String?
   reviewNotes  String?
-  topicsJson   String
-  createdAt    DateTime @default(now())
+  topicsJson   Json
+  startedAt    DateTime  @default(now())
+  createdAt    DateTime  @default(now())
 
   user       User        @relation(fields: [userId], references: [id])
   createdBy  User?       @relation("createdPdps", fields: [createdById], references: [id])
   assessment Assessment? @relation(fields: [assessmentId], references: [id])
+
+  @@index([userId])
+  @@index([assessmentId])
+  @@index([status])
 }
 
 model AssessmentRequest {
-  id           String   @id @default(cuid())
-  userId       String
-  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
-  assessmentType String @default("GENERAL") // GENERAL | PDP_CHECK — chosen on approval
-  grade        String // "jun" | "mid" | "sen"
-  notes        String?
-  adminNotes   String?
-  assessorId   String? // primary assessor (backward compat)
-  assessorIds  String? // JSON array of all assessor IDs
-  assessmentId String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String             @id @default(cuid())
+  userId         String
+  status         RequestStatus      @default(PENDING)
+  assessmentType AssessmentTypeEnum @default(GENERAL)
+  grade          String
+  notes          String?
+  adminNotes     String?
+  assessmentId   String?            @unique
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
-  user       User        @relation("requestedBy", fields: [userId], references: [id])
-  assessor   User?       @relation("assignedAssessor", fields: [assessorId], references: [id])
-  assessment Assessment? @relation(fields: [assessmentId], references: [id])
+  user       User                        @relation("requestedBy", fields: [userId], references: [id])
+  assessment Assessment?                 @relation(fields: [assessmentId], references: [id])
+  assessors  AssessmentRequestAssessor[]
+}
+
+/**
+ * Many-to-many between AssessmentRequest and User (the assigned assessors).
+ * Replaces the old `AssessmentRequest.assessorId` (singular FK) +
+ * `AssessmentRequest.assessorIds` (JSON array, no FK enforcement) pair so we
+ * get proper foreign-key guarantees and queryability.
+ */
+model AssessmentRequestAssessor {
+  id         String   @id @default(cuid())
+  requestId  String
+  assessorId String
+  isPrimary  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  request  AssessmentRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  assessor User              @relation(fields: [assessorId], references: [id])
+
+  @@unique([requestId, assessorId])
+  @@index([assessorId])
 }
 
 model AssessmentSession {
-  id           String    @id @default(cuid())
-  assessmentId String
-  type         String // SOFT_AI | TECHNICAL_1 | TECHNICAL_2 | TECHNICAL_3 | PDP_TECH
-  status       String    @default("NOT_STARTED") // NOT_STARTED | IN_PROGRESS | COMPLETED | SKIPPED
-  order        Int
-  durationMin  Int       @default(60)
-  assessorId   String? // кто проводил эту сессию
-  assessorName String? // имя асессора (snapshot на момент проведения)
-  scheduledAt  DateTime?
-  startedAt    DateTime?
-  completedAt  DateTime?
-  notes        String?
+  id                 String        @id @default(cuid())
+  assessmentId       String
+  type               SessionType
+  status             SessionStatus @default(NOT_STARTED)
+  order              Int
+  durationMin        Int           @default(60)
+  assessorId         String?
+  assessorName       String?
+  scheduledAt        DateTime?
+  startedAt          DateTime?
+  completedAt        DateTime?
+  notes              String?
   meetingLink        String?
   calendarEventId    String?
   meetingScheduledAt DateTime?
   recordingLink      String?
   recordingFileId    String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
@@ -148,12 +240,14 @@ model AssessmentSession {
 }
 
 model SelfAssessment {
-  id           String @id @default(cuid())
+  id           String   @id @default(cuid())
   assessmentId String
-  sectionId    String // tech matrix section id (e.g. "js", "typescript")
-  topicId      String // tech matrix topic id (e.g. "async-programming")
-  score        Int?   // 1-5 self rating
+  sectionId    String
+  topicId      String
+  score        Int? // 1-5 self rating; range enforced at API edge
   comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 

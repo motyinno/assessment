@@ -1,32 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { reviewPdpSchema } from "@/lib/schemas";
+import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
-  const body = (await req.json()) as {
-    action?: "approve" | "comment";
-    reviewNotes?: string;
-  };
+  const parsed = await parseJsonBody(req, reviewPdpSchema);
+  if (parsed.error) return parsed.error;
+  const { action, reviewNotes } = parsed.data;
 
   const pdp = await prisma.pdp.findUnique({ where: { id } });
-  if (!pdp) {
-    return NextResponse.json({ error: "PDP not found" }, { status: 404 });
-  }
+  if (!pdp) return notFound("PDP not found");
   if (pdp.status !== "ON_REVIEW") {
-    return NextResponse.json(
-      { error: "PDP is no longer in review" },
-      { status: 400 }
-    );
+    return badRequest("PDP is no longer in review");
   }
 
-  if (body.action === "approve") {
+  if (action === "approve") {
     const updated = await prisma.pdp.update({
       where: { id },
       data: { status: "ACTIVE", reviewNotes: null },
@@ -34,18 +30,11 @@ export async function PATCH(
     return NextResponse.json(updated);
   }
 
-  if (body.action === "comment") {
-    const notes =
-      typeof body.reviewNotes === "string" ? body.reviewNotes.trim() : "";
-    const updated = await prisma.pdp.update({
-      where: { id },
-      data: { reviewNotes: notes.length > 0 ? notes : null },
-    });
-    return NextResponse.json(updated);
-  }
-
-  return NextResponse.json(
-    { error: "Unknown action" },
-    { status: 400 }
-  );
+  // action === "comment"
+  const notes = (reviewNotes ?? "").trim();
+  const updated = await prisma.pdp.update({
+    where: { id },
+    data: { reviewNotes: notes.length > 0 ? notes : null },
+  });
+  return NextResponse.json(updated);
 }

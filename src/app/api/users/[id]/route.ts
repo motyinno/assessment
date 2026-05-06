@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
+import {
+  requireAuth,
+  requireAdmin,
+} from "@/lib/auth-helpers";
 import { isValidGrade } from "@/lib/grades";
-import { ROLES, canManagePeople } from "@/lib/roles";
+import { ROLES, canManagePeople, isAdmin, isStaff } from "@/lib/roles";
+import { patchUserSchema } from "@/lib/schemas";
+import {
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  parseJsonBody,
+} from "@/lib/api-helpers";
+import type { UserRole } from "@prisma/client";
 
 const USER_DETAIL_SELECT = {
   id: true,
@@ -19,11 +31,11 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error, session } = await requireAuth();
-  if (error) return error;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
-  const viewerRole = session!.user.role;
-  const isStaffViewer = canManagePeople(viewerRole) || viewerRole === "ASSESSOR";
+  const isStaffViewer = isStaff(me.role);
 
   const { id } = params;
   const user = await prisma.user.findUnique({
@@ -56,7 +68,7 @@ export async function GET(
       },
     },
   });
-  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!user) return notFound("Not found");
   return NextResponse.json(user);
 }
 
@@ -66,118 +78,83 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error, session } = await requireAuth();
-  if (error) return error;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
   const { id } = params;
-  const isAdmin = session!.user.role === "ADMIN";
-  const isSelf = session!.user.id === id;
+  const isAdminCaller = isAdmin(me.role);
+  const isSelf = me.id === id;
 
   const current = await prisma.user.findUnique({
     where: { id },
     select: { id: true, role: true, managerId: true },
   });
-  if (!current) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  if (!current) return notFound("User not found");
 
   const isManagerOfTarget =
-    canManagePeople(session!.user.role) &&
-    current.managerId === session!.user.id;
+    canManagePeople(me.role) && current.managerId === me.id;
 
-  if (!isAdmin && !isSelf && !isManagerOfTarget) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!isAdminCaller && !isSelf && !isManagerOfTarget) return forbidden();
 
-  const body = await req.json();
-  const { name, grade, project, managerId, role } = body as Record<string, unknown>;
+  const parsed = await parseJsonBody(req, patchUserSchema);
+  if (parsed.error) return parsed.error;
+  const { name, grade, project, managerId, role } = parsed.data;
 
   const data: Record<string, unknown> = {};
 
-  if (name !== undefined) {
-    if (typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json({ error: "Invalid name" }, { status: 400 });
-    }
-    data.name = name.trim();
-  }
-
+  if (name !== undefined) data.name = name.trim();
   if (project !== undefined) {
-    data.project = typeof project === "string" && project.trim().length > 0 ? project.trim() : null;
+    data.project = project && project.trim().length > 0 ? project.trim() : null;
   }
 
   if (managerId !== undefined) {
-    const normalized =
-      managerId === null || managerId === "" ? null : managerId;
+    const normalized = managerId === null || managerId === "" ? null : managerId;
     const unchanged = normalized === (current.managerId ?? null);
-
-    if (unchanged) {
-      // Skip validation: caller is just echoing back the existing value.
-    } else if (normalized === null) {
-      data.managerId = null;
-    } else if (typeof normalized !== "string") {
-      return NextResponse.json({ error: "Invalid managerId" }, { status: 400 });
-    } else if (normalized === id) {
-      return NextResponse.json({ error: "User cannot be their own manager" }, { status: 400 });
-    } else {
-      const candidate = await prisma.user.findUnique({
-        where: { id: normalized },
-        select: { id: true, role: true },
-      });
-      if (!candidate) {
-        return NextResponse.json({ error: "Manager not found" }, { status: 400 });
+    if (!unchanged) {
+      if (normalized === null) {
+        data.managerId = null;
+      } else if (normalized === id) {
+        return badRequest("User cannot be their own manager");
+      } else {
+        const candidate = await prisma.user.findUnique({
+          where: { id: normalized },
+          select: { id: true, role: true },
+        });
+        if (!candidate) return badRequest("Manager not found");
+        if (!canManagePeople(candidate.role)) {
+          return badRequest("Manager must have role MANAGER or ADMIN");
+        }
+        data.managerId = candidate.id;
       }
-      if (!canManagePeople(candidate.role)) {
-        return NextResponse.json(
-          { error: "Manager must have role MANAGER or ADMIN" },
-          { status: 400 }
-        );
-      }
-      data.managerId = candidate.id;
     }
   }
 
   if (grade !== undefined) {
-    if (!isAdmin && !isManagerOfTarget) {
-      return NextResponse.json(
-        { error: "Only administrators or the user's manager can change grade" },
-        { status: 403 }
-      );
+    if (!isAdminCaller && !isManagerOfTarget) {
+      return forbidden("Only administrators or the user's manager can change grade");
     }
     if (grade === null || grade === "") {
       data.grade = null;
     } else if (isValidGrade(grade)) {
       data.grade = grade;
     } else {
-      return NextResponse.json({ error: "Invalid grade" }, { status: 400 });
+      return badRequest("Invalid grade");
     }
   }
 
   let demotingFromManager = false;
   if (role !== undefined) {
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Only administrators can change role" }, { status: 403 });
-    }
-    if (typeof role !== "string" || !VALID_ROLES.has(role)) {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
+    if (!isAdminCaller) return forbidden("Only administrators can change role");
+    if (!VALID_ROLES.has(role)) return badRequest("Invalid role");
     if (isSelf && role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Can't change your own role away from administrator" },
-        { status: 400 }
-      );
+      return conflict("Can't change your own role away from administrator");
     }
-    data.role = role;
-
+    data.role = role as UserRole;
     if (!canManagePeople(role) && canManagePeople(current.role)) {
       demotingFromManager = true;
     }
   }
-
-  const updateUser = prisma.user.update({
-    where: { id },
-    data,
-    select: USER_DETAIL_SELECT,
-  });
 
   let user;
   if (demotingFromManager) {
@@ -186,11 +163,19 @@ export async function PATCH(
         where: { managerId: id },
         data: { managerId: null },
       }),
-      updateUser,
+      prisma.user.update({
+        where: { id },
+        data,
+        select: USER_DETAIL_SELECT,
+      }),
     ]);
     user = updated;
   } else {
-    user = await updateUser;
+    user = await prisma.user.update({
+      where: { id },
+      data,
+      select: USER_DETAIL_SELECT,
+    });
   }
 
   return NextResponse.json(user);
@@ -200,17 +185,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error, session } = await requireAdmin();
-  if (error) return error;
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
   const { id } = params;
-
-  if (session!.user.id === id) {
-    return NextResponse.json(
-      { error: "Can't delete your own account" },
-      { status: 400 }
-    );
-  }
+  if (me.id === id) return badRequest("Can't delete your own account");
 
   const target = await prisma.user.findUnique({
     where: { id },
@@ -219,18 +199,11 @@ export async function DELETE(
       _count: { select: { participations: true, pdps: true } },
     },
   });
-
-  if (!target) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  if (!target) return notFound("User not found");
 
   if (target._count.participations > 0 || target._count.pdps > 0) {
-    return NextResponse.json(
-      {
-        error:
-          "User has associated assessments or PDPs. Deletion blocked.",
-      },
-      { status: 409 }
+    return conflict(
+      "User has associated assessments or PDPs. Deletion blocked."
     );
   }
 

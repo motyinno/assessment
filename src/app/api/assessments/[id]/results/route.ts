@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
+import {
+  requireAssessmentRead,
+  requireAssessmentAssessor,
+} from "@/lib/auth-helpers";
+import { resultsBatchSchema } from "@/lib/schemas";
+import { parseJsonBody } from "@/lib/api-helpers";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const guard = await requireAssessmentRead(params.id);
+  if (guard.error) return guard.error;
 
   const results = await prisma.assessmentResult.findMany({
     where: { assessmentId: params.id },
@@ -21,27 +27,13 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAssessor();
-  if (error) return error;
+  const guard = await requireAssessmentAssessor(params.id);
+  if (guard.error) return guard.error;
 
-  const body = await req.json();
-  const { results } = body as {
-    results: Array<{
-      category: string;
-      score: number | null;
-      comment?: string;
-      subtopics?: string[];
-    }>;
-  };
+  const parsed = await parseJsonBody(req, resultsBatchSchema);
+  if (parsed.error) return parsed.error;
+  const { results } = parsed.data;
 
-  if (!results || !Array.isArray(results)) {
-    return NextResponse.json(
-      { error: "results array is required" },
-      { status: 400 }
-    );
-  }
-
-  // Upsert each result
   const ops = results.map((r) =>
     prisma.assessmentResult.upsert({
       where: {
@@ -53,14 +45,14 @@ export async function PUT(
       update: {
         score: r.score,
         comment: r.comment || null,
-        subtopics: r.subtopics ? JSON.stringify(r.subtopics) : null,
+        subtopics: r.subtopics ?? Prisma.DbNull,
       },
       create: {
         assessmentId: params.id,
         category: r.category,
         score: r.score,
         comment: r.comment || null,
-        subtopics: r.subtopics ? JSON.stringify(r.subtopics) : null,
+        subtopics: r.subtopics ?? Prisma.DbNull,
       },
     })
   );

@@ -67,6 +67,7 @@ const GRADE_LABEL_COLOR: Record<string, string> = {
 export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }: AssessmentMatrixProps) {
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [selfScores, setSelfScores] = useState<Record<string, number | null>>({});
   const [assessorScores, setAssessorScores] = useState<Record<string, { score: number | null; comment: string }>>({});
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -76,28 +77,54 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoadError(null);
+    setLoading(true);
+
+    async function fetchOk(url: string): Promise<unknown> {
+      const r = await fetch(url);
+      if (!r.ok) {
+        const text = await r.text().catch(() => "");
+        throw new Error(`${url} → ${r.status}${text ? `: ${text}` : ""}`);
+      }
+      return r.json();
+    }
+
     Promise.all([
-      fetch("/api/tech-matrix").then((r) => r.json()),
-      fetch(`/api/assessments/${assessmentId}/self-assessment`).then((r) => r.json()),
-      fetch(`/api/assessments/${assessmentId}/results`).then((r) => r.json()),
+      fetchOk("/api/tech-matrix"),
+      fetchOk(`/api/assessments/${assessmentId}/self-assessment`),
+      fetchOk(`/api/assessments/${assessmentId}/results`),
     ])
-      .then(([matrixData, saItems, results]: [TechMatrix, SelfAssessmentItem[], AssessmentResult[]]) => {
-        setMatrix(matrixData);
-        // Collapse every section by default — user expands what they need
-        setCollapsedSections(new Set(matrixData.sections.map((s) => s.id)));
+      .then(([matrixData, saItems, results]) => {
+        if (cancelled) return;
+        const m = matrixData as TechMatrix;
+        setMatrix(m);
+        setCollapsedSections(new Set(m.sections.map((s) => s.id)));
         const sm: Record<string, number | null> = {};
         if (Array.isArray(saItems)) {
-          for (const item of saItems) sm[item.topicId] = item.score;
+          for (const item of saItems as SelfAssessmentItem[]) sm[item.topicId] = item.score;
         }
         setSelfScores(sm);
         const am: Record<string, { score: number | null; comment: string }> = {};
         if (Array.isArray(results)) {
-          for (const r of results) am[r.category] = { score: r.score, comment: r.comment || "" };
+          for (const r of results as AssessmentResult[])
+            am[r.category] = { score: r.score, comment: r.comment || "" };
         }
         setAssessorScores(am);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((e: unknown) => {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : String(e);
+        // Surface to UI instead of silently leaving an empty matrix.
+        setLoadError(`Failed to load assessment data. ${msg}`);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [assessmentId]);
 
   // Self-assessment debounced save
@@ -178,6 +205,14 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
   }
 
   if (loading) return <p className="text-muted-foreground py-4">Loading matrix...</p>;
+  if (loadError) {
+    return (
+      <div className="py-4 text-sm text-destructive">
+        <p className="font-medium">Couldn&rsquo;t load the matrix.</p>
+        <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
+      </div>
+    );
+  }
   if (!matrix) return <p className="text-destructive py-4">Failed to load</p>;
 
   const base = baseGrade(grade);

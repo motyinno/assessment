@@ -1,127 +1,99 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAssessor } from "@/lib/auth-helpers";
+import { requireAssessmentAssessor } from "@/lib/auth-helpers";
 import { SESSION_TYPE_LABELS } from "@/lib/assessment-sessions";
 import {
   createAssessmentMeeting,
   updateAssessmentMeeting,
+  type CalendarAttendee,
 } from "@/lib/google-calendar";
+import { meetingScheduleSchema } from "@/lib/schemas";
+import {
+  badRequest,
+  notFound,
+  parseJsonBody,
+  serverError,
+} from "@/lib/api-helpers";
 
-const OPTIONAL_MEETING_GUEST = "mikhail.shatsila@innowise.com";
-
-/**
- * POST /api/assessments/[id]/sessions/meeting
- * Body: { sessionId: string, startsAt: string (ISO datetime) }
- *
- * Schedules (or reschedules) a Google Calendar event for the session at the
- * given start time. The event gets a Google Meet link attached.
- * Attendees: subject user + mikhail.shatsila@innowise.com (optional).
- * Title: "{USER NAME}/{ASSESSOR NAME} {ASSESSMENT PART}".
- */
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error, session: authSession } = await requireAssessor();
-  if (error) return error;
-
   const { id } = await params;
-  const body = await req.json();
-  const sessionId: string | undefined = body.sessionId;
-  const startsAtRaw: string | undefined = body.startsAt;
-  if (!sessionId || !startsAtRaw) {
-    return NextResponse.json(
-      { error: "sessionId and startsAt are required" },
-      { status: 400 }
-    );
-  }
+  const guard = await requireAssessmentAssessor(id);
+  if (guard.error) return guard.error;
+  const me = guard.session.user;
+
+  const parsed = await parseJsonBody(req, meetingScheduleSchema);
+  if (parsed.error) return parsed.error;
+  const { sessionId, startsAt: startsAtRaw } = parsed.data;
   const startsAt = new Date(startsAtRaw);
-  if (isNaN(startsAt.getTime())) {
-    return NextResponse.json({ error: "Invalid date" }, { status: 400 });
-  }
+  if (isNaN(startsAt.getTime())) return badRequest("Invalid date");
 
   const sess = await prisma.assessmentSession.findUnique({
     where: { id: sessionId },
     include: { assessment: true },
   });
-  if (!sess || sess.assessmentId !== id) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 });
-  }
+  if (!sess || sess.assessmentId !== id) return notFound("Session not found");
   if (sess.assessment.status === "CANCELLED") {
-    return NextResponse.json(
-      { error: "Assessment is cancelled" },
-      { status: 400 }
-    );
+    return badRequest("Assessment is cancelled");
   }
   if (sess.status === "COMPLETED" || sess.status === "SKIPPED") {
-    return NextResponse.json(
-      { error: "Can't schedule a meeting for a completed session" },
-      { status: 400 }
-    );
+    return badRequest("Can't schedule a meeting for a completed session");
   }
 
   const subject = await prisma.assessmentParticipant.findFirst({
-    where: {
-      assessmentId: sess.assessmentId,
-      participantRole: "SUBJECT",
-    },
+    where: { assessmentId: sess.assessmentId, participantRole: "SUBJECT" },
     include: { user: { select: { name: true, email: true } } },
   });
-
-  if (!subject?.user) {
-    return NextResponse.json(
-      { error: "Assessment subject not found" },
-      { status: 400 }
-    );
-  }
+  if (!subject?.user) return badRequest("Assessment subject not found");
 
   const partLabel = SESSION_TYPE_LABELS[sess.type] || sess.type;
-  const summary = `${subject.user.name}/${authSession.user.name} ${partLabel}`;
+  const summary = `${subject.user.name}/${me.name} ${partLabel}`;
   const durationMin = sess.durationMin || 60;
+
+  // Optional guest: assessment-level setting wins; otherwise fall back to the
+  // OPTIONAL_MEETING_GUEST_EMAIL env var (set in production deploys).
+  // Empty/null means "no guest". This replaces the old hardcoded email.
+  const optionalGuest =
+    sess.assessment.optionalGuestEmail?.trim() ||
+    process.env.OPTIONAL_MEETING_GUEST_EMAIL?.trim() ||
+    null;
+
+  const attendees: CalendarAttendee[] = [
+    { email: subject.user.email, displayName: subject.user.name },
+  ];
+  if (optionalGuest) attendees.push({ email: optionalGuest, optional: true });
 
   let meeting;
   if (sess.calendarEventId) {
-    // Reschedule in place — patches the existing event, so attendees get an
-    // update email instead of a brand-new invite.
-    meeting = await updateAssessmentMeeting(authSession.user.id, sess.calendarEventId, {
+    meeting = await updateAssessmentMeeting(me.id, sess.calendarEventId, {
       startsAt,
       durationMin,
       summary,
     });
-    // If the update failed (e.g. event was deleted in Calendar), fall back to
-    // creating a fresh one so the user isn't blocked.
     if (!meeting) {
-      meeting = await createAssessmentMeeting(authSession.user.id, {
+      meeting = await createAssessmentMeeting(me.id, {
         summary,
         description: `Assessment session for ${subject.user.name} (${partLabel}).`,
-        attendees: [
-          { email: subject.user.email, displayName: subject.user.name },
-          { email: OPTIONAL_MEETING_GUEST, optional: true },
-        ],
+        attendees,
         startsAt,
         durationMin,
       });
     }
   } else {
-    meeting = await createAssessmentMeeting(authSession.user.id, {
+    meeting = await createAssessmentMeeting(me.id, {
       summary,
       description: `Assessment session for ${subject.user.name} (${partLabel}).`,
-      attendees: [
-        { email: subject.user.email, displayName: subject.user.name },
-        { email: OPTIONAL_MEETING_GUEST, optional: true },
-      ],
+      attendees,
       startsAt,
       durationMin,
     });
   }
 
   if (!meeting) {
-    return NextResponse.json(
-      {
-        error:
-          "Failed to create the Google Calendar meeting. Check that you signed in with Google and granted calendar access.",
-      },
-      { status: 500 }
+    return serverError(
+      "Failed to create the Google Calendar meeting. Check that you signed in with Google and granted calendar access."
     );
   }
 

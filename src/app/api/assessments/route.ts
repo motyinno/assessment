@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
+import { isStaff } from "@/lib/roles";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
+import { createAssessmentSchema } from "@/lib/schemas";
+import { parseJsonBody } from "@/lib/api-helpers";
 
 export async function GET() {
-  const { error, session } = await requireAuth();
-  if (error) return error;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
-  const role = session!.user.role;
-  const where =
-    role === "ADMIN" || role === "ASSESSOR"
-      ? {}
-      : { participants: { some: { userId: session!.user.id } } };
+  const where = isStaff(me.role)
+    ? {}
+    : { participants: { some: { userId: me.id } } };
 
   const assessments = await prisma.assessment.findMany({
     where,
@@ -28,61 +31,74 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAssessor();
-  if (error) return error;
+  const auth = await requireAssessor();
+  if (auth.error) return auth.error;
 
-  const body = await req.json();
-  const { title, grade, scheduledAt, notes, participants } = body;
+  const parsed = await parseJsonBody(req, createAssessmentSchema);
+  if (parsed.error) return parsed.error;
+  const {
+    title,
+    grade,
+    scheduledAt,
+    notes,
+    participants,
+    optionalGuestEmail,
+  } = parsed.data;
 
-  if (!title || !grade) {
-    return NextResponse.json(
-      { error: "Title and grade are required" },
-      { status: 400 }
-    );
-  }
+  const subject = participants?.find((p) => p.participantRole === "SUBJECT");
 
-  const assessment = await prisma.assessment.create({
-    data: {
-      title,
-      grade,
-      scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
-      notes,
-      participants: {
-        create: (participants || []).map(
-          (p: { userId: string; participantRole: string; assignedSections?: string[] }) => ({
-            userId: p.userId,
-            participantRole: p.participantRole,
-            assignedSections: p.assignedSections
-              ? JSON.stringify(p.assignedSections)
-              : null,
-          })
-        ),
+  // Look up softAi flag once so we can build sessions inside the same tx.
+  const subjectUser = subject
+    ? await prisma.user.findUnique({
+        where: { id: subject.userId },
+        select: { softAiInterviewPassed: true },
+      })
+    : null;
+
+  const sessionTemplates = subject
+    ? buildSessionsForGrade(grade, subjectUser?.softAiInterviewPassed ?? false)
+    : [];
+
+  // Atomic: create assessment + participants + sessions, or none of them.
+  const assessment = await prisma.$transaction(async (tx) => {
+    const created = await tx.assessment.create({
+      data: {
+        title,
+        grade,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+        notes: notes ?? null,
+        optionalGuestEmail: optionalGuestEmail ?? null,
+        participants: {
+          createMany: {
+            data: (participants ?? []).map((p) => ({
+              userId: p.userId,
+              participantRole: p.participantRole,
+              assignedSections: p.assignedSections ?? Prisma.DbNull,
+            })),
+          },
+        },
       },
-    },
-    include: {
-      participants: {
-        include: { user: { select: { id: true, name: true, email: true } } },
+      include: {
+        participants: {
+          include: { user: { select: { id: true, name: true, email: true } } },
+        },
       },
-    },
+    });
+
+    if (sessionTemplates.length > 0) {
+      await tx.assessmentSession.createMany({
+        data: sessionTemplates.map((t) => ({
+          assessmentId: created.id,
+          type: t.type as never,
+          status: t.status as never,
+          order: t.order,
+          durationMin: t.durationMin,
+        })),
+      });
+    }
+
+    return created;
   });
-
-  // Auto-create sessions
-  const subject = (participants || []).find(
-    (p: { participantRole: string }) => p.participantRole === "SUBJECT"
-  );
-  if (subject) {
-    const subjectUser = await prisma.user.findUnique({
-      where: { id: subject.userId },
-      select: { softAiInterviewPassed: true },
-    });
-    const templates = buildSessionsForGrade(
-      grade,
-      subjectUser?.softAiInterviewPassed ?? false
-    );
-    await prisma.assessmentSession.createMany({
-      data: templates.map((t) => ({ assessmentId: assessment.id, ...t })),
-    });
-  }
 
   return NextResponse.json(assessment, { status: 201 });
 }

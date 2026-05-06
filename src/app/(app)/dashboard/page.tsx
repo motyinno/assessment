@@ -134,7 +134,10 @@ export default async function DashboardPage() {
       ? prisma.assessmentRequest.findMany({
           where: { userId },
           include: {
-            assessor: { select: { name: true } },
+            assessors: {
+              include: { assessor: { select: { name: true } } },
+              orderBy: { isPrimary: "desc" },
+            },
             assessment: { select: { id: true, title: true } },
           },
           orderBy: { createdAt: "desc" },
@@ -375,7 +378,9 @@ export default async function DashboardPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {req.assessor?.name || "—"}
+                      {req.assessors
+                        .map((a) => a.assessor.name)
+                        .join(", ") || "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {new Date(req.createdAt).toLocaleDateString("ru-RU")}

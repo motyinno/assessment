@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-helpers";
+import {
+  requireAssessmentRead,
+  requireAssessmentAssessor,
+} from "@/lib/auth-helpers";
 import { generateFeedback, type AssessmentResult } from "@/lib/ai-service";
+import { badRequest, notFound, log } from "@/lib/api-helpers";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  const guard = await requireAssessmentRead(params.id);
+  if (guard.error) return guard.error;
 
   const results = await prisma.assessmentResult.findMany({
     where: { assessmentId: params.id },
@@ -19,14 +23,15 @@ export async function GET(
 }
 
 export async function POST(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { error } = await requireAuth();
-  if (error) return error;
+  // Generating AI feedback consumes API quota and emits feedback about a
+  // specific person — restricted to the assessor running the assessment.
+  const guard = await requireAssessmentAssessor(params.id);
+  if (guard.error) return guard.error;
 
   try {
-    // Get assessment details
     const assessment = await prisma.assessment.findUnique({
       where: { id: params.id },
       include: {
@@ -36,48 +41,47 @@ export async function POST(
         },
       },
     });
-
-    if (!assessment) {
-      return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
-    }
+    if (!assessment) return notFound("Assessment not found");
 
     const subject = assessment.participants[0]?.user;
-    if (!subject) {
-      return NextResponse.json({ error: "No subject found for assessment" }, { status: 400 });
-    }
+    if (!subject) return badRequest("No subject found for assessment");
 
-    // Get assessment results
     const results = await prisma.assessmentResult.findMany({
       where: { assessmentId: params.id },
       orderBy: { category: "asc" },
     });
 
-    // Convert to AI service format
     const assessmentResults: AssessmentResult[] = results.map((r) => ({
       category: r.category,
       score: r.score,
       comment: r.comment || "",
-      subtopics: r.subtopics ? JSON.parse(r.subtopics) : [],
+      subtopics: (r.subtopics as string[] | null) ?? [],
     }));
 
-    // Generate feedback using AI
     const aiResponse = await generateFeedback(
       assessmentResults,
       subject.name,
       assessment.grade
     );
 
-    // Flatten per-category feedback into one readable block so the UI can
-    // load it into an editable textarea. The assessor can then tweak and save.
     const text = aiResponse.feedback
       .map((f) => `${f.category}\n${f.feedback}`)
       .join("\n\n");
 
     return NextResponse.json({ text });
-  } catch (error) {
-    console.error("Error generating feedback:", error);
+  } catch (e) {
+    log.error("Feedback generation failed", {
+      assessmentId: params.id,
+      error: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate feedback" },
+      {
+        error: {
+          code: "AI_ERROR",
+          message:
+            e instanceof Error ? e.message : "Failed to generate feedback",
+        },
+      },
       { status: 500 }
     );
   }

@@ -2,109 +2,122 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
+import { patchRequestSchema } from "@/lib/schemas";
+import {
+  badRequest,
+  notFound,
+  parseJsonBody,
+} from "@/lib/api-helpers";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { error } = await requireAdmin();
-  if (error) return error;
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
 
   const { id } = await params;
-  const body = await req.json();
-  const { status, assessorIds, adminNotes, assessmentType } = body;
-  // backward compat: accept single assessorId too
-  const allAssessorIds: string[] = assessorIds || (body.assessorId ? [body.assessorId] : []);
+  const parsed = await parseJsonBody(req, patchRequestSchema);
+  if (parsed.error) return parsed.error;
+  const { status, assessorIds, assessorId, adminNotes, assessmentType } = parsed.data;
 
-  if (!status || !["APPROVED", "REJECTED"].includes(status)) {
-    return NextResponse.json(
-      { error: "Status must be APPROVED or REJECTED" },
-      { status: 400 }
-    );
-  }
+  // Backwards-compat: accept either explicit array or single legacy id.
+  const allAssessorIds = Array.from(
+    new Set([...(assessorIds ?? []), ...(assessorId ? [assessorId] : [])])
+  );
 
-  const resolvedAssessmentType: "GENERAL" | "PDP_CHECK" =
+  const resolvedType: "GENERAL" | "PDP_CHECK" =
     assessmentType === "PDP_CHECK" ? "PDP_CHECK" : "GENERAL";
 
   const request = await prisma.assessmentRequest.findUnique({
     where: { id },
     include: { user: true },
   });
-
-  if (!request) {
-    return NextResponse.json({ error: "Request not found" }, { status: 404 });
-  }
+  if (!request) return notFound("Request not found");
 
   if (request.status !== "PENDING") {
-    return NextResponse.json(
-      { error: "Request has already been processed" },
-      { status: 400 }
-    );
+    return badRequest("Request has already been processed");
   }
 
   const trimmedAdminNotes =
     typeof adminNotes === "string" ? adminNotes.trim() : "";
 
   if (status === "REJECTED" && !trimmedAdminNotes) {
-    return NextResponse.json(
-      { error: "Comment is required when rejecting a request" },
-      { status: 400 }
-    );
+    return badRequest("Comment is required when rejecting a request");
   }
 
   if (status === "APPROVED") {
     if (allAssessorIds.length === 0) {
-      return NextResponse.json(
-        { error: "At least one assessor must be assigned" },
-        { status: 400 }
-      );
+      return badRequest("At least one assessor must be assigned");
     }
 
-    // Create assessment with subject + all assessors as participants
-    const titlePrefix = resolvedAssessmentType === "PDP_CHECK" ? "PDP review" : "Assessment";
-    const assessment = await prisma.assessment.create({
-      data: {
-        title: `${titlePrefix}: ${request.user.name}`,
-        grade: request.grade,
-        assessmentType: resolvedAssessmentType,
-        notes: request.notes,
-        participants: {
-          create: [
-            { userId: request.userId, participantRole: "SUBJECT" },
-            ...allAssessorIds.map((aid: string) => ({
-              userId: aid,
-              participantRole: "ASSESSOR",
-            })),
-          ],
-        },
-      },
-    });
-
-    // Auto-create sessions
     const sessionTemplates = buildSessionsForGrade(
       request.grade,
       request.user.softAiInterviewPassed,
-      resolvedAssessmentType
+      resolvedType
     );
-    await prisma.assessmentSession.createMany({
-      data: sessionTemplates.map((t) => ({ assessmentId: assessment.id, ...t })),
-    });
 
-    const updated = await prisma.assessmentRequest.update({
-      where: { id },
-      data: {
-        status: "APPROVED",
-        assessmentType: resolvedAssessmentType,
-        assessor: { connect: { id: allAssessorIds[0] } },
-        assessorIds: JSON.stringify(allAssessorIds),
-        assessment: { connect: { id: assessment.id } },
-        adminNotes: trimmedAdminNotes || null,
-      },
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        assessor: { select: { id: true, name: true, email: true } },
-        assessment: { select: { id: true, title: true, status: true } },
-      },
+    // Create assessment + participants + sessions + flip the request status
+    // atomically.
+    const updated = await prisma.$transaction(async (tx) => {
+      const titlePrefix = resolvedType === "PDP_CHECK" ? "PDP review" : "Assessment";
+      const assessment = await tx.assessment.create({
+        data: {
+          title: `${titlePrefix}: ${request.user.name}`,
+          grade: request.grade,
+          assessmentType: resolvedType,
+          notes: request.notes,
+          participants: {
+            create: [
+              { userId: request.userId, participantRole: "SUBJECT" },
+              ...allAssessorIds.map((aid) => ({
+                userId: aid,
+                participantRole: "ASSESSOR" as const,
+              })),
+            ],
+          },
+        },
+      });
+
+      if (sessionTemplates.length > 0) {
+        await tx.assessmentSession.createMany({
+          data: sessionTemplates.map((t) => ({
+            assessmentId: assessment.id,
+            type: t.type as never,
+            status: t.status as never,
+            order: t.order,
+            durationMin: t.durationMin,
+          })),
+        });
+      }
+
+      // Persist the assessor list on the request via the new join table; the
+      // first ID is treated as primary, mirroring legacy `assessorId`.
+      await tx.assessmentRequestAssessor.createMany({
+        data: allAssessorIds.map((aid, idx) => ({
+          requestId: id,
+          assessorId: aid,
+          isPrimary: idx === 0,
+        })),
+      });
+
+      return tx.assessmentRequest.update({
+        where: { id },
+        data: {
+          status: "APPROVED",
+          assessmentType: resolvedType,
+          assessment: { connect: { id: assessment.id } },
+          adminNotes: trimmedAdminNotes || null,
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          assessors: {
+            include: { assessor: { select: { id: true, name: true, email: true } } },
+            orderBy: { isPrimary: "desc" },
+          },
+          assessment: { select: { id: true, title: true, status: true } },
+        },
+      });
     });
 
     return NextResponse.json(updated);
@@ -114,9 +127,7 @@ export async function PATCH(
   const updated = await prisma.assessmentRequest.update({
     where: { id },
     data: { status: "REJECTED", adminNotes: trimmedAdminNotes },
-    include: {
-      user: { select: { id: true, name: true, email: true } },
-    },
+    include: { user: { select: { id: true, name: true, email: true } } },
   });
 
   return NextResponse.json(updated);

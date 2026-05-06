@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
+import { notFound } from "@/lib/api-helpers";
 
 export async function GET() {
-  const { error, session } = await requireAuth();
-  if (error) return error;
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
 
   const user = await prisma.user.findUnique({
-    where: { id: session!.user.id },
+    where: { id: auth.session.user.id },
     select: {
       id: true,
       name: true,
@@ -20,7 +21,6 @@ export async function GET() {
     },
   });
 
-  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
+  if (!user) return notFound("Not found");
   return NextResponse.json(user);
 }

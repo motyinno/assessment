@@ -12,6 +12,10 @@ export function isStaff(role: string | null | undefined): boolean {
   return !!role && (STAFF_ROLES as readonly string[]).includes(role);
 }
 
+export function isAdmin(role: string | null | undefined): boolean {
+  return role === "ADMIN";
+}
+
 export function canManagePeople(role: string | null | undefined): boolean {
   return !!role && (MANAGER_ROLES as readonly string[]).includes(role);
 }

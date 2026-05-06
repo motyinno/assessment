@@ -1,12 +1,10 @@
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 
-const publicPaths = [
-  "/login",
-  "/api/auth",
-  "/api/data",
-  "/api/generate",
-];
+// Public paths — anything else requires an authenticated session.
+// /api/health is intentionally public so that orchestrators (Docker, k8s,
+// Caddy) can probe liveness without an auth context.
+const publicPaths = ["/login", "/api/auth", "/api/health"];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
