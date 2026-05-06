@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { canManagePeople } from "@/lib/roles";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -28,7 +27,8 @@ function userInitials(name: string) {
 export default async function MyTeamPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!canManagePeople(session.user.role)) redirect("/dashboard");
+  // My Team is now MANAGER-only — admins manage the directory through /users.
+  if (session.user.role !== "MANAGER") redirect("/dashboard");
 
   const reports = await prisma.user.findMany({
     where: { managerId: session.user.id },

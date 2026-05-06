@@ -27,14 +27,22 @@ const assessorItems = [
   { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
 ];
 
-const managerItems = [
-  { href: "/my-team", label: "My Team", icon: "users" },
+// People-section items. Each carries the roles allowed to see the link, so
+// "My Team" is MANAGER-only while the Users directory stays visible to
+// MANAGER + ADMIN.
+const managerItems: Array<{
+  href: string;
+  label: string;
+  icon: string;
+  roles: ReadonlyArray<"MANAGER" | "ADMIN">;
+}> = [
+  { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
+  { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
 ];
 
 const adminItems = [
   { href: "/requests", label: "Requests", icon: "inbox" },
   { href: "/pdp-review", label: "PDPs in Review", icon: "file-text" },
-  { href: "/users", label: "Users", icon: "users" },
 ];
 
 function NavIcon({ name, className }: { name: string; className?: string }) {
@@ -203,14 +211,19 @@ export function AppSidebar({ user }: SidebarProps) {
           </>
         )}
 
-        {(user.role === "ADMIN" || user.role === "MANAGER") && (
+        {(() => {
+          const visiblePeopleItems = managerItems.filter((it) =>
+            it.roles.includes(user.role as "MANAGER" | "ADMIN")
+          );
+          if (visiblePeopleItems.length === 0) return null;
+          return (
           <>
             <div className="pt-5 pb-2 px-3">
               <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
                 People
               </p>
             </div>
-            {managerItems.map((item) => {
+            {visiblePeopleItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Link
@@ -235,7 +248,8 @@ export function AppSidebar({ user }: SidebarProps) {
               );
             })}
           </>
-        )}
+          );
+        })()}
 
         {user.role === "ADMIN" && (
           <>

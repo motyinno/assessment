@@ -97,15 +97,18 @@ export default function UsersPage() {
   });
   const [error, setError] = useState("");
 
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const isAdmin = role === "ADMIN";
+  const canViewUsers = isAdmin || role === "MANAGER";
+
   useEffect(() => {
     if (status === "loading") return;
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    if (role !== "ADMIN") {
+    if (!canViewUsers) {
       router.push("/dashboard");
       return;
     }
     fetchUsers();
-  }, [session, status, router]);
+  }, [status, canViewUsers, router]);
 
   async function fetchUsers() {
     const res = await fetch("/api/users");
@@ -141,6 +144,7 @@ export default function UsersPage() {
             Total: <span className="font-medium text-foreground">{users.length}</span>
           </p>
         </div>
+        {isAdmin && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button size="lg" />}>
             Create user
@@ -238,6 +242,7 @@ export default function UsersPage() {
             </form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Role filter chips with counts */}
