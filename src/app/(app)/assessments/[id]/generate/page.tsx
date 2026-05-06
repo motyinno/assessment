@@ -26,7 +26,8 @@ interface SubjectUser {
   email: string;
   grade: string | null;
   project: string | null;
-  manager: string | null;
+  managerId: string | null;
+  manager: { id: string; name: string; email: string } | null;
 }
 
 interface MatrixTopic {
@@ -183,7 +184,7 @@ export default function GeneratePdpPage() {
       weakTopics: selectedTopics,
       info: {
         employee: subject.name,
-        manager: subject.manager || "",
+        manager: subject.manager?.name || "",
         grade: assessment.grade,
         date: new Date().toLocaleDateString("en-US"),
         level_before: gradeLabel(assessment.grade),
@@ -306,7 +307,7 @@ export default function GeneratePdpPage() {
                 </p>
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
                   <MetaItem label="Project" value={subject?.project ?? null} />
-                  <MetaItem label="Manager" value={subject?.manager ?? null} />
+                  <MetaItem label="Manager" value={subject?.manager?.name ?? null} />
                   <MetaItem
                     label="Average score"
                     value={avgScore !== null ? avgScore : null}

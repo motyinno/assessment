@@ -29,7 +29,10 @@ export async function POST(
     return NextResponse.json({ error: "Select at least one topic" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { id: targetUserId } });
+  const user = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: { manager: { select: { name: true } } },
+  });
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -85,7 +88,7 @@ export async function POST(
     pdpId: pdp.id,
     assessorId,
     userName: user.name,
-    userManager: user.manager ?? "",
+    userManager: user.manager?.name ?? "",
     userGradeLabel: gradeLabel(user.grade),
     selected,
     fileName,

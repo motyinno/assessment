@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 import { isValidGrade } from "@/lib/grades";
+import { ROLES, canManagePeople } from "@/lib/roles";
+
+const USER_DETAIL_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  role: true,
+  grade: true,
+  project: true,
+  managerId: true,
+  manager: { select: { id: true, name: true, email: true } },
+} as const;
 
 export async function GET(
   _req: NextRequest,
@@ -11,19 +23,13 @@ export async function GET(
   if (error) return error;
 
   const viewerRole = session!.user.role;
-  const isStaff = viewerRole === "ASSESSOR" || viewerRole === "ADMIN";
+  const isStaffViewer = canManagePeople(viewerRole) || viewerRole === "ASSESSOR";
 
   const { id } = params;
   const user = await prisma.user.findUnique({
     where: { id },
     select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      grade: true,
-      project: true,
-      manager: true,
+      ...USER_DETAIL_SELECT,
       participations: {
         where: { participantRole: "SUBJECT" },
         orderBy: { createdAt: "desc" },
@@ -42,7 +48,7 @@ export async function GET(
         },
       },
       pdps: {
-        where: isStaff ? undefined : { status: { not: "ON_REVIEW" } },
+        where: isStaffViewer ? undefined : { status: { not: "ON_REVIEW" } },
         orderBy: { createdAt: "desc" },
         include: {
           assessment: { select: { id: true, title: true } },
@@ -54,7 +60,7 @@ export async function GET(
   return NextResponse.json(user);
 }
 
-const VALID_ROLES = new Set(["USER", "ASSESSOR", "ADMIN"]);
+const VALID_ROLES = new Set<string>(ROLES);
 
 export async function PATCH(
   req: NextRequest,
@@ -67,13 +73,12 @@ export async function PATCH(
   const isAdmin = session!.user.role === "ADMIN";
   const isSelf = session!.user.id === id;
 
-  // Only admins can edit other users. Anyone can edit their own profile.
   if (!isAdmin && !isSelf) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await req.json();
-  const { name, grade, project, manager, role } = body as Record<string, unknown>;
+  const { name, grade, project, managerId, role } = body as Record<string, unknown>;
 
   const data: Record<string, unknown> = {};
 
@@ -88,11 +93,31 @@ export async function PATCH(
     data.project = typeof project === "string" && project.trim().length > 0 ? project.trim() : null;
   }
 
-  if (manager !== undefined) {
-    data.manager = typeof manager === "string" && manager.trim().length > 0 ? manager.trim() : null;
+  if (managerId !== undefined) {
+    if (managerId === null || managerId === "") {
+      data.managerId = null;
+    } else if (typeof managerId !== "string") {
+      return NextResponse.json({ error: "Invalid managerId" }, { status: 400 });
+    } else if (managerId === id) {
+      return NextResponse.json({ error: "User cannot be their own manager" }, { status: 400 });
+    } else {
+      const candidate = await prisma.user.findUnique({
+        where: { id: managerId },
+        select: { id: true, role: true },
+      });
+      if (!candidate) {
+        return NextResponse.json({ error: "Manager not found" }, { status: 400 });
+      }
+      if (!canManagePeople(candidate.role)) {
+        return NextResponse.json(
+          { error: "Manager must have role MANAGER or ADMIN" },
+          { status: 400 }
+        );
+      }
+      data.managerId = candidate.id;
+    }
   }
 
-  // Grade and role are admin-only.
   if (grade !== undefined) {
     if (!isAdmin) {
       return NextResponse.json({ error: "Only administrators can change grade" }, { status: 403 });
@@ -106,6 +131,7 @@ export async function PATCH(
     }
   }
 
+  let demotingFromManager = false;
   if (role !== undefined) {
     if (!isAdmin) {
       return NextResponse.json({ error: "Only administrators can change role" }, { status: 403 });
@@ -113,8 +139,6 @@ export async function PATCH(
     if (typeof role !== "string" || !VALID_ROLES.has(role)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
-    // Prevent an admin from demoting themselves — otherwise they could
-    // lock the whole system out of admin access.
     if (isSelf && role !== "ADMIN") {
       return NextResponse.json(
         { error: "Can't change your own role away from administrator" },
@@ -122,21 +146,37 @@ export async function PATCH(
       );
     }
     data.role = role;
+
+    if (!canManagePeople(role)) {
+      const current = await prisma.user.findUnique({
+        where: { id },
+        select: { role: true },
+      });
+      if (current && canManagePeople(current.role)) {
+        demotingFromManager = true;
+      }
+    }
   }
 
-  const user = await prisma.user.update({
+  const updateUser = prisma.user.update({
     where: { id },
     data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      grade: true,
-      project: true,
-      manager: true,
-    },
+    select: USER_DETAIL_SELECT,
   });
+
+  let user;
+  if (demotingFromManager) {
+    const [, updated] = await prisma.$transaction([
+      prisma.user.updateMany({
+        where: { managerId: id },
+        data: { managerId: null },
+      }),
+      updateUser,
+    ]);
+    user = updated;
+  } else {
+    user = await updateUser;
+  }
 
   return NextResponse.json(user);
 }

@@ -14,7 +14,8 @@ interface UserInfo {
   email: string;
   grade: string | null;
   project: string | null;
-  manager: string | null;
+  managerId: string | null;
+  manager: { id: string; name: string; email: string } | null;
 }
 
 interface TechTopic {
@@ -50,7 +51,7 @@ export default function GeneratePdpForUserPage() {
   useEffect(() => {
     if (status === "loading") return;
     const role = (session?.user as { role?: string } | undefined)?.role;
-    if (role !== "ASSESSOR" && role !== "ADMIN") {
+    if (role !== "ASSESSOR" && role !== "MANAGER" && role !== "ADMIN") {
       router.push("/dashboard");
     }
   }, [session, status, router]);

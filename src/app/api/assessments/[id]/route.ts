@@ -13,7 +13,19 @@ export async function GET(
     where: { id: params.id },
     include: {
       participants: {
-        include: { user: { select: { id: true, name: true, email: true, grade: true, project: true, manager: true } } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              grade: true,
+              project: true,
+              managerId: true,
+              manager: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
       },
       results: true,
       sessions: { orderBy: { order: "asc" as const } },

@@ -12,10 +12,10 @@ model User {
   name           String
   email          String   @unique
   hashedPassword String?
-  role           String   @default("USER") // "USER" | "ASSESSOR" | "ADMIN"
+  role           String   @default("USER") // "USER" | "ASSESSOR" | "MANAGER" | "ADMIN"
   grade          String? // "jun" | "mid" | "sen"
   project        String?
-  manager                String?
+  managerId              String?
   softAiInterviewPassed  Boolean  @default(false)
   googleAccessToken      String?
   googleRefreshToken     String?
@@ -23,11 +23,15 @@ model User {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
+  manager             User?   @relation("manages", fields: [managerId], references: [id], onDelete: SetNull)
+  reports             User[]  @relation("manages")
   participations      AssessmentParticipant[]
   pdps                Pdp[]
   createdPdps         Pdp[] @relation("createdPdps")
   requestedAssessments AssessmentRequest[] @relation("requestedBy")
   assignedAssessments  AssessmentRequest[] @relation("assignedAssessor")
+
+  @@index([managerId])
 }
 
 model Assessment {

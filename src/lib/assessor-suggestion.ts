@@ -26,13 +26,13 @@ export async function suggestAssessors(opts: {
 
   const subject = await prisma.user.findUnique({
     where: { id: subjectId },
-    select: { id: true, manager: true },
+    select: { id: true, managerId: true },
   });
-  const managerName = (subject?.manager ?? "").trim().toLowerCase();
+  const managerId = subject?.managerId ?? null;
 
   const assessors = await prisma.user.findMany({
     where: {
-      role: { in: ["ASSESSOR", "ADMIN"] },
+      role: { in: ["ASSESSOR", "MANAGER", "ADMIN"] },
       id: { not: subjectId },
     },
     select: { id: true, name: true, email: true, grade: true },
@@ -60,11 +60,8 @@ export async function suggestAssessors(opts: {
 
   const candidates = assessors
     .filter((a) => {
-      // Rule 1: manager cannot be assessor
-      if (
-        managerName &&
-        a.name.trim().toLowerCase() === managerName
-      ) {
+      // Rule 1: subject's manager cannot assess them
+      if (managerId && a.id === managerId) {
         return false;
       }
       // Rule 2: grade must be >= subject's grade

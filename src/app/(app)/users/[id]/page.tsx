@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
+import { ManagerCombobox } from "@/components/manager-combobox";
 
 interface Assessment {
   id: string;
@@ -60,6 +61,12 @@ interface Pdp {
   assessment: { id: string; title: string } | null;
 }
 
+interface ManagerRef {
+  id: string;
+  name: string;
+  email: string;
+}
+
 interface ProfileData {
   id: string;
   name: string;
@@ -67,7 +74,8 @@ interface ProfileData {
   role: string;
   grade: string | null;
   project: string | null;
-  manager: string | null;
+  managerId: string | null;
+  manager: ManagerRef | null;
   participations: Participation[];
   pdps: Pdp[];
 }
@@ -86,8 +94,9 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
   CANCELLED: "destructive",
 };
 
-const ROLE_META: Record<string, { label: string; tone: "warning" | "default" | "secondary"; accent: string }> = {
+const ROLE_META: Record<string, { label: string; tone: "warning" | "default" | "secondary" | "info"; accent: string }> = {
   ADMIN: { label: "Admin", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
+  MANAGER: { label: "Manager", tone: "info", accent: "from-info/25 to-info/5 text-info" },
   ASSESSOR: { label: "Assessor", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
   USER: { label: "User", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
 };
@@ -95,6 +104,7 @@ const ROLE_META: Record<string, { label: string; tone: "warning" | "default" | "
 const ROLE_LABEL: Record<string, string> = {
   USER: "User",
   ASSESSOR: "Assessor",
+  MANAGER: "Manager",
   ADMIN: "Admin",
 };
 
@@ -136,16 +146,24 @@ export default function UserProfilePage() {
   const [pdpsExpanded, setPdpsExpanded] = useState(false);
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    role: string;
+    grade: string;
+    project: string;
+    managerId: string | null;
+  }>({
     name: "",
     role: "USER",
     grade: "",
     project: "",
-    manager: "",
+    managerId: null,
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
-  const [managerOptions, setManagerOptions] = useState<Array<{ id: string; name: string; email: string }>>([]);
+  const [managerOptions, setManagerOptions] = useState<
+    Array<{ id: string; name: string; email: string; role: string }>
+  >([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
@@ -156,7 +174,7 @@ export default function UserProfilePage() {
   useEffect(() => {
     if (status === "loading") return;
     const role = (session?.user as { role?: string } | undefined)?.role;
-    if (role !== "ADMIN" && role !== "ASSESSOR") {
+    if (role !== "ADMIN" && role !== "ASSESSOR" && role !== "MANAGER") {
       router.push("/dashboard");
       return;
     }
@@ -189,15 +207,17 @@ export default function UserProfilePage() {
       role: profile.role,
       grade: profile.grade ?? "",
       project: profile.project ?? "",
-      manager: profile.manager ?? "",
+      managerId: profile.managerId,
     });
     setEditError("");
     setEditOpen(true);
     if (managerOptions.length === 0) {
       fetch("/api/users")
         .then((r) => (r.ok ? r.json() : []))
-        .then((d: Array<{ id: string; name: string; email: string }>) =>
-          setManagerOptions(d.map((u) => ({ id: u.id, name: u.name, email: u.email })))
+        .then((d: Array<{ id: string; name: string; email: string; role: string }>) =>
+          setManagerOptions(
+            d.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role }))
+          )
         )
         .catch(() => {});
     }
@@ -217,7 +237,7 @@ export default function UserProfilePage() {
           role: editForm.role,
           grade: editForm.grade || null,
           project: editForm.project,
-          manager: editForm.manager,
+          managerId: editForm.managerId,
         }),
       });
       if (!res.ok) {
@@ -331,7 +351,7 @@ export default function UserProfilePage() {
                 </p>
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
                   <MetaItem label="Project" value={profile.project} />
-                  <MetaItem label="Manager" value={profile.manager} />
+                  <MetaItem label="Manager" value={profile.manager?.name ?? null} />
                   <MetaItem
                     label="Assessments"
                     value={`${completedAssessments} / ${profile.participations.length}`}
@@ -688,6 +708,7 @@ export default function UserProfilePage() {
                   <SelectContent>
                     <SelectItem value="USER">User</SelectItem>
                     <SelectItem value="ASSESSOR">Assessor</SelectItem>
+                    <SelectItem value="MANAGER">Manager</SelectItem>
                     <SelectItem value="ADMIN">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -736,11 +757,14 @@ export default function UserProfilePage() {
               <div className="space-y-1.5">
                 <Label>Manager</Label>
                 <ManagerCombobox
-                  value={editForm.manager}
-                  onChange={(v) => setEditForm({ ...editForm, manager: v })}
+                  value={editForm.managerId}
+                  onChange={(id) => setEditForm({ ...editForm, managerId: id })}
                   options={managerOptions}
                   excludeId={profile.id}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Only Manager / Admin users can be picked.
+                </p>
               </div>
               {editError && <p className="text-sm text-destructive">{editError}</p>}
               <div className="flex justify-end gap-2 pt-1">
@@ -808,115 +832,3 @@ export default function UserProfilePage() {
   );
 }
 
-function ManagerCombobox({
-  value,
-  onChange,
-  options,
-  excludeId,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: Array<{ id: string; name: string; email: string }>;
-  excludeId?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(0);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const query = value.trim().toLowerCase();
-  const matches = options
-    .filter((u) => u.id !== excludeId)
-    .filter((u) => {
-      if (!query) return true;
-      return (
-        u.name.toLowerCase().includes(query) ||
-        u.email.toLowerCase().includes(query)
-      );
-    })
-    .slice(0, 8);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
-
-  function selectOption(opt: { name: string }) {
-    onChange(opt.name);
-    setOpen(false);
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <Input
-        value={value}
-        onChange={(e) => {
-          onChange(e.target.value);
-          setOpen(true);
-          setHighlighted(0);
-        }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={(e) => {
-          if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-            setOpen(true);
-            return;
-          }
-          if (!open) return;
-          if (e.key === "ArrowDown") {
-            e.preventDefault();
-            setHighlighted((h) => Math.min(h + 1, matches.length - 1));
-          } else if (e.key === "ArrowUp") {
-            e.preventDefault();
-            setHighlighted((h) => Math.max(h - 1, 0));
-          } else if (e.key === "Enter" && matches[highlighted]) {
-            e.preventDefault();
-            selectOption(matches[highlighted]);
-          } else if (e.key === "Escape") {
-            setOpen(false);
-          }
-        }}
-        placeholder="Start typing a name or email"
-        autoComplete="off"
-      />
-      {open && matches.length > 0 && (
-        <ul
-          className="absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-auto rounded-md border border-border bg-popover shadow-md ring-1 ring-foreground/5"
-          role="listbox"
-        >
-          {matches.map((opt, idx) => {
-            const active = idx === highlighted;
-            return (
-              <li
-                key={opt.id}
-                role="option"
-                aria-selected={active}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  selectOption(opt);
-                }}
-                onMouseEnter={() => setHighlighted(idx)}
-                className={
-                  "px-3 py-1.5 cursor-pointer text-sm " +
-                  (active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50")
-                }
-              >
-                <div className="font-medium truncate">{opt.name}</div>
-                <div className="text-[11px] text-muted-foreground truncate">{opt.email}</div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {value && !matches.some((m) => m.name === value) && (
-        <p className="text-[11px] text-muted-foreground mt-1">
-          If the manager isn't in the list, the value will be saved as-is.
-        </p>
-      )}
-    </div>
-  );
-}

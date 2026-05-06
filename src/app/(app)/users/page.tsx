@@ -31,6 +31,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
+import { ManagerCombobox } from "@/components/manager-combobox";
+
+interface ManagerRef {
+  id: string;
+  name: string;
+  email: string;
+}
 
 interface User {
   id: string;
@@ -39,15 +46,17 @@ interface User {
   role: string;
   grade: string | null;
   project: string | null;
-  manager: string | null;
+  managerId: string | null;
+  manager: ManagerRef | null;
   createdAt: string;
 }
 
 const ROLE_META: Record<
   string,
-  { label: string; tone: "warning" | "default" | "secondary"; accent: string }
+  { label: string; tone: "warning" | "default" | "secondary" | "info"; accent: string }
 > = {
   ADMIN: { label: "Admin", tone: "warning", accent: "from-warning/30 to-warning/10 text-warning-foreground" },
+  MANAGER: { label: "Manager", tone: "info", accent: "from-info/25 to-info/5 text-info" },
   ASSESSOR: { label: "Assessor", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
   USER: { label: "User", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
 };
@@ -68,14 +77,23 @@ export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "ASSESSOR" | "USER">("ALL");
-  const [form, setForm] = useState({
+  const [roleFilter, setRoleFilter] = useState<
+    "ALL" | "ADMIN" | "MANAGER" | "ASSESSOR" | "USER"
+  >("ALL");
+  const [form, setForm] = useState<{
+    name: string;
+    email: string;
+    role: string;
+    grade: string;
+    project: string;
+    managerId: string | null;
+  }>({
     name: "",
     email: "",
     role: "USER",
     grade: "",
     project: "",
-    manager: "",
+    managerId: null,
   });
   const [error, setError] = useState("");
 
@@ -106,7 +124,7 @@ export default function UsersPage() {
 
     if (res.ok) {
       setOpen(false);
-      setForm({ name: "", email: "", role: "USER", grade: "", project: "", manager: "" });
+      setForm({ name: "", email: "", role: "USER", grade: "", project: "", managerId: null });
       fetchUsers();
     } else {
       const data = await res.json();
@@ -164,6 +182,7 @@ export default function UsersPage() {
                   <SelectContent>
                     <SelectItem value="USER">User</SelectItem>
                     <SelectItem value="ASSESSOR">Assessor</SelectItem>
+                    <SelectItem value="MANAGER">Manager</SelectItem>
                     <SelectItem value="ADMIN">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -198,10 +217,19 @@ export default function UsersPage() {
               </div>
               <div className="space-y-2">
                 <Label>Manager</Label>
-                <Input
-                  value={form.manager}
-                  onChange={(e) => setForm({ ...form, manager: e.target.value })}
+                <ManagerCombobox
+                  value={form.managerId}
+                  onChange={(id) => setForm({ ...form, managerId: id })}
+                  options={users.map((u) => ({
+                    id: u.id,
+                    name: u.name,
+                    email: u.email,
+                    role: u.role,
+                  }))}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Only Manager / Admin users can be picked.
+                </p>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button type="submit" className="w-full">
@@ -214,7 +242,7 @@ export default function UsersPage() {
 
       {/* Role filter chips with counts */}
       <div className="flex flex-wrap items-center gap-2">
-        {(["ALL", "ADMIN", "ASSESSOR", "USER"] as const).map((r) => {
+        {(["ALL", "ADMIN", "MANAGER", "ASSESSOR", "USER"] as const).map((r) => {
           const count =
             r === "ALL" ? users.length : users.filter((u) => u.role === r).length;
           const active = roleFilter === r;
@@ -347,7 +375,7 @@ export default function UsersPage() {
                           {user.project || "—"}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {user.manager || "—"}
+                          {user.manager?.name || "—"}
                         </TableCell>
                       </TableRow>
                     );

@@ -15,9 +15,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
+import { ManagerCombobox } from "@/components/manager-combobox";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
+  MANAGER: "Manager",
   ASSESSOR: "Assessor",
   USER: "User",
 };
@@ -32,14 +34,32 @@ function initialsOf(name: string) {
     .toUpperCase();
 }
 
+interface UserRecord {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  grade?: string | null;
+  project?: string | null;
+  managerId?: string | null;
+}
+
+type UserOption = Pick<UserRecord, "id" | "name" | "email" | "role">;
+
 export default function ProfilePage() {
   const { data: session, update } = useSession();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    grade: string;
+    project: string;
+    managerId: string | null;
+  }>({
     name: "",
     grade: "",
     project: "",
-    manager: "",
+    managerId: null,
   });
+  const [users, setUsers] = useState<UserOption[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -49,14 +69,17 @@ export default function ProfilePage() {
     if (!session?.user?.id) return;
     fetch(`/api/users`)
       .then((r) => r.json())
-      .then((users) => {
-        const me = users.find((u: { id: string }) => u.id === session.user.id);
+      .then((all: UserRecord[]) => {
+        setUsers(
+          all.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role }))
+        );
+        const me = all.find((u) => u.id === session.user.id);
         if (me) {
           setForm({
             name: me.name || "",
             grade: me.grade || "",
             project: me.project || "",
-            manager: me.manager || "",
+            managerId: me.managerId ?? null,
           });
         }
         setLoading(false);
@@ -69,11 +92,11 @@ export default function ProfilePage() {
     setError("");
     setSaving(true);
 
-    const data: Record<string, string> = {
+    const data: Record<string, unknown> = {
       name: form.name,
       grade: form.grade,
       project: form.project,
-      manager: form.manager,
+      managerId: form.managerId,
     };
 
     const res = await fetch(`/api/users/${session!.user.id}`, {
@@ -129,9 +152,11 @@ export default function ProfilePage() {
                 variant={
                   role === "ADMIN"
                     ? "warning"
-                    : role === "ASSESSOR"
-                      ? "default"
-                      : "secondary"
+                    : role === "MANAGER"
+                      ? "info"
+                      : role === "ASSESSOR"
+                        ? "default"
+                        : "secondary"
                 }
               >
                 {ROLE_LABEL[role] || role}
@@ -226,14 +251,15 @@ export default function ProfilePage() {
               </div>
               <div className="space-y-1.5 sm:col-span-2">
                 <Label>Manager</Label>
-                <Input
-                  value={form.manager}
-                  onChange={(e) =>
-                    setForm({ ...form, manager: e.target.value })
-                  }
-                  placeholder="Manager's full name"
-                  className="h-10"
+                <ManagerCombobox
+                  value={form.managerId}
+                  onChange={(id) => setForm({ ...form, managerId: id })}
+                  options={users}
+                  excludeId={session?.user?.id}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Pick from Manager / Admin users.
+                </p>
               </div>
             </div>
 

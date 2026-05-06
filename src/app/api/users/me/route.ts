@@ -15,7 +15,8 @@ export async function GET() {
       role: true,
       grade: true,
       project: true,
-      manager: true,
+      managerId: true,
+      manager: { select: { id: true, name: true, email: true } },
     },
   });
 

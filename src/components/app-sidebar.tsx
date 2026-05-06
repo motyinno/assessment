@@ -26,6 +26,10 @@ const assessorItems = [
   { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
 ];
 
+const managerItems = [
+  { href: "/my-team", label: "My Team", icon: "users" },
+];
+
 const adminItems = [
   { href: "/requests", label: "Requests", icon: "inbox" },
   { href: "/pdp-review", label: "PDPs in Review", icon: "file-text" },
@@ -164,7 +168,7 @@ export function AppSidebar({ user }: SidebarProps) {
             );
           })}
 
-        {(user.role === "ADMIN" || user.role === "ASSESSOR") && (
+        {(user.role === "ADMIN" || user.role === "ASSESSOR" || user.role === "MANAGER") && (
           <>
             <div className="pt-5 pb-2 px-3">
               <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
@@ -172,6 +176,40 @@ export function AppSidebar({ user }: SidebarProps) {
               </p>
             </div>
             {assessorItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <NavIcon
+                    name={item.icon}
+                    className={cn(
+                      "w-[18px] h-[18px] shrink-0 transition-colors",
+                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+                    )}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
+
+        {(user.role === "ADMIN" || user.role === "MANAGER") && (
+          <>
+            <div className="pt-5 pb-2 px-3">
+              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
+                People
+              </p>
+            </div>
+            {managerItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Link
@@ -245,7 +283,11 @@ export function AppSidebar({ user }: SidebarProps) {
           </div>
           {user.role !== "USER" && (
             <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-              {user.role === "ADMIN" ? "Admin" : "Assessor"}
+              {user.role === "ADMIN"
+                ? "Admin"
+                : user.role === "MANAGER"
+                  ? "Manager"
+                  : "Assessor"}
             </span>
           )}
         </Link>
