@@ -29,18 +29,18 @@ interface TechMatrix {
 }
 
 const SECTION_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  js: { border: "border-l-yellow-400", bg: "bg-yellow-50", text: "text-yellow-800" },
-  typescript: { border: "border-l-blue-500", bg: "bg-blue-50", text: "text-blue-800" },
-  backend: { border: "border-l-green-600", bg: "bg-green-50", text: "text-green-800" },
-  react: { border: "border-l-cyan-500", bg: "bg-cyan-50", text: "text-cyan-800" },
-  databases: { border: "border-l-orange-500", bg: "bg-orange-50", text: "text-orange-800" },
-  web: { border: "border-l-indigo-500", bg: "bg-indigo-50", text: "text-indigo-800" },
-  general: { border: "border-l-gray-500", bg: "bg-gray-50", text: "text-gray-700" },
-  devops: { border: "border-l-red-500", bg: "bg-red-50", text: "text-red-800" },
-  "message-brokers": { border: "border-l-amber-600", bg: "bg-amber-50", text: "text-amber-800" },
-  "principles-and-patterns": { border: "border-l-teal-600", bg: "bg-teal-50", text: "text-teal-800" },
-  architecture: { border: "border-l-violet-600", bg: "bg-violet-50", text: "text-violet-800" },
-  ai: { border: "border-l-pink-500", bg: "bg-pink-50", text: "text-pink-800" },
+  js: { border: "border-l-yellow-400", bg: "bg-yellow-500/10", text: "text-yellow-700 dark:text-yellow-300" },
+  typescript: { border: "border-l-blue-500", bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-300" },
+  backend: { border: "border-l-green-600", bg: "bg-green-500/10", text: "text-green-700 dark:text-green-300" },
+  react: { border: "border-l-cyan-500", bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-300" },
+  databases: { border: "border-l-orange-500", bg: "bg-orange-500/10", text: "text-orange-700 dark:text-orange-300" },
+  web: { border: "border-l-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300" },
+  general: { border: "border-l-gray-500", bg: "bg-gray-500/10", text: "text-gray-700 dark:text-gray-300" },
+  devops: { border: "border-l-red-500", bg: "bg-red-500/10", text: "text-red-700 dark:text-red-300" },
+  "message-brokers": { border: "border-l-amber-600", bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-300" },
+  "principles-and-patterns": { border: "border-l-teal-600", bg: "bg-teal-500/10", text: "text-teal-700 dark:text-teal-300" },
+  architecture: { border: "border-l-violet-600", bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300" },
+  ai: { border: "border-l-pink-500", bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-300" },
 };
 
 export default function TechMatrixPage() {
@@ -149,10 +149,10 @@ export default function TechMatrixPage() {
         <div className="space-y-4">
           {filteredSections.map((section) => {
             const isCollapsed = collapsedSections.has(section.id);
-            const colors = SECTION_COLORS[section.id] || { border: "border-l-gray-400", bg: "bg-gray-50", text: "text-gray-700" };
+            const colors = SECTION_COLORS[section.id] || { border: "border-l-gray-400", bg: "bg-gray-500/10", text: "text-gray-700 dark:text-gray-300" };
 
             return (
-              <div key={section.id} className={`border rounded-xl overflow-hidden border-l-4 ${colors.border} bg-white`}>
+              <div key={section.id} className={`border rounded-xl overflow-hidden border-l-4 ${colors.border} bg-card`}>
                 {/* Section header */}
                 <button
                   className={`w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-muted/20 transition-colors`}
@@ -212,7 +212,7 @@ export default function TechMatrixPage() {
                     >
                       <div className="px-5 py-2 border-r border-border/60" />
                       {showJun && (
-                        <div className={`px-4 py-2 text-[11px] font-medium text-emerald-600 uppercase tracking-wide ${showMid || showSen ? "border-r border-border/60" : ""}`}>
+                        <div className={`px-4 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-300 uppercase tracking-wide ${showMid || showSen ? "border-r border-border/60" : ""}`}>
                           <span className="inline-flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Junior
@@ -220,7 +220,7 @@ export default function TechMatrixPage() {
                         </div>
                       )}
                       {showMid && (
-                        <div className={`px-4 py-2 text-[11px] font-medium text-blue-600 uppercase tracking-wide ${showSen ? "border-r border-border/60" : ""}`}>
+                        <div className={`px-4 py-2 text-[11px] font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide ${showSen ? "border-r border-border/60" : ""}`}>
                           <span className="inline-flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                             Middle
@@ -228,7 +228,7 @@ export default function TechMatrixPage() {
                         </div>
                       )}
                       {showSen && (
-                        <div className="px-4 py-2 text-[11px] font-medium text-purple-600 uppercase tracking-wide">
+                        <div className="px-4 py-2 text-[11px] font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide">
                           <span className="inline-flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
                             Senior
@@ -261,7 +261,12 @@ function GradeColumn({
   const q = search.toLowerCase().trim();
 
   const dotColor = grade === "jun" ? "bg-emerald-400" : grade === "mid" ? "bg-blue-400" : "bg-purple-400";
-  const highlightBg = grade === "jun" ? "bg-emerald-100 text-emerald-800 font-medium" : grade === "mid" ? "bg-blue-100 text-blue-800 font-medium" : "bg-purple-100 text-purple-800 font-medium";
+  const highlightBg =
+    grade === "jun"
+      ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200 font-medium"
+      : grade === "mid"
+        ? "bg-blue-500/15 text-blue-700 dark:text-blue-200 font-medium"
+        : "bg-purple-500/15 text-purple-700 dark:text-purple-200 font-medium";
 
   return (
     <div className={`px-4 py-3 ${showBorder ? "border-r border-border/60" : ""}`}>

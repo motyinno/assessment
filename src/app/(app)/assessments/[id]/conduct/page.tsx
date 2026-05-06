@@ -179,12 +179,12 @@ export default function ConductAssessmentPage() {
       </div>
 
       {currentSession && (
-        <Card className="border-blue-200 bg-blue-50/50">
+        <Card className="border-info/30 bg-info/10">
           <CardContent className="py-3 flex items-center gap-3">
-            <Badge variant="default" className="bg-blue-500">
+            <Badge variant="info">
               {SESSION_TYPE_LABELS[currentSession.type] || currentSession.type}
             </Badge>
-            <span className="text-sm text-blue-700">
+            <span className="text-sm text-info">
               Duration: {currentSession.durationMin} min
             </span>
           </CardContent>
@@ -320,7 +320,7 @@ export default function ConductAssessmentPage() {
             Back
           </Button>
           {message && (
-            <p className={`text-sm ${message.toLowerCase().includes("failed") ? "text-destructive" : "text-green-600"}`}>
+            <p className={`text-sm ${message.toLowerCase().includes("failed") ? "text-destructive" : "text-success"}`}>
               {message}
             </p>
           )}

@@ -12,7 +12,7 @@ type StatTone = "primary" | "success" | "warning" | "muted";
 const TONE_STYLES: Record<StatTone, { icon: string; ring: string }> = {
   primary: { icon: "bg-primary/10 text-primary", ring: "ring-primary/10" },
   success: { icon: "bg-success/15 text-success", ring: "ring-success/10" },
-  warning: { icon: "bg-warning/20 text-warning-foreground", ring: "ring-warning/20" },
+  warning: { icon: "bg-warning/20 text-warning-foreground dark:text-warning", ring: "ring-warning/20" },
   muted: { icon: "bg-muted text-muted-foreground", ring: "ring-border" },
 };
 
