@@ -102,7 +102,7 @@ export default function AssessmentLogsPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   const role = session?.user?.role;
-  const canAccess = role === "ADMIN" || role === "ASSESSOR";
+  const canAccess = role === "ADMIN" || role === "ASSESSOR" || role === "MANAGER";
 
   useEffect(() => {
     if (status === "loading") return;

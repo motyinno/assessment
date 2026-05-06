@@ -170,6 +170,10 @@ export default function UserProfilePage() {
   const currentRole = (session?.user as { role?: string } | undefined)?.role;
   const currentUserId = (session?.user as { id?: string } | undefined)?.id;
   const isAdmin = currentRole === "ADMIN";
+  const isManagerOfThisUser =
+    (currentRole === "MANAGER" || currentRole === "ADMIN") &&
+    profile?.managerId === currentUserId;
+  const canEdit = isAdmin || isManagerOfThisUser;
 
   useEffect(() => {
     if (status === "loading") return;
@@ -232,13 +236,21 @@ export default function UserProfilePage() {
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editForm.name,
-          role: editForm.role,
-          grade: editForm.grade || null,
-          project: editForm.project,
-          managerId: editForm.managerId,
-        }),
+        body: JSON.stringify(
+          isAdmin
+            ? {
+                name: editForm.name,
+                role: editForm.role,
+                grade: editForm.grade || null,
+                project: editForm.project,
+                managerId: editForm.managerId,
+              }
+            : {
+                name: editForm.name,
+                grade: editForm.grade || null,
+                project: editForm.project,
+              }
+        ),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -377,11 +389,13 @@ export default function UserProfilePage() {
               <Button variant="outline" size="lg" onClick={openAttach}>
                 Attach PDP file
               </Button>
+              {canEdit && (
+                <Button variant="outline" size="lg" onClick={openEdit}>
+                  Edit
+                </Button>
+              )}
               {isAdmin && (
                 <>
-                  <Button variant="outline" size="lg" onClick={openEdit}>
-                    Edit
-                  </Button>
                   <Button
                     variant="outline"
                     size="lg"
@@ -672,8 +686,8 @@ export default function UserProfilePage() {
         </Card>
       </div>
 
-      {/* Edit user dialog (admin only) */}
-      {isAdmin && (
+      {/* Edit user dialog */}
+      {canEdit && (
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogContent>
             <DialogHeader>
@@ -693,31 +707,33 @@ export default function UserProfilePage() {
                   required
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Role</Label>
-                <Select
-                  value={editForm.role}
-                  onValueChange={(v) => v && setEditForm({ ...editForm, role: v })}
-                  disabled={profile.id === currentUserId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue>
-                      {(v: unknown) => (typeof v === "string" ? ROLE_LABEL[v] ?? v : "")}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="USER">User</SelectItem>
-                    <SelectItem value="ASSESSOR">Assessor</SelectItem>
-                    <SelectItem value="MANAGER">Manager</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-                {profile.id === currentUserId && (
-                  <p className="text-[11px] text-muted-foreground">
-                    Can't change your own role.
-                  </p>
-                )}
-              </div>
+              {isAdmin && (
+                <div className="space-y-1.5">
+                  <Label>Role</Label>
+                  <Select
+                    value={editForm.role}
+                    onValueChange={(v) => v && setEditForm({ ...editForm, role: v })}
+                    disabled={profile.id === currentUserId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue>
+                        {(v: unknown) => (typeof v === "string" ? ROLE_LABEL[v] ?? v : "")}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USER">User</SelectItem>
+                      <SelectItem value="ASSESSOR">Assessor</SelectItem>
+                      <SelectItem value="MANAGER">Manager</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {profile.id === currentUserId && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Can't change your own role.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label>Grade</Label>
@@ -754,18 +770,20 @@ export default function UserProfilePage() {
                   />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Manager</Label>
-                <ManagerCombobox
-                  value={editForm.managerId}
-                  onChange={(id) => setEditForm({ ...editForm, managerId: id })}
-                  options={managerOptions}
-                  excludeId={profile.id}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Only Manager / Admin users can be picked.
-                </p>
-              </div>
+              {isAdmin && (
+                <div className="space-y-1.5">
+                  <Label>Manager</Label>
+                  <ManagerCombobox
+                    value={editForm.managerId}
+                    onChange={(id) => setEditForm({ ...editForm, managerId: id })}
+                    options={managerOptions}
+                    excludeId={profile.id}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Only Manager / Admin users can be picked.
+                  </p>
+                </div>
+              )}
               {editError && <p className="text-sm text-destructive">{editError}</p>}
               <div className="flex justify-end gap-2 pt-1">
                 <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>

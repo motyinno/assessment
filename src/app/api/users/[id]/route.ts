@@ -73,7 +73,19 @@ export async function PATCH(
   const isAdmin = session!.user.role === "ADMIN";
   const isSelf = session!.user.id === id;
 
-  if (!isAdmin && !isSelf) {
+  const current = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, role: true, managerId: true },
+  });
+  if (!current) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const isManagerOfTarget =
+    canManagePeople(session!.user.role) &&
+    current.managerId === session!.user.id;
+
+  if (!isAdmin && !isSelf && !isManagerOfTarget) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -94,15 +106,21 @@ export async function PATCH(
   }
 
   if (managerId !== undefined) {
-    if (managerId === null || managerId === "") {
+    const normalized =
+      managerId === null || managerId === "" ? null : managerId;
+    const unchanged = normalized === (current.managerId ?? null);
+
+    if (unchanged) {
+      // Skip validation: caller is just echoing back the existing value.
+    } else if (normalized === null) {
       data.managerId = null;
-    } else if (typeof managerId !== "string") {
+    } else if (typeof normalized !== "string") {
       return NextResponse.json({ error: "Invalid managerId" }, { status: 400 });
-    } else if (managerId === id) {
+    } else if (normalized === id) {
       return NextResponse.json({ error: "User cannot be their own manager" }, { status: 400 });
     } else {
       const candidate = await prisma.user.findUnique({
-        where: { id: managerId },
+        where: { id: normalized },
         select: { id: true, role: true },
       });
       if (!candidate) {
@@ -119,8 +137,11 @@ export async function PATCH(
   }
 
   if (grade !== undefined) {
-    if (!isAdmin) {
-      return NextResponse.json({ error: "Only administrators can change grade" }, { status: 403 });
+    if (!isAdmin && !isManagerOfTarget) {
+      return NextResponse.json(
+        { error: "Only administrators or the user's manager can change grade" },
+        { status: 403 }
+      );
     }
     if (grade === null || grade === "") {
       data.grade = null;
@@ -147,14 +168,8 @@ export async function PATCH(
     }
     data.role = role;
 
-    if (!canManagePeople(role)) {
-      const current = await prisma.user.findUnique({
-        where: { id },
-        select: { role: true },
-      });
-      if (current && canManagePeople(current.role)) {
-        demotingFromManager = true;
-      }
+    if (!canManagePeople(role) && canManagePeople(current.role)) {
+      demotingFromManager = true;
     }
   }
 
