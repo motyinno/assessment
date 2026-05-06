@@ -7,9 +7,19 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "PDP Generator",
-  description: "Personal Development Plan (PDP) generator",
+  title: "Node Assessment",
+  description: "Node Assessment — assessments and development plans",
 };
+
+// Runs before paint so the page never flashes the wrong theme.
+const themeBootstrap = `(() => {
+  try {
+    const saved = localStorage.getItem('theme');
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const dark = saved ? saved === 'dark' : systemDark;
+    if (dark) document.documentElement.classList.add('dark');
+  } catch (_) {}
+})();`;
 
 export default function RootLayout({
   children,
@@ -17,7 +27,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn("font-sans", inter.variable)}>
+    <html lang="en" className={cn("font-sans", inter.variable)} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body className="antialiased">
         <SessionProvider>{children}</SessionProvider>
       </body>

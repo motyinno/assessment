@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 interface SidebarProps {
   user: {
@@ -128,10 +129,10 @@ export function AppSidebar({ user }: SidebarProps) {
       <div className="px-5 py-5">
         <Link href="/dashboard" className="flex items-center gap-3 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm ring-1 ring-primary/20 group-hover:shadow-md transition-shadow">
-            <span className="text-primary-foreground text-[11px] font-bold tracking-wider">PDP</span>
+            <span className="text-primary-foreground text-[11px] font-bold tracking-wider">NA</span>
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-sidebar-foreground leading-tight">PDP Generator</h1>
+            <h1 className="text-sm font-semibold text-sidebar-foreground leading-tight">Node Assessment</h1>
             <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Assessments & PDPs</p>
           </div>
         </Link>
@@ -291,6 +292,7 @@ export function AppSidebar({ user }: SidebarProps) {
             </span>
           )}
         </Link>
+        <ThemeToggle />
         <Button
           variant="ghost"
           size="sm"
