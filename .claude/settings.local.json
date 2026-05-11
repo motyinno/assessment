@@ -38,7 +38,12 @@
       "Bash(PGPASSWORD=devpass psql -h localhost -p 5432 -U pdp -d pdp -c \"SELECT email, role FROM \\\\\"User\\\\\";\")",
       "Bash(PGPASSWORD=devpass psql -h localhost -p 5432 -U pdp -d pdp -c \"SELECT id, status, \\\\\"userId\\\\\" FROM \\\\\"AssessmentRequest\\\\\" WHERE status='PENDING';\")",
       "Bash(DATABASE_URL=\"postgresql://pdp:devpass@localhost:5432/pdp\" npx prisma db seed)",
-      "Bash(DATABASE_URL=\"postgresql://pdp:devpass@localhost:5432/pdp\" npx tsx prisma/seed.ts)"
+      "Bash(DATABASE_URL=\"postgresql://pdp:devpass@localhost:5432/pdp\" npx tsx prisma/seed.ts)",
+      "Bash(PGPASSWORD=devpass psql -h localhost -U pdp -d pdp -c \"SELECT id, title, status, grade, \\\\\"assessmentType\\\\\" FROM \\\\\"Assessment\\\\\" LIMIT 5;\")",
+      "Bash(node /tmp/qa.js)",
+      "Bash(cat > *)",
+      "Bash(node qa-temp.js)",
+      "Bash(node /Users/user/Documents/projects/pdp-generator/pdp-generator-next/qa-temp.js)"
     ]
   }
 }

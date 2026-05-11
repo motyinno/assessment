@@ -266,7 +266,7 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                           Skills
                         </span>
                       </th>
-                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[120px]">Self-assessment</th>
+                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[90px]">Self-assessment</th>
                       <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[70px]">Score</th>
                       <th className="text-left px-2 py-2 font-medium border-l border-border/60 w-[160px]">Comment</th>
                     </tr>
@@ -292,13 +292,22 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                             </ul>
                           </td>
                           <td className="px-2 py-2 align-top border-r border-border/40">
-                            <div className="flex justify-center">
-                              <ScoreSelector
-                                score={selfScores[topic.id] ?? null}
-                                onChange={(v) => handleSelfScoreChange(section.id, topic.id, v)}
-                                disabled={!isSubject}
-                              />
-                            </div>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={2}
+                              value={selfScores[topic.id] ?? ""}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, "").slice(0, 2);
+                                const n = raw === "" ? null : Number(raw);
+                                const clamped = n === null ? null : Math.min(Math.max(n, 0), 10);
+                                handleSelfScoreChange(section.id, topic.id, clamped);
+                              }}
+                              disabled={!isSubject}
+                              className="w-full h-7 text-center text-[12px] rounded border border-border/60 bg-transparent focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
+                              placeholder="—"
+                            />
                           </td>
                           <td className="px-2 py-2 align-top border-r border-border/40">
                             <input
@@ -342,29 +351,3 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
   );
 }
 
-function ScoreSelector({ score, onChange, disabled }: { score: number | null; onChange: (v: number | null) => void; disabled: boolean }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3, 4, 5].map((v) => {
-        const isActive = score === v;
-        const color = v <= 2 ? "bg-red-500" : v === 3 ? "bg-yellow-500" : "bg-emerald-500";
-        const inactiveColor = v <= 2 ? "border-red-300" : v === 3 ? "border-yellow-300" : "border-emerald-300";
-        return (
-          <button
-            key={v}
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange(isActive ? null : v)}
-            className={`w-5 h-5 rounded-full text-[9px] font-medium flex items-center justify-center transition-all ${
-              isActive
-                ? `${color} text-white shadow-sm`
-                : `border ${inactiveColor} text-muted-foreground ${disabled ? "opacity-40 cursor-default" : "cursor-pointer hover:bg-muted/60"}`
-            }`}
-          >
-            {v}
-          </button>
-        );
-      })}
-    </div>
-  );
-}

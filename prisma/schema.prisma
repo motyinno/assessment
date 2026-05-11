@@ -244,7 +244,7 @@ model SelfAssessment {
   assessmentId String
   sectionId    String
   topicId      String
-  score        Int? // 1-5 self rating; range enforced at API edge
+  score        Int? // 0-10 self rating; range enforced at API edge
   comment      String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

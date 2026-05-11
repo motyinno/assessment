@@ -72,7 +72,7 @@ export const selfAssessmentSchema = z.object({
     z.object({
       sectionId: z.string().min(1),
       topicId: z.string().min(1),
-      score: z.number().int().min(1).max(5).nullable(),
+      score: z.number().int().min(0).max(10).nullable(),
       comment: z.string().optional(),
     })
   ),
