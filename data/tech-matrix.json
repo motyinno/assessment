@@ -414,17 +414,45 @@
       "title": "AI",
       "topics": [
         {
-          "id": "ai-fundamentals-and-tools",
-          "title": "AI Fundamentals & Tools",
-          "jun": ["Differences between LLMs and Agents", "Tokens and context windows", "Prompt engineering basics", "Role prompting", "AI code assistants (Copilot, Cursor, Claude)", "Limitations and hallucinations"],
-          "mid": ["Orchestrating multi-agent setups (lead + sub-agents)", "Designing multi-agent architectures for complex tasks", "Agent workflow monitoring debugging and cost control", "Risks and prevention of prompt injection", "Differences between personal team and enterprise tiers", "Tool selection standardization and onboarding", "ROI analysis: licensing costs vs productivity gains", "RAG (Retrieval Augmented Generation)", "Vector databases concepts", "Evaluation and benchmarking"],
-          "sen": ["Fine-tuning concepts", "AI system architecture", "Cost optimization at scale"]
+          "id": "ai-fundamentals",
+          "title": "AI Fundamentals",
+          "jun": ["Differences between LLMs and Agents", "Mechanics of tokens and context windows", "Indicators of session degradation", "Trade-offs of speed, cost, and quality in models", "Token/Context optimization strategies", "Designing project-level rules and memory files"],
+          "mid": [],
+          "sen": []
         },
         {
-          "id": "ai-infrastructure-and-security",
-          "title": "AI Infrastructure & Security",
-          "jun": ["Conceptual architecture of the MCP standard", "Popular MCP: Figma Context7 PostgreSQL Playwright Supabase Atlassian", "Privacy implications of sharing secrets and PII", "Security risks inherent in AI-generated code", "Principles of subtask scoping and decomposition", "Value of AI as a conceptual learning tool", "Strategy for state recovery and version checkpoints"],
-          "mid": ["Building MCP servers", "AI gateway patterns"],
+          "id": "prompt-engineering",
+          "title": "Prompt Engineering",
+          "jun": ["Principles of role prompting and task decomposition", "Creating reusable templates for recurring tasks", "Orchestrating multi-step prompt chains and workflows", "Cost-quality optimization across prompt patterns"],
+          "mid": [],
+          "sen": []
+        },
+        {
+          "id": "ai-assisted-tools",
+          "title": "AI-Assisted Tools (IDE & Terminal)",
+          "jun": ["Functional differences between agent modes", "Project-level coding style and architecture rules", "Using instruction files like CLAUDE.md or AGENTS.md", "Chaining agent tasks with shell scripts", "Running parallel agents for concurrent tasks", "Designing custom commands and team workflow hooks"],
+          "mid": ["Orchestrating multi-agent setups (lead + sub-agents)", "Designing multi-agent architectures for complex tasks", "Agent workflow monitoring, debugging, and cost control"],
+          "sen": []
+        },
+        {
+          "id": "security-and-privacy",
+          "title": "Security & Privacy",
+          "jun": ["Privacy implications of sharing secrets and PII", "Security risks inherent in AI-generated code"],
+          "mid": ["Risks and prevention of prompt injection", "Differences between personal, team, and enterprise tiers"],
+          "sen": []
+        },
+        {
+          "id": "effective-usage-strategy",
+          "title": "Effective Usage Strategy",
+          "jun": ["Principles of subtask scoping and decomposition", "Value of AI as a conceptual learning tool", "Strategy for state recovery and version checkpoints"],
+          "mid": ["Tool selection, standardization, and onboarding", "ROI analysis: licensing costs vs productivity gains"],
+          "sen": []
+        },
+        {
+          "id": "model-context-protocol",
+          "title": "Model Context Protocol (MCP)",
+          "jun": ["Conceptual architecture of the MCP standard", "Popular MCP: Figma, Context7, PostgreSQL, Playwright, Supabase, Atlassian"],
+          "mid": [],
           "sen": []
         }
       ]
