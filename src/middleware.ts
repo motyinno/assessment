@@ -12,6 +12,15 @@ export default auth((req) => {
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
   if (isPublic || pathname === "/") return NextResponse.next();
 
+  // Bearer token auth for /api/* — actual validation happens in the route's
+  // requireAuth* guard. Middleware only needs to skip the cookie-redirect.
+  if (pathname.startsWith("/api/")) {
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.toLowerCase().startsWith("bearer ")) {
+      return NextResponse.next();
+    }
+  }
+
   if (!req.auth) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
