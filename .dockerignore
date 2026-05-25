@@ -18,3 +18,4 @@ README*
 npm-debug.log*
 .claude
 .cursor
+.idea*
