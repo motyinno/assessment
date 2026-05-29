@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import {
   requireAssessmentRead,
   requireAssessmentAssessor,
+  requireAssessmentSessionRunner,
 } from "@/lib/auth-helpers";
 import { buildSessionsForGrade, SESSION_STATUSES } from "@/lib/assessment-sessions";
 import { syncSessionAssets } from "@/lib/session-sync";
@@ -118,7 +119,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const guard = await requireAssessmentAssessor(id);
+  const guard = await requireAssessmentSessionRunner(id);
   if (guard.error) return guard.error;
   const me = guard.session.user;
 

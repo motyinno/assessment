@@ -8,6 +8,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { AssessmentProgress } from "@/components/assessment-progress";
 import {
   SESSION_TYPE_LABELS,
@@ -131,6 +138,15 @@ interface Assessment {
     user: { id: string; name: string };
   }>;
   sessions: SessionInfo[];
+  viewerCanRunSessions?: boolean;
+  viewerCanManageRoster?: boolean;
+}
+
+interface UserItem {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 }
 
 export default function AssessmentDetailPage() {
@@ -145,14 +161,27 @@ export default function AssessmentDetailPage() {
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedbackSavedAt, setFeedbackSavedAt] = useState<number | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
+  const [users, setUsers] = useState<UserItem[]>([]);
+  const [selectedAssessor, setSelectedAssessor] = useState("");
+  const [rosterLoading, setRosterLoading] = useState(false);
 
   const id = params.id as string;
   const role = session?.user?.role;
   const isAssessor = role === "ASSESSOR" || role === "ADMIN";
+  const canManageRoster = assessment?.viewerCanManageRoster ?? false;
+  const canRunSessions = assessment?.viewerCanRunSessions ?? false;
 
   useEffect(() => {
     fetchAssessment();
   }, [id]);
+
+  useEffect(() => {
+    if (!canManageRoster) return;
+    fetch("/api/users")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setUsers)
+      .catch(() => setUsers([]));
+  }, [canManageRoster]);
 
   async function fetchAssessment() {
     const res = await fetch(`/api/assessments/${id}`);
@@ -193,6 +222,45 @@ export default function AssessmentDetailPage() {
     setSessionActionLoading(false);
   }
 
+
+  async function addAssessor() {
+    if (!selectedAssessor) return;
+    setRosterLoading(true);
+    try {
+      const res = await fetch(`/api/assessments/${id}/participants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: selectedAssessor, participantRole: "ASSESSOR" }),
+      });
+      if (res.ok) {
+        setSelectedAssessor("");
+        await fetchAssessment();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to add assessor");
+      }
+    } finally {
+      setRosterLoading(false);
+    }
+  }
+
+  async function removeAssessor(participantId: string) {
+    setRosterLoading(true);
+    try {
+      const res = await fetch(
+        `/api/assessments/${id}/participants?participantId=${encodeURIComponent(participantId)}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        await fetchAssessment();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Failed to remove assessor");
+      }
+    } finally {
+      setRosterLoading(false);
+    }
+  }
 
   async function createSessions() {
     setSessionActionLoading(true);
@@ -260,6 +328,9 @@ export default function AssessmentDetailPage() {
     (p) => p.participantRole === "ASSESSOR"
   );
 
+  const participantUserIds = new Set(assessment.participants.map((p) => p.user.id));
+  const eligibleAssessors = users.filter((u) => !participantUserIds.has(u.id));
+
   const isSubject = subjects.some((p) => p.user.id === session?.user?.id);
 
   const hasSessions = assessment.sessions && assessment.sessions.length > 0;
@@ -320,7 +391,7 @@ export default function AssessmentDetailPage() {
       {hasSessions && (
         <AssessmentProgress
           sessions={assessment.sessions}
-          isAssessor={isAssessor}
+          canRunSessions={canRunSessions}
           assessmentId={id}
           onSessionAction={handleSessionAction}
           onMeetingChange={fetchAssessment}
@@ -408,11 +479,16 @@ export default function AssessmentDetailPage() {
                 ))}
               </div>
             )}
-            {assessors.length > 0 && (
+            {(assessors.length > 0 || canManageRoster) && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase mb-2">
                   Assessors
                 </p>
+                {assessors.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-1">
+                    No assessors assigned yet
+                  </p>
+                )}
                 {assessors.map((p) => (
                   <div key={p.id} className="flex items-center gap-2 py-1">
                     {isAssessor ? (
@@ -430,8 +506,51 @@ export default function AssessmentDetailPage() {
                         ({JSON.parse(p.assignedSections).join(", ")})
                       </span>
                     )}
+                    {canManageRoster && (
+                      <button
+                        type="button"
+                        onClick={() => removeAssessor(p.id)}
+                        disabled={rosterLoading}
+                        className="ml-auto text-xs text-destructive hover:underline disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 ))}
+                {canManageRoster && (
+                  <div className="flex gap-2 mt-3">
+                    <Select
+                      value={selectedAssessor}
+                      onValueChange={(v) => v && setSelectedAssessor(v)}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Add an assessor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {eligibleAssessors.length === 0 ? (
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                            No eligible users
+                          </div>
+                        ) : (
+                          eligibleAssessors.map((u) => (
+                            <SelectItem key={u.id} value={u.id}>
+                              {u.name} ({u.email})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addAssessor}
+                      disabled={!selectedAssessor || rosterLoading}
+                    >
+                      Add
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

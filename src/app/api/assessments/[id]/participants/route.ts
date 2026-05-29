@@ -1,16 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireAssessmentAssessor } from "@/lib/auth-helpers";
+import { requireAdmin } from "@/lib/auth-helpers";
 import { addParticipantSchema } from "@/lib/schemas";
 import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+
+/**
+ * Roster edits (add/remove assessors) are allowed only while the assessment is
+ * still active. Returns a response to short-circuit on, or null when editable.
+ */
+async function assertRosterEditable(assessmentId: string): Promise<Response | null> {
+  const assessment = await prisma.assessment.findUnique({
+    where: { id: assessmentId },
+    select: { status: true },
+  });
+  if (!assessment) return notFound("Assessment not found");
+  if (assessment.status === "COMPLETED" || assessment.status === "CANCELLED") {
+    return badRequest("Can't change assessors on a completed or cancelled assessment");
+  }
+  return null;
+}
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const guard = await requireAssessmentAssessor(params.id);
+  const guard = await requireAdmin();
   if (guard.error) return guard.error;
+
+  const blocked = await assertRosterEditable(params.id);
+  if (blocked) return blocked;
 
   const parsed = await parseJsonBody(req, addParticipantSchema);
   if (parsed.error) return parsed.error;
@@ -39,8 +58,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const guard = await requireAssessmentAssessor(params.id);
+  const guard = await requireAdmin();
   if (guard.error) return guard.error;
+
+  const blocked = await assertRosterEditable(params.id);
+  if (blocked) return blocked;
 
   const { searchParams } = new URL(req.url);
   const participantId = searchParams.get("participantId");

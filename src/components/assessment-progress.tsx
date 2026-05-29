@@ -30,7 +30,7 @@ interface Session {
 
 interface AssessmentProgressProps {
   sessions: Session[];
-  isAssessor: boolean;
+  canRunSessions: boolean;
   assessmentId: string;
   onSessionAction: (
     sessionId: string,
@@ -43,7 +43,7 @@ interface AssessmentProgressProps {
 
 export function AssessmentProgress({
   sessions,
-  isAssessor,
+  canRunSessions,
   assessmentId,
   onSessionAction,
   onMeetingChange,
@@ -168,7 +168,7 @@ export function AssessmentProgress({
                 )}
 
               {/* Actions */}
-              {isAssessor && session.status === "NOT_STARTED" && (
+              {canRunSessions && session.status === "NOT_STARTED" && (
                 <div className="mt-2 flex flex-col gap-1 items-stretch w-full">
                   <ScheduleMeetingControl
                     assessmentId={assessmentId}
@@ -186,7 +186,7 @@ export function AssessmentProgress({
                   )}
                 </div>
               )}
-              {isAssessor && session.status === "IN_PROGRESS" && (
+              {canRunSessions && session.status === "IN_PROGRESS" && (
                 <div className="mt-2 flex flex-col gap-1 items-stretch w-full">
                   {session.meetingLink && (
                     <a

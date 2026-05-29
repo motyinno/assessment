@@ -138,6 +138,61 @@ export async function requireAssessmentAssessor(
 }
 
 /**
+ * Authorize *running* an assessment's sessions — scheduling meetings and
+ * starting/completing sessions. Allowed for: admins (org-wide), an ASSESSOR
+ * participant of the assessment, or the MANAGER of the assessment's subject.
+ */
+export async function requireAssessmentSessionRunner(
+  assessmentId: string
+): Promise<AssessmentGuard> {
+  const a = await requireAuth();
+  if (a.error) {
+    return { error: a.error, session: null, assessmentId: null };
+  }
+  const me = a.session.user;
+
+  const exists = await prisma.assessment.findUnique({
+    where: { id: assessmentId },
+    select: { id: true },
+  });
+  if (!exists) {
+    return { error: notFound("Assessment not found"), session: null, assessmentId: null };
+  }
+
+  if (isAdmin(me.role)) {
+    return { error: null, session: a.session, assessmentId };
+  }
+
+  if (!isStaff(me.role)) {
+    return { error: forbidden(), session: null, assessmentId: null };
+  }
+
+  const asAssessor = await prisma.assessmentParticipant.findFirst({
+    where: { assessmentId, userId: me.id, participantRole: "ASSESSOR" },
+    select: { id: true },
+  });
+  if (asAssessor) {
+    return { error: null, session: a.session, assessmentId };
+  }
+
+  if (canManagePeople(me.role)) {
+    const managesSubject = await prisma.assessmentParticipant.findFirst({
+      where: {
+        assessmentId,
+        participantRole: "SUBJECT",
+        user: { managerId: me.id },
+      },
+      select: { id: true },
+    });
+    if (managesSubject) {
+      return { error: null, session: a.session, assessmentId };
+    }
+  }
+
+  return { error: forbidden(), session: null, assessmentId: null };
+}
+
+/**
  * Authorize the SUBJECT of an assessment to act on their own self-assessment.
  */
 export async function requireAssessmentSubject(

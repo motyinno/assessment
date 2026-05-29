@@ -4,6 +4,7 @@ import {
   requireAssessmentRead,
   requireAssessmentAssessor,
 } from "@/lib/auth-helpers";
+import { isAdmin, canManagePeople } from "@/lib/roles";
 import { parseJsonBody } from "@/lib/api-helpers";
 import { patchAssessmentSchema } from "@/lib/schemas";
 
@@ -43,7 +44,30 @@ export async function GET(
   if (!assessment) {
     return NextResponse.json({ error: { code: "NOT_FOUND", message: "Not found" } }, { status: 404 });
   }
-  return NextResponse.json(assessment);
+
+  // Viewer-scoped capabilities the client uses to decide which controls to
+  // render. Mirrors the server-side guards (requireAssessmentSessionRunner,
+  // requireAdmin) so the UI never offers an action the API will reject.
+  const me = guard.session.user;
+  const managesSubject = assessment.participants.some(
+    (p) => p.participantRole === "SUBJECT" && p.user.managerId === me.id
+  );
+  const isAssessorParticipant = assessment.participants.some(
+    (p) => p.participantRole === "ASSESSOR" && p.user.id === me.id
+  );
+  const viewerCanRunSessions =
+    isAdmin(me.role) ||
+    isAssessorParticipant ||
+    (canManagePeople(me.role) && managesSubject);
+  const viewerCanManageRoster =
+    isAdmin(me.role) &&
+    (assessment.status === "PLANNED" || assessment.status === "IN_PROGRESS");
+
+  return NextResponse.json({
+    ...assessment,
+    viewerCanRunSessions,
+    viewerCanManageRoster,
+  });
 }
 
 export async function PATCH(

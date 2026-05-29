@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAssessmentAssessor } from "@/lib/auth-helpers";
+import { requireAssessmentSessionRunner } from "@/lib/auth-helpers";
 import { SESSION_TYPE_LABELS } from "@/lib/assessment-sessions";
 import {
   createAssessmentMeeting,
@@ -20,7 +20,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const guard = await requireAssessmentAssessor(id);
+  const guard = await requireAssessmentSessionRunner(id);
   if (guard.error) return guard.error;
   const me = guard.session.user;
 
