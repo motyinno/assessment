@@ -117,31 +117,3 @@ export const log = {
     console.error(fmt("error", msg, meta));
   },
 };
-
-/**
- * Wrap a route handler with a top-level try/catch that turns unexpected errors
- * into a logged 500 instead of leaking stack traces to the client.
- */
-export function withApiHandler<TArgs extends unknown[]>(
-  handler: (...args: TArgs) => Promise<Response>,
-  routeName: string
-) {
-  return async (...args: TArgs): Promise<Response> => {
-    try {
-      return await handler(...args);
-    } catch (e) {
-      log.error("Unhandled route error", {
-        route: routeName,
-        error: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
-      });
-      return serverError(
-        process.env.NODE_ENV === "production"
-          ? "Internal server error"
-          : e instanceof Error
-            ? e.message
-            : String(e)
-      );
-    }
-  };
-}

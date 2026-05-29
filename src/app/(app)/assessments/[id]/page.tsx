@@ -8,13 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { AssessorCombobox } from "@/components/assessor-combobox";
 import { AssessmentProgress } from "@/components/assessment-progress";
 import {
   SESSION_TYPE_LABELS,
@@ -122,7 +116,7 @@ interface Assessment {
     id: string;
     participantRole: string;
     assignedSections: string | null;
-    user: { id: string; name: string; email: string };
+    user: { id: string; name: string; email: string; managerId?: string | null };
   }>;
   results: Array<{
     id: string;
@@ -162,7 +156,6 @@ export default function AssessmentDetailPage() {
   const [feedbackSavedAt, setFeedbackSavedAt] = useState<number | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
   const [users, setUsers] = useState<UserItem[]>([]);
-  const [selectedAssessor, setSelectedAssessor] = useState("");
   const [rosterLoading, setRosterLoading] = useState(false);
 
   const id = params.id as string;
@@ -177,7 +170,7 @@ export default function AssessmentDetailPage() {
 
   useEffect(() => {
     if (!canManageRoster) return;
-    fetch("/api/users")
+    fetch("/api/users?role=ASSESSOR,MANAGER")
       .then((r) => (r.ok ? r.json() : []))
       .then(setUsers)
       .catch(() => setUsers([]));
@@ -223,17 +216,15 @@ export default function AssessmentDetailPage() {
   }
 
 
-  async function addAssessor() {
-    if (!selectedAssessor) return;
+  async function addAssessor(userId: string) {
     setRosterLoading(true);
     try {
       const res = await fetch(`/api/assessments/${id}/participants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: selectedAssessor, participantRole: "ASSESSOR" }),
+        body: JSON.stringify({ userId, participantRole: "ASSESSOR" }),
       });
       if (res.ok) {
-        setSelectedAssessor("");
         await fetchAssessment();
       } else {
         const err = await res.json().catch(() => ({}));
@@ -329,7 +320,18 @@ export default function AssessmentDetailPage() {
   );
 
   const participantUserIds = new Set(assessment.participants.map((p) => p.user.id));
-  const eligibleAssessors = users.filter((u) => !participantUserIds.has(u.id));
+  // A subject's own manager can't assess them, so exclude them from the picker.
+  const subjectManagerIds = new Set(
+    subjects
+      .map((p) => p.user.managerId)
+      .filter((x): x is string => !!x)
+  );
+  const eligibleAssessors = users.filter(
+    (u) =>
+      (u.role === "ASSESSOR" || u.role === "MANAGER") &&
+      !participantUserIds.has(u.id) &&
+      !subjectManagerIds.has(u.id)
+  );
 
   const isSubject = subjects.some((p) => p.user.id === session?.user?.id);
 
@@ -519,36 +521,16 @@ export default function AssessmentDetailPage() {
                   </div>
                 ))}
                 {canManageRoster && (
-                  <div className="flex gap-2 mt-3">
-                    <Select
-                      value={selectedAssessor}
-                      onValueChange={(v) => v && setSelectedAssessor(v)}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Add an assessor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {eligibleAssessors.length === 0 ? (
-                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                            No eligible users
-                          </div>
-                        ) : (
-                          eligibleAssessors.map((u) => (
-                            <SelectItem key={u.id} value={u.id}>
-                              {u.name} ({u.email})
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={addAssessor}
-                      disabled={!selectedAssessor || rosterLoading}
-                    >
-                      Add
-                    </Button>
+                  <div className="mt-3">
+                    <AssessorCombobox
+                      options={eligibleAssessors}
+                      onSelect={addAssessor}
+                      disabled={rosterLoading}
+                    />
+                    <p className="mt-1.5 text-[11px] text-muted-foreground">
+                      Only assessors and managers can be added. The subject&apos;s
+                      own manager isn&apos;t shown.
+                    </p>
                   </div>
                 )}
               </div>

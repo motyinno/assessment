@@ -44,7 +44,11 @@
       "Bash(cat > *)",
       "Bash(node qa-temp.js)",
       "Bash(node /Users/user/Documents/projects/pdp-generator/pdp-generator-next/qa-temp.js)",
-      "Bash(node -e \"console.log\\(Object.keys\\(require\\('./package.json'\\).scripts||{}\\).join\\('\\\\n'\\)\\)\")"
+      "Bash(node -e \"console.log\\(Object.keys\\(require\\('./package.json'\\).scripts||{}\\).join\\('\\\\n'\\)\\)\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(rm -r \"src/app/\\(app\\)/assessments/[id]/conduct\" && echo \"removed\"; echo \"--- check who else uses the results API & parse-excel \\(related, not removing\\) ---\"; grep -rn \"/results\\\\b\\\\|parse-excel\" src | grep -v \"api/assessments/\\\\[id\\\\]/results/route.ts\" | grep -v \"api/parse-excel/route.ts\")",
+      "Bash(grep -rn '\\\\b__TRACKED_VAR__\\\\b' src)",
+      "Bash(grep -rn '\\\\b__TRACKED_VAR__\\\\b' . --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git)"
     ]
   }
 }

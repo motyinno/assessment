@@ -35,11 +35,27 @@ export async function POST(
   if (parsed.error) return parsed.error;
   const { userId, participantRole, assignedSections } = parsed.data;
 
-  const userExists = await prisma.user.findUnique({
+  const candidate = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true },
+    select: { id: true, role: true },
   });
-  if (!userExists) return notFound("User not found");
+  if (!candidate) return notFound("User not found");
+
+  // Assessors must be assessors or managers, and a subject's own manager can't
+  // assess them. Mirrors the client-side picker filter so a direct API call
+  // can't create an invalid roster.
+  if (participantRole === "ASSESSOR") {
+    if (candidate.role !== "ASSESSOR" && candidate.role !== "MANAGER") {
+      return badRequest("Only assessors or managers can be added as assessors");
+    }
+    const subject = await prisma.assessmentParticipant.findFirst({
+      where: { assessmentId: params.id, participantRole: "SUBJECT" },
+      select: { user: { select: { managerId: true } } },
+    });
+    if (subject?.user.managerId === userId) {
+      return badRequest("A subject's own manager can't be their assessor");
+    }
+  }
 
   const participant = await prisma.assessmentParticipant.create({
     data: {

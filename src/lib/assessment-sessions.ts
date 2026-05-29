@@ -102,16 +102,3 @@ export function buildSessionsForGrade(
 
   return sessions;
 }
-
-/**
- * Get total planned hours for an assessment.
- */
-export function getTotalHours(
-  grade: string,
-  softAiSkipped: boolean,
-  assessmentType: string = ASSESSMENT_TYPES.GENERAL
-): number {
-  if (assessmentType === ASSESSMENT_TYPES.PDP_CHECK) return 1;
-  const techHours = baseGrade(grade) === "jun" ? 2 : 3;
-  return techHours + (softAiSkipped ? 0 : 1);
-}
