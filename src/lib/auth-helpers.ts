@@ -3,13 +3,15 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { isStaff, isAdmin, canManagePeople } from "@/lib/roles";
 import { unauthorized, forbidden, notFound } from "@/lib/api-helpers";
+import { sessionFromBearerToken } from "@/lib/api-tokens";
 
 type AuthOk = { error: null; session: Session };
 type AuthFail = { error: Response; session: null };
 type AuthGuard = AuthOk | AuthFail;
 
 export async function requireAuth(): Promise<AuthGuard> {
-  const session = await auth();
+  const tokenSession = await sessionFromBearerToken();
+  const session = tokenSession ?? (await auth());
   if (!session?.user) {
     return { error: unauthorized(), session: null };
   }

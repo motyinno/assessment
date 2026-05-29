@@ -91,8 +91,27 @@ model User {
   createdPdps          Pdp[]                       @relation("createdPdps")
   requestedAssessments AssessmentRequest[]         @relation("requestedBy")
   requestAssessors     AssessmentRequestAssessor[]
+  apiTokens            ApiToken[]
 
   @@index([managerId])
+}
+
+/// Personal access tokens for programmatic API access (no Google OAuth).
+/// Only the SHA-256 hash is stored. Token inherits the owning user's role/permissions.
+model ApiToken {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  tokenHash   String    @unique
+  tokenPrefix String
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Assessment {
