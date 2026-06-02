@@ -8,6 +8,7 @@ import {
   conflict,
   parseJsonBody,
 } from "@/lib/api-helpers";
+import { notifyAdminsOfNewRequest } from "@/lib/notifications";
 
 export async function GET() {
   const auth = await requireAuth();
@@ -64,6 +65,8 @@ export async function POST(req: NextRequest) {
     },
     include: { user: { select: { id: true, name: true, email: true } } },
   });
+
+  await notifyAdminsOfNewRequest(request.user.name);
 
   return NextResponse.json(request, { status: 201 });
 }

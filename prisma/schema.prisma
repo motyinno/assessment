@@ -67,6 +67,13 @@ enum RequestStatus {
   REJECTED
 }
 
+enum NotificationType {
+  REQUEST_SUBMITTED // -> admins: a user requested an assessment
+  ASSESSMENT_ASSIGNED // -> assessor: assigned to an assessment
+  REQUEST_APPROVED // -> requester: request approved
+  REQUEST_REJECTED // -> requester: request rejected
+}
+
 // ---- Models ----
 
 model User {
@@ -92,6 +99,7 @@ model User {
   requestedAssessments AssessmentRequest[]         @relation("requestedBy")
   requestAssessors     AssessmentRequestAssessor[]
   apiTokens            ApiToken[]
+  notifications        Notification[]
 
   @@index([managerId])
 }
@@ -256,6 +264,25 @@ model AssessmentSession {
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@unique([assessmentId, type])
+}
+
+/// In-app notification for a single recipient. Mirrored to email on creation
+/// (best-effort) so recipients are reached even when the app is closed.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  /// Relative in-app link to the related request/assessment.
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 model SelfAssessment {

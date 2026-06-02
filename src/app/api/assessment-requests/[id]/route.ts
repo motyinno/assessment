@@ -8,6 +8,11 @@ import {
   notFound,
   parseJsonBody,
 } from "@/lib/api-helpers";
+import {
+  notifyRequestApproved,
+  notifyRequestRejected,
+  notifyAssessorsAssigned,
+} from "@/lib/notifications";
 
 export async function PATCH(
   req: NextRequest,
@@ -120,6 +125,17 @@ export async function PATCH(
       });
     });
 
+    if (updated.assessment) {
+      await Promise.all([
+        notifyRequestApproved(updated.user, updated.assessment.id),
+        notifyAssessorsAssigned(
+          updated.assessors.map((a) => a.assessor),
+          updated.user.name,
+          updated.assessment.id
+        ),
+      ]);
+    }
+
     return NextResponse.json(updated);
   }
 
@@ -129,6 +145,8 @@ export async function PATCH(
     data: { status: "REJECTED", adminNotes: trimmedAdminNotes },
     include: { user: { select: { id: true, name: true, email: true } } },
   });
+
+  await notifyRequestRejected(updated.user, trimmedAdminNotes);
 
   return NextResponse.json(updated);
 }

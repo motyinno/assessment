@@ -66,6 +66,46 @@ const GRADE_LABEL_COLOR: Record<string, string> = {
   sen: "text-purple-600 dark:text-purple-300",
 };
 
+/**
+ * Comment field that grows vertically with its content and wraps text, so long
+ * comments are fully visible instead of scrolling horizontally in a tiny box.
+ */
+function CommentTextarea({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, []);
+
+  // Re-fit when the value changes externally (initial load) or via typing.
+  useEffect(() => {
+    resize();
+  }, [value, resize]);
+
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      value={value}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full min-h-[28px] resize-none overflow-hidden text-[12px] leading-snug rounded border border-border/60 bg-transparent px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
+      placeholder="Comment..."
+    />
+  );
+}
+
 export function AssessmentMatrix({ assessmentId, grade, isSubject, canAssess }: AssessmentMatrixProps) {
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
@@ -257,20 +297,20 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, canAssess }: 
             </button>
 
             {!isCollapsed && (
-              <div className="border-t">
-                <table className="w-full text-[12px]">
+              <div className="border-t overflow-x-auto">
+                <table className="w-full table-fixed min-w-[820px] text-[12px]">
                   <thead>
                     <tr className="bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      <th className="text-left px-3 py-2 font-medium w-[140px]">Topic</th>
+                      <th className="text-left px-3 py-2 font-medium w-[130px]">Topic</th>
                       <th className="text-left px-3 py-2 font-medium border-l border-border/60 w-[280px]">
                         <span className={`inline-flex items-center gap-1 ${GRADE_LABEL_COLOR[base]}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${GRADE_DOT_BG[base]}`} />
                           Skills
                         </span>
                       </th>
-                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[90px]">Self-assessment</th>
-                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[70px]">Score</th>
-                      <th className="text-left px-2 py-2 font-medium border-l border-border/60 w-[160px]">Comment</th>
+                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[84px]">Self-assessment</th>
+                      <th className="text-center px-2 py-2 font-medium border-l border-border/60 w-[64px]">Score</th>
+                      <th className="text-left px-2 py-2 font-medium border-l border-border/60">Comment</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
@@ -330,13 +370,10 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, canAssess }: 
                             />
                           </td>
                           <td className="px-2 py-2 align-top">
-                            <input
-                              type="text"
+                            <CommentTextarea
                               value={aScore?.comment ?? ""}
-                              onChange={(e) => handleAssessorChange(topic.id, "comment", e.target.value)}
                               disabled={!canAssess}
-                              className="w-full h-7 text-[12px] rounded border border-border/60 bg-transparent px-2 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
-                              placeholder="Comment..."
+                              onChange={(v) => handleAssessorChange(topic.id, "comment", v)}
                             />
                           </td>
                         </tr>

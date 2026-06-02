@@ -6,6 +6,7 @@ import { signOut } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface SidebarProps {
   user: {
@@ -134,8 +135,8 @@ export function AppSidebar({ user }: SidebarProps) {
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo area */}
-      <div className="px-5 py-5">
-        <Link href="/dashboard" className="flex items-center gap-3 group">
+      <div className="flex items-center justify-between gap-2 px-5 py-5">
+        <Link href="/dashboard" className="flex min-w-0 items-center gap-3 group">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm ring-1 ring-primary/20 group-hover:shadow-md transition-shadow">
             <span className="text-primary-foreground text-[11px] font-bold tracking-wider">NA</span>
           </div>
@@ -144,6 +145,7 @@ export function AppSidebar({ user }: SidebarProps) {
             <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Assessments & PDPs</p>
           </div>
         </Link>
+        <NotificationBell />
       </div>
 
       <div className="mx-3 h-px bg-sidebar-border" />
