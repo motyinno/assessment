@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import {
   requireAssessmentRead,
-  requireAssessmentAssessor,
+  requireAssessmentSessionRunner,
 } from "@/lib/auth-helpers";
 import { resultsBatchSchema } from "@/lib/schemas";
 import { parseJsonBody } from "@/lib/api-helpers";
@@ -27,7 +27,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const guard = await requireAssessmentAssessor(params.id);
+  const guard = await requireAssessmentSessionRunner(params.id);
   if (guard.error) return guard.error;
 
   const parsed = await parseJsonBody(req, resultsBatchSchema);

@@ -751,7 +751,7 @@ export default function AssessmentDetailPage() {
                 assessmentId={assessment.id}
                 grade={assessment.grade}
                 isSubject={isSubject}
-                isAssessor={isAssessor}
+                canAssess={canRunSessions}
               />
             </CardContent>
           )}

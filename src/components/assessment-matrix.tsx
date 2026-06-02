@@ -38,7 +38,9 @@ interface AssessmentMatrixProps {
   assessmentId: string;
   grade: string;
   isSubject: boolean;
-  isAssessor: boolean;
+  /** Whether the viewer may fill the assessor scores/comments — assessors,
+   *  admins, or a manager assigned to the assessment (manager of the subject). */
+  canAssess: boolean;
 }
 
 const SECTION_COLORS: Record<string, { border: string; bg: string; text: string }> = {
@@ -64,7 +66,7 @@ const GRADE_LABEL_COLOR: Record<string, string> = {
   sen: "text-purple-600 dark:text-purple-300",
 };
 
-export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }: AssessmentMatrixProps) {
+export function AssessmentMatrix({ assessmentId, grade, isSubject, canAssess }: AssessmentMatrixProps) {
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -322,7 +324,7 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                                 const clamped = n === null ? null : Math.min(Math.max(n, 0), 10);
                                 handleAssessorChange(topic.id, "score", clamped);
                               }}
-                              disabled={!isAssessor}
+                              disabled={!canAssess}
                               className="w-full h-7 text-center text-[12px] rounded border border-border/60 bg-transparent focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                               placeholder="—"
                             />
@@ -332,7 +334,7 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, isAssessor }:
                               type="text"
                               value={aScore?.comment ?? ""}
                               onChange={(e) => handleAssessorChange(topic.id, "comment", e.target.value)}
-                              disabled={!isAssessor}
+                              disabled={!canAssess}
                               className="w-full h-7 text-[12px] rounded border border-border/60 bg-transparent px-2 focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-50"
                               placeholder="Comment..."
                             />
