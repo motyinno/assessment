@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { GRADE_VALUES } from "@/lib/grades";
 import { ROLES } from "@/lib/roles";
+import { normalizeCertCode } from "@/lib/certificates";
 
 const gradeEnum = z.enum(GRADE_VALUES as unknown as readonly [string, ...string[]]);
 const roleEnum = z.enum(ROLES as unknown as readonly [string, ...string[]]);
@@ -22,6 +23,20 @@ export const patchUserSchema = z.object({
   project: z.string().optional().nullable(),
   managerId: z.string().nullable().optional(),
   role: roleEnum.optional(),
+});
+
+// ---- Certificates ----
+
+export const createCertificateSchema = z.object({
+  // Stored bare; the verify URL is derived. Codes are alphanumeric, e.g.
+  // "5Y0FT4E8X7GG9F6T". A pasted verify URL is accepted too (trailing code is
+  // extracted) and the result is uppercased before validating.
+  code: z
+    .string()
+    .transform(normalizeCertCode)
+    .pipe(
+      z.string().regex(/^[A-Z0-9]{6,32}$/, "Code must be 6–32 letters and digits")
+    ),
 });
 
 // ---- Assessments ----

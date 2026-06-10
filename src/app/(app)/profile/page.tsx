@@ -17,6 +17,7 @@ import {
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { ApiTokensCard } from "@/components/api-tokens-card";
+import { CertificatesCard } from "@/components/certificates-card";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
@@ -291,6 +292,8 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      <CertificatesCard />
 
       <ApiTokensCard />
     </div>

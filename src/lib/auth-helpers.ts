@@ -36,6 +36,16 @@ export async function requireAdmin(): Promise<AuthGuard> {
   return a;
 }
 
+/** Caller must be a manager or admin. */
+export async function requireManager(): Promise<AuthGuard> {
+  const a = await requireAuth();
+  if (a.error) return a;
+  if (!canManagePeople(a.session.user.role)) {
+    return { error: forbidden(), session: null };
+  }
+  return a;
+}
+
 /**
  * Caller must be the target user, an admin, or the target user's manager.
  * Used for mutating /api/users/[id]/* endpoints and PDP-on-behalf-of-user

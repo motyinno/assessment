@@ -100,8 +100,24 @@ model User {
   requestAssessors     AssessmentRequestAssessor[]
   apiTokens            ApiToken[]
   notifications        Notification[]
+  certificates         Certificate[]
 
   @@index([managerId])
+}
+
+/// A certificate a user adds to their profile. Stored as the bare code
+/// (e.g. "5Y0FT4E8X7GG9F6T"); the public verification URL is derived as
+/// `${CERT_VERIFY_BASE_URL}${code}` (see lib/certificates.ts).
+model Certificate {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 /// Personal access tokens for programmatic API access (no Google OAuth).

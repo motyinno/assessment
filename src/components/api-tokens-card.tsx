@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { canManagePeople } from "@/lib/roles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +52,10 @@ function statusOf(t: TokenRow): { label: string; variant: "default" | "secondary
 }
 
 export function ApiTokensCard() {
+  const { data: session } = useSession();
+  const canCreate = canManagePeople(
+    (session?.user as { role?: string } | undefined)?.role
+  );
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -130,7 +136,9 @@ export function ApiTokensCard() {
             Personal access tokens for programmatic API access. Inherit your role and permissions.
           </p>
         </div>
-        <Button onClick={() => setCreating(true)}>Create token</Button>
+        {canCreate && (
+          <Button onClick={() => setCreating(true)}>Create token</Button>
+        )}
       </CardHeader>
       <CardContent>
         {loading ? (

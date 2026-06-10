@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-helpers";
+import { requireAuth, requireManager } from "@/lib/auth-helpers";
 import { parseJsonBody } from "@/lib/api-helpers";
 import { generateApiToken } from "@/lib/api-tokens";
 
@@ -31,7 +31,9 @@ const CreateSchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const a = await requireAuth();
+  // Only managers and admins may mint API tokens; everyone can still list/revoke
+  // their own existing tokens above.
+  const a = await requireManager();
   if (a.error) return a.error;
 
   const body = await parseJsonBody(req, CreateSchema);
