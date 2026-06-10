@@ -75,13 +75,7 @@ export async function POST(
 
   const assessment = await prisma.assessment.findUnique({
     where: { id },
-    include: {
-      participants: {
-        include: {
-          user: { select: { id: true, softAiInterviewPassed: true } },
-        },
-      },
-    },
+    include: { participants: true },
   });
   if (!assessment) return notFound("Assessment not found");
 
@@ -92,7 +86,6 @@ export async function POST(
 
   const templates = buildSessionsForGrade(
     assessment.grade,
-    subject.user.softAiInterviewPassed,
     assessment.assessmentType
   );
 
@@ -178,32 +171,16 @@ export async function PATCH(
   if (recordingLink !== undefined) updateData.recordingLink = recordingLink;
   if (meetingLink !== undefined) updateData.meetingLink = meetingLink;
 
-  // The session update + cascading assessment-status update + soft-AI flag
-  // should be atomic — one transaction so a partial update can't leave the
-  // assessment "completed" while sessions still show otherwise.
+  // The session update + cascading assessment-status update should be atomic —
+  // one transaction so a partial update can't leave the assessment "completed"
+  // while sessions still show otherwise.
   const updatedSession = await prisma.$transaction(async (tx) => {
     const updated = await tx.assessmentSession.update({
       where: { id: sessionId },
       data: updateData,
     });
 
-    // 1. SOFT_AI completion → mark user as having passed it.
-    if (
-      session.type === "SOFT_AI" &&
-      status === SESSION_STATUSES.COMPLETED
-    ) {
-      const subject = await tx.assessmentParticipant.findFirst({
-        where: { assessmentId: session.assessmentId, participantRole: "SUBJECT" },
-      });
-      if (subject) {
-        await tx.user.update({
-          where: { id: subject.userId },
-          data: { softAiInterviewPassed: true },
-        });
-      }
-    }
-
-    // 2. Roll the assessment status forward when sessions transition.
+    // Roll the assessment status forward when sessions transition.
     const allSessions = await tx.assessmentSession.findMany({
       where: { assessmentId: id },
     });

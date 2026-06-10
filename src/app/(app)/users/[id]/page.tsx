@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
 import { ManagerCombobox } from "@/components/manager-combobox";
+import { cn } from "@/lib/utils";
 
 interface Assessment {
   id: string;
@@ -326,6 +327,13 @@ export default function UserProfilePage() {
   const completedAssessments = profile.participations.filter(
     (p) => p.assessment.status === "COMPLETED"
   ).length;
+  // participations come back desc by createdAt, so .find gives the most recent.
+  const latestCompletedAssessment =
+    profile.participations.find(
+      (p) =>
+        p.assessment.status === "COMPLETED" &&
+        p.assessment.assessmentType !== "PDP_CHECK"
+    )?.assessment ?? null;
 
   return (
     <div className="space-y-6">
@@ -384,6 +392,21 @@ export default function UserProfilePage() {
               ) : (
                 <div className="text-[11px] text-muted-foreground rounded-md border border-dashed px-3 py-2 text-center">
                   No grade — generation unavailable
+                </div>
+              )}
+              {latestCompletedAssessment ? (
+                <Link
+                  href={`/assessments/${latestCompletedAssessment.id}/generate`}
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "h-auto min-h-9 py-1.5 whitespace-normal text-center leading-tight"
+                  )}
+                >
+                  Generate PDP from assessment
+                </Link>
+              ) : (
+                <div className="text-[11px] text-muted-foreground rounded-md border border-dashed px-3 py-2 text-center">
+                  No completed assessment
                 </div>
               )}
               <Button variant="outline" size="lg" onClick={openAttach}>

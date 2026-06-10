@@ -47,17 +47,7 @@ export async function POST(req: NextRequest) {
 
   const subject = participants?.find((p) => p.participantRole === "SUBJECT");
 
-  // Look up softAi flag once so we can build sessions inside the same tx.
-  const subjectUser = subject
-    ? await prisma.user.findUnique({
-        where: { id: subject.userId },
-        select: { softAiInterviewPassed: true },
-      })
-    : null;
-
-  const sessionTemplates = subject
-    ? buildSessionsForGrade(grade, subjectUser?.softAiInterviewPassed ?? false)
-    : [];
+  const sessionTemplates = subject ? buildSessionsForGrade(grade) : [];
 
   // Atomic: create assessment + participants + sessions, or none of them.
   const assessment = await prisma.$transaction(async (tx) => {

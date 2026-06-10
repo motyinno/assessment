@@ -1,5 +1,4 @@
 export const SESSION_TYPES = {
-  SOFT_AI: "SOFT_AI",
   TECHNICAL_1: "TECHNICAL_1",
   TECHNICAL_2: "TECHNICAL_2",
   TECHNICAL_3: "TECHNICAL_3",
@@ -24,7 +23,6 @@ export const ASSESSMENT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const SESSION_TYPE_LABELS: Record<string, string> = {
-  SOFT_AI: "Soft + AI",
   TECHNICAL_1: "Technical 1",
   TECHNICAL_2: "Technical 2",
   TECHNICAL_3: "Technical 3",
@@ -49,12 +47,11 @@ export interface SessionTemplate {
 
 /**
  * Build session templates for a given grade and assessment type.
- * - GENERAL: SOFT_AI (SKIPPED if already passed) + 2 tech sessions (jun) or 3 (mid/sen).
+ * - GENERAL: 2 technical sessions (jun) or 3 (mid/sen).
  * - PDP_CHECK: single 1-hour tech session (PDP_TECH).
  */
 export function buildSessionsForGrade(
   grade: string,
-  softAiInterviewPassed: boolean,
   assessmentType: string = ASSESSMENT_TYPES.GENERAL
 ): SessionTemplate[] {
   if (assessmentType === ASSESSMENT_TYPES.PDP_CHECK) {
@@ -70,21 +67,15 @@ export function buildSessionsForGrade(
 
   const sessions: SessionTemplate[] = [
     {
-      type: SESSION_TYPES.SOFT_AI,
-      status: softAiInterviewPassed ? SESSION_STATUSES.SKIPPED : SESSION_STATUSES.NOT_STARTED,
-      order: 0,
-      durationMin: 60,
-    },
-    {
       type: SESSION_TYPES.TECHNICAL_1,
       status: SESSION_STATUSES.NOT_STARTED,
-      order: 1,
+      order: 0,
       durationMin: 60,
     },
     {
       type: SESSION_TYPES.TECHNICAL_2,
       status: SESSION_STATUSES.NOT_STARTED,
-      order: 2,
+      order: 1,
       durationMin: 60,
     },
   ];
@@ -95,7 +86,7 @@ export function buildSessionsForGrade(
     sessions.push({
       type: SESSION_TYPES.TECHNICAL_3,
       status: SESSION_STATUSES.NOT_STARTED,
-      order: 3,
+      order: 2,
       durationMin: 60,
     });
   }

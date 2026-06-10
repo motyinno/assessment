@@ -61,8 +61,13 @@ export const patchAssessmentSchema = z.object({
   notes: z.string().optional().nullable(),
   aiFeedback: z.string().optional().nullable(),
   scheduledAt: z.string().datetime().optional().nullable(),
-  status: z.enum(["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]).optional(),
+  // Cancellation is admin-only and goes through POST /assessments/[id]/cancel.
+  status: z.enum(["PLANNED", "IN_PROGRESS", "COMPLETED"]).optional(),
   optionalGuestEmail: z.union([z.string().email(), z.literal(""), z.null()]).optional(),
+});
+
+export const cancelAssessmentSchema = z.object({
+  reason: z.string().trim().min(1, "A cancellation reason is required"),
 });
 
 export const addParticipantSchema = z.object({
@@ -135,6 +140,19 @@ export const reviewPdpSchema = z.object({
   action: z.enum(["approve", "comment"]),
   reviewNotes: z.string().optional(),
 });
+
+// Admin decision on an ended assessment: upgrade the subject's grade (admin
+// picks the new grade) or record a no-upgrade decision.
+export const assessmentReviewDecisionSchema = z
+  .object({
+    action: z.enum(["upgrade", "noUpgrade"]),
+    newGrade: gradeEnum.optional(),
+    reviewNotes: z.string().optional().nullable(),
+  })
+  .refine((d) => d.action !== "upgrade" || !!d.newGrade, {
+    message: "newGrade is required when upgrading",
+    path: ["newGrade"],
+  });
 
 // ---- AI feedback / generate ----
 

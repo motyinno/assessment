@@ -27,6 +27,12 @@ enum AssessmentStatus {
   CANCELLED
 }
 
+enum AssessmentReviewStatus {
+  NONE // default — not submitted for admin review
+  PENDING // assessor ended the assessment; awaiting admin decision
+  REVIEWED // admin recorded an upgrade / no-upgrade decision
+}
+
 enum AssessmentTypeEnum {
   GENERAL
   PDP_CHECK
@@ -38,7 +44,6 @@ enum ParticipantRole {
 }
 
 enum SessionType {
-  SOFT_AI
   TECHNICAL_1
   TECHNICAL_2
   TECHNICAL_3
@@ -84,7 +89,6 @@ model User {
   grade                 String? // "jun-" / "jun" / "jun+" / "mid-" / ... see lib/grades.ts
   project               String?
   managerId             String?
-  softAiInterviewPassed Boolean   @default(false)
   googleAccessToken     String?
   googleRefreshToken    String?
   googleTokenExpiresAt  DateTime?
@@ -96,6 +100,7 @@ model User {
   participations       AssessmentParticipant[]
   pdps                 Pdp[]
   createdPdps          Pdp[]                       @relation("createdPdps")
+  reviewedAssessments  Assessment[]                @relation("reviewedAssessments")
   requestedAssessments AssessmentRequest[]         @relation("requestedBy")
   requestAssessors     AssessmentRequestAssessor[]
   apiTokens            ApiToken[]
@@ -149,6 +154,20 @@ model Assessment {
   notes              String?
   aiFeedback         String?
   pdpTopics          Json?
+  // Admin review of a finished assessment: the assessor "ends" it (PENDING),
+  // then an admin decides whether to upgrade the subject's grade (REVIEWED).
+  reviewStatus         AssessmentReviewStatus @default(NONE)
+  submittedForReviewAt DateTime?
+  reviewedAt           DateTime?
+  reviewedById         String?
+  reviewNotes          String?
+  gradeUpgraded        Boolean                @default(false)
+  previousGrade        String? // subject grade captured at decision time (audit)
+  newGrade             String? // chosen grade when upgraded (audit)
+  // Admin-only cancellation with a mandatory reason.
+  cancellationReason   String?
+  cancelledAt          DateTime?
+  cancelledById        String?
   /// Optional Google Calendar guest auto-invited to every Meet for this
   /// assessment. Falls back to OPTIONAL_MEETING_GUEST_EMAIL env var when
   /// unset. Empty string and null both mean "no guest".
@@ -162,6 +181,9 @@ model Assessment {
   pdps            Pdp[]
   sessions        AssessmentSession[]
   request         AssessmentRequest?
+  reviewedBy      User?                   @relation("reviewedAssessments", fields: [reviewedById], references: [id])
+
+  @@index([reviewStatus])
 }
 
 model AssessmentParticipant {

@@ -4,10 +4,17 @@ import { Fragment, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { AssessorCombobox } from "@/components/assessor-combobox";
 import { AssessmentProgress } from "@/components/assessment-progress";
 import {
@@ -108,6 +115,11 @@ interface Assessment {
   grade: string;
   assessmentType: string;
   aiFeedback: string | null;
+  reviewStatus: string;
+  gradeUpgraded?: boolean;
+  newGrade?: string | null;
+  cancellationReason?: string | null;
+  cancelledAt?: string | null;
   scheduledAt: string | null;
   completedAt: string | null;
   notes: string | null;
@@ -157,10 +169,15 @@ export default function AssessmentDetailPage() {
   const [matrixOpen, setMatrixOpen] = useState(false);
   const [users, setUsers] = useState<UserItem[]>([]);
   const [rosterLoading, setRosterLoading] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
 
   const id = params.id as string;
   const role = session?.user?.role;
   const isAssessor = role === "ASSESSOR" || role === "ADMIN";
+  const isAdmin = role === "ADMIN";
   const canManageRoster = assessment?.viewerCanManageRoster ?? false;
   const canRunSessions = assessment?.viewerCanRunSessions ?? false;
 
@@ -184,15 +201,6 @@ export default function AssessmentDetailPage() {
       setFeedbackText(data.aiFeedback ?? "");
     }
     setLoading(false);
-  }
-
-  async function updateStatus(status: string) {
-    const res = await fetch(`/api/assessments/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) fetchAssessment();
   }
 
   async function handleSessionAction(
@@ -305,6 +313,46 @@ export default function AssessmentDetailPage() {
     setSavingFeedback(false);
   }
 
+  async function cancelAssessment() {
+    setCancelError("");
+    if (cancelReason.trim().length === 0) {
+      setCancelError("Please provide a reason for cancelling.");
+      return;
+    }
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/assessments/${id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: cancelReason }),
+      });
+      if (res.ok) {
+        setCancelOpen(false);
+        setCancelReason("");
+        await fetchAssessment();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setCancelError(err.error || "Failed to cancel assessment");
+      }
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function submitForReview() {
+    const res = await fetch(`/api/assessments/${id}/submit-review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "submitForReview" }),
+    });
+    if (res.ok) {
+      await fetchAssessment();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || "Failed to end assessment");
+    }
+  }
+
   if (loading)
     return <p className="text-muted-foreground">Loading...</p>;
   if (!assessment)
@@ -366,27 +414,35 @@ export default function AssessmentDetailPage() {
             <Badge variant={isPdpCheck ? "info" : "secondary"}>
               {ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || assessment.assessmentType}
             </Badge>
+            {assessment.reviewStatus === "PENDING" && (
+              <Badge variant="warning">Pending review</Badge>
+            )}
+            {assessment.reviewStatus === "REVIEWED" && (
+              <Badge variant="success">
+                {assessment.gradeUpgraded
+                  ? `Upgraded → ${gradeLabel(assessment.newGrade ?? "")}`
+                  : "Reviewed"}
+              </Badge>
+            )}
           </div>
         </div>
 
-        {isAssessor && (
-          <div className="flex gap-2">
-            {assessment.status === "COMPLETED" && !isPdpCheck && (
-              <Link href={`/assessments/${id}/generate`} className={buttonVariants()}>
-                Generate PDP
-              </Link>
-            )}
-            {assessment.status !== "CANCELLED" &&
-              assessment.status !== "COMPLETED" && (
-                <Button
-                  variant="destructive"
-                  onClick={() => updateStatus("CANCELLED")}
-                >
-                  Cancel
-                </Button>
-              )}
-          </div>
-        )}
+        {isAdmin &&
+          assessment.status !== "CANCELLED" &&
+          assessment.status !== "COMPLETED" && (
+            <div className="flex gap-2 shrink-0">
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setCancelReason("");
+                  setCancelError("");
+                  setCancelOpen(true);
+                }}
+              >
+                Cancel assessment
+              </Button>
+            </div>
+          )}
       </div>
 
       {/* Session Progress */}
@@ -441,6 +497,22 @@ export default function AssessmentDetailPage() {
                   {new Date(assessment.completedAt).toLocaleDateString("en-US")}
                 </span>
               </div>
+            )}
+            {assessment.status === "CANCELLED" && assessment.cancellationReason && (
+              <>
+                <Separator />
+                <div className="rounded-md bg-destructive/10 border border-destructive/30 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                    Cancelled
+                    {assessment.cancelledAt
+                      ? ` · ${new Date(assessment.cancelledAt).toLocaleDateString("en-US")}`
+                      : ""}
+                  </p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap mt-0.5">
+                    {assessment.cancellationReason}
+                  </p>
+                </div>
+              </>
             )}
             {assessment.notes && (
               <>
@@ -814,6 +886,43 @@ export default function AssessmentDetailPage() {
                 {feedbackText.length} chars
               </span>
             </div>
+
+            <Separator />
+
+            {/* End assessment → submit for admin grade review */}
+            {assessment.reviewStatus === "NONE" ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-muted-foreground">
+                  When feedback is final, end the assessment to send it for
+                  admin review.
+                </p>
+                <Button
+                  onClick={submitForReview}
+                  disabled={(assessment.aiFeedback?.trim().length ?? 0) === 0}
+                  title={
+                    (assessment.aiFeedback?.trim().length ?? 0) === 0
+                      ? "Save feedback before ending the assessment"
+                      : undefined
+                  }
+                >
+                  End assessment
+                </Button>
+              </div>
+            ) : assessment.reviewStatus === "PENDING" ? (
+              <p className="text-sm text-muted-foreground inline-flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                Ended — pending admin review
+              </p>
+            ) : (
+              <p className="text-sm text-success inline-flex items-center gap-2">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {assessment.gradeUpgraded
+                  ? `Reviewed — grade upgraded to ${gradeLabel(assessment.newGrade ?? "")}`
+                  : "Reviewed — no grade change"}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -823,6 +932,55 @@ export default function AssessmentDetailPage() {
       <Button variant="outline" onClick={() => router.push("/assessments")}>
         Back to list
       </Button>
+
+      {/* Admin: cancel assessment with a mandatory reason */}
+      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel assessment</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              This cancels the assessment. Please provide a reason — it is
+              stored on the assessment.
+            </p>
+            <div className="space-y-1.5">
+              <Label>Reason</Label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => {
+                  setCancelReason(e.target.value);
+                  setCancelError("");
+                }}
+                rows={4}
+                placeholder="Why is this assessment being cancelled?"
+                className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            {cancelError && (
+              <p className="text-sm text-destructive">{cancelError}</p>
+            )}
+            <div className="flex justify-end gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCancelOpen(false)}
+                disabled={cancelling}
+              >
+                Keep assessment
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={cancelAssessment}
+                disabled={cancelling || cancelReason.trim().length === 0}
+              >
+                {cancelling ? "Cancelling..." : "Cancel assessment"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

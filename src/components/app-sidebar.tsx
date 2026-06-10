@@ -43,6 +43,7 @@ const managerItems: Array<{
 
 const adminItems = [
   { href: "/requests", label: "Requests", icon: "inbox" },
+  { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
   { href: "/pdp-review", label: "PDPs in Review", icon: "file-text" },
 ];
 

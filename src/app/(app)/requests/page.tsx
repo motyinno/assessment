@@ -299,7 +299,7 @@ export default function RequestsPage() {
                       <span className="font-medium">General assessment</span>
                     </div>
                     <span className="text-xs text-muted-foreground ml-5">
-                      Soft+AI {baseGrade(selected.grade) === "jun" ? "+ 2 tech" : "+ 3 tech"} sessions, 1 hr each
+                      {baseGrade(selected.grade) === "jun" ? "2 technical" : "3 technical"} sessions, 1 hr each
                     </span>
                   </label>
                   <label

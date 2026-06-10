@@ -58,7 +58,6 @@ export async function PATCH(
 
     const sessionTemplates = buildSessionsForGrade(
       request.grade,
-      request.user.softAiInterviewPassed,
       resolvedType
     );
 
