@@ -88,6 +88,7 @@ model User {
   role                  UserRole  @default(USER)
   grade                 String? // "jun-" / "jun" / "jun+" / "mid-" / ... see lib/grades.ts
   project               String?
+  isArchived            Boolean   @default(false) // left the department; kept for historical assessments
   managerId             String?
   googleAccessToken     String?
   googleRefreshToken    String?
