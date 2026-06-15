@@ -7,30 +7,30 @@
         {
           "id": "data-types-and-core-concepts",
           "title": "Data Types & Core Concepts",
-          "jun": ["Data Types", "Map/Set", "Function Context", "this", "Object Inheritance proto/prototype", "Array methods", "Array.at / findLast / Object.hasOwn", "Closures", "Hoisting", "set/get", "Dates usage", "Function types", "RegExp", "Error handling (try/catch/finally)", "Spread/Rest operators", "Destructuring", "Optional chaining (?.)", "Nullish coalescing (??)", "Logical assignment (??=, ||=, &&=)", "structuredClone"],
-          "mid": ["Object Descriptors", "Prototypes vs OOP", "Symbol", "Iterable objects", "Functions (currying, partial application)", "Modern ES (ES2020+) features", "Generators", "Iterators", "Iterator helpers", "Decorators (TC39 stage 3)", "Mixins", "BigInt", "Proxy basics", "Temporal API"],
-          "sen": ["Module system (CommonJS, ES Modules, dynamic import, lazy load, cache)", "Proxy/Reflect", "WeakRef", "Explicit resource management (using)"]
+          "jun": ["Data Types", "Function Context", "Object Inheritance proto/prototype", "Object Descriptors", "this", "Array methods", "Closures", "hoisting", "set/get", "list of types", "Dates usage", "Function types", "RegExp", "Error handling (try/catch/finally)", "Spread/Rest operators", "Destructuring"],
+          "mid": ["Prototypes vs OOP", "Symbol", "Iterable objects", "Functions (currying, new Function)", "ES5/ES6", "Generators", "Iterators", "Decorators", "Mixins", "BigInt", "Proxy basics"],
+          "sen": ["Module system (commonJS, ES, AMD, Dynamic, lazy load, cache)", "Proxy/Reflect", "WeakRef"]
         },
         {
           "id": "collections-and-algorithms",
           "title": "Collections & Algorithms",
-          "jun": ["Map/Set vs WeakMap/WeakSet", "Basic concepts"],
-          "mid": ["Common algorithms", "Memory leaks"],
-          "sen": ["Performance optimizations"]
+          "jun": ["Basic concepts", "WeakMap/WeakSet"],
+          "mid": ["Algorithms", "Memory Leaks"],
+          "sen": ["Optimizations", "V8"]
         },
         {
           "id": "async-programming",
           "title": "Async Programming",
-          "jun": ["Event loop concepts", "setTimeout/setInterval", "Callbacks", "Promises", "async/await", "Promise combinators (all, race, allSettled, any)", "AbortController / AbortSignal"],
-          "mid": ["Concurrency model (single-thread, non-blocking)", "Event Emitter", "Async queue", "Race conditions", "async/await under the hood", "Reactive programming (RxJS)"],
-          "sen": ["Async generators and iterators", "Async pool / concurrency limiting"]
+          "jun": ["Event loop concepts", "setTimeout/setInterval", "async/await", "promises", "callbacks"],
+          "mid": ["Fake multithreading and concurrency", "AsyncQueue", "Event Emitter", "Chain of responsibility", "Priority/Cargo queue", "Race condition", "async await under the hood", "reactive programming"],
+          "sen": ["Async generators and iterators", "Async Pool", "Fibers/coroutines"]
         },
         {
           "id": "web-workers",
           "title": "Web Workers",
           "jun": [],
-          "mid": ["Web Workers", "Service Workers", "SharedArrayBuffer / Atomics"],
-          "sen": ["OffscreenCanvas"]
+          "mid": ["Web Workers", "Service Workers"],
+          "sen": ["WASM"]
         }
       ]
     },
@@ -41,9 +41,9 @@
         {
           "id": "typescript-fundamentals",
           "title": "TypeScript Fundamentals",
-          "jun": ["TS vs JS", "Type inference", "Interfaces", "Types", "Classes", "TSC compiler", ".d.ts files", "Union and intersection types", "Enums", "void/never/unknown", "Type casting", "Generics", "Indexable types", "Abstract class", "Type narrowing basics"],
-          "mid": ["Type assertions", "Generics in depth", "Type widening and narrowing", "Type guards", "Mapped types", "Template literal types", "Conditional types", "Utility types", "satisfies operator", "Module resolution", "Overloads", "Runtime vs compile-time behaviour", "Private constructor", "Standard decorators (TS 5.0)", "Declaration merging"],
-          "sen": ["Typing best practices", "tsconfig configuration", "Project references", "Custom transformers", "const type parameters", "using / Disposable (TS 5.2)"]
+          "jun": ["TS vs JS", "Type inference", "Interfaces", "Types", "Classes", "TSC compiler", ".d.ts files", "Union and intersection types", "Enums", "void/never/unknown", "Types casting", "Generics", "Indexable types", "Interfaces for classes", "Abstract class", "Type narrowing basics"],
+          "mid": ["Type assertions and type casting", "Generics in depth", "Type widening and narrowing", "Type guards", "Mapped types", "template literal types", "conditional types", "utility types", "Module resolution", "Namespaces", "Hybrid interfaces/types", "Overloads", "Behaviour in runtime/compile time", "Private constructor", "Decorators", "Declaration merging"],
+          "sen": ["Best practice for typings", "Configuration files", "Project references", "Custom transformers"]
         }
       ]
     },
@@ -54,30 +54,30 @@
         {
           "id": "nodejs-core",
           "title": "Node.js Core",
-          "jun": ["Advantages/disadvantages of Node.js", "How Node.js works", "V8 / libuv", "Event loop in Node.js", "Modules (CJS & ESM)", "HTTP module", "File system", "node_modules", "Call stack & callback queue", "micro/macro task queues", "npm basics", "Environment variables", "Native fetch"],
-          "mid": ["Node.js architecture", "Streams", "Worker Threads / Child Process / Cluster", "Thread pool limitations", "Process communication", "node:test runner", "--watch mode", "Debugging and profiling", "Reactor pattern"],
-          "sen": ["Async hooks", "AsyncLocalStorage", "Permission model", "Event loop low-level internals"]
+          "jun": ["Advantages and disadvantages of NodeJs", "How NodeJS works", "V8/libuv", "NodeJs architecture", "Event Loop in NodeJS", "Modules", "Streams", "HTTP module", "File system", "Event Based approach", "node_modules", "Callstack", "callback queue", "micro/macro tasks queues", "npm basics", "Environment variables"],
+          "mid": ["V8/libuv NodeJS architecture", "Worker Threads/Child Process/Cluster", "npm workspaces", "npm/yarn/pnpm", "Fibers coroutines callbacks", "Low-level principles of Node.js implementation", "thread-per-connection approach", "Thread pool limitations", "Process communication", "Cluster load manage", "Pattern Reactor", "Debugging and profiling"],
+          "sen": ["Async hooks", "Async local storage", "Basic knowledge of C++ addons", "Monorepo (NX, Lerna)", "Knowledge of EventLoop on low-level with examples", "Multiplexer/Demultiplexer", "Api in Node.js"]
         },
         {
           "id": "security",
           "title": "Security",
-          "jun": ["Password storage / hashing", "Environment variables & secrets", "JWT (access/refresh)", "Symmetric/Asymmetric cryptography"],
-          "mid": ["SQL injection", "XSS", "CSRF / XSRF", "Session management", "Man-in-the-middle", "Rate limiting", "DoS", "Dependency / supply-chain security (npm audit, snyk)", "Secrets management", "OWASP Top 10"],
-          "sen": ["CSP", "Path traversal", "SSRF", "Security headers (Helmet)"]
+          "jun": ["Password storage", "Environment variables", "JWT (access/refresh)", "Symmetric/Asymmetric Key Cryptography"],
+          "mid": ["SQL injection", "snyk", "npm audit", "Man in the middle", "JSON Hijacking", "Defacement", "Infiltration", "Phishing", "Pharming", "DoS", "Session Management", "CORS"],
+          "sen": ["XSRF", "XSS", "CSP", "DOS", "Path traversal", "OWASP top 10"]
         },
         {
           "id": "testing",
           "title": "Testing",
-          "jun": ["Unit", "Integration", "E2E", "Testing pyramid", "Jest / Vitest basics", "Testing Library basics"],
-          "mid": ["TDD (ideas, pros/cons, anti-patterns)", "Mocks / Stubs / Spies / Fakes", "Test fixtures", "Snapshot testing", "Playwright / Cypress", "Test containers", "Coverage", "Tests in CI/CD", "Contract testing"],
-          "sen": ["Regression testing", "Load testing", "Mutation testing"]
+          "jun": ["Unit", "Integration", "E2E", "Testing Pyramid", "Testing tools", "Jest/Vitest basics"],
+          "mid": ["TDD pros and cons", "TDD main ideas", "TDD anti patterns", "Test Fixtures concept", "Mocks Stubs Spies Fakes", "Test containers", "Coverage", "Tests in CI/CD", "Contract testing"],
+          "sen": ["Regression testing", "Load testing"]
         },
         {
           "id": "frameworks-express-nestjs",
           "title": "Frameworks (Express/NestJS)",
-          "jun": ["Express vs NestJS", "Middleware", "Routing", "Req/Res objects", "Error handling", "Sessions", "Validation and sanitization", "Logger", "Swagger / OpenAPI"],
-          "mid": ["Dependency Injection", "Decorators", "Guards", "Pipes", "Interceptors", "Exception filters", "Lifecycle hooks", "Dynamic modules", "Custom DI tokens", "Request lifecycle", "Reflector", "Execution context", "Circular dependencies", "Helmet", "Fastify"],
-          "sen": ["Framework internals (core implementation principles)", "Pros and cons of different frameworks", "Microservices / WebSocket gateways in NestJS"]
+          "jun": ["Middleware", "Routing", "App.use", "Error handling", "SSR", "Req and Res objects", "Sessions", "Validation and sanitization", "Cycle dependencies", "Express JS vs Nest JS", "Dependency Injection", "Decorators", "Middlewares", "Interceptors", "Guards", "Pipes", "Logger", "Swagger/OpenApi", "Exception filters"],
+          "mid": ["Architectural design patterns in Nest.js", "Lifecycle hooks", "Dynamic modules", "Custom DI tokens", "Helmet", "Coupling", "Request lifecycle", "Reflector", "Execution context"],
+          "sen": ["Advanced knowledge of principles behind implementations of core parts of framework", "Pros and cons of different frameworks"]
         }
       ]
     },
@@ -88,9 +88,9 @@
         {
           "id": "react-core",
           "title": "React Core",
-          "jun": ["JSX", "Functional & class components", "Component lifecycle (effects)", "Props", "Basic hooks", "Router", "State management (Redux/Zustand/Context)", "Styling (Styled Components, SCSS/SASS, Tailwind)", "Vite", "Forms (React Hook Form)", "React DevTools"],
-          "mid": ["Tree shaking", "SSR / SSG / SPA / PWA", "Redux Toolkit (RTK)", "Testing", "Next.js vs React", "Performance optimization", "Advanced hooks", "Localization (i18n)", "Accessibility (a11y)", "SEO", "Suspense / lazy loading", "Server Components", "React Query / TanStack Query / SWR", "Concurrent features (useTransition, useDeferredValue, useId)", "React 19 Actions (useActionState, useFormStatus, useOptimistic, use)"],
-          "sen": ["Microfrontends", "Web Components", "Electron", "React Fiber", "React Server Components (RSC) architecture", "React Compiler"]
+          "jun": ["JSX", "Functional/class components", "Lifecycle", "Props", "Basic hooks", "Router", "State management (Redux/Zustand/Context)", "Styling (Styled components, SCSS/SASS)", "Vite", "Forms", "React DevTools"],
+          "mid": ["Treeshaking", "SSR/PWA/SPA/SSG", "RTK", "Testing", "Next.js vs React", "Rollup", "Multithreading in browser", "Performance optimization", "Localization", "React vs other frameworks", "Advanced hooks", "Server Components", "Suspense/lazy loading", "React Query/SWR"],
+          "sen": ["Microfrontend", "Web components", "Electron", "React fiber", "React Server Components (RSC) architecture"]
         }
       ]
     },
@@ -101,65 +101,79 @@
         {
           "id": "sql-vs-nosql",
           "title": "SQL vs NoSQL",
-          "jun": ["Key differences", "Choice factors"],
-          "mid": ["Trade-offs", "Use cases", "Performance characteristics", "Examples"],
-          "sen": ["CAP theorem awareness"]
+          "jun": ["Key difference", "Choice factors"],
+          "mid": ["Trade-offs", "Use cases", "Performance vs SQL", "Examples"],
+          "sen": ["Knowledge of abbreviation CAP vs PACELC", "Databases that use PACELC"]
         },
         {
           "id": "sql",
           "title": "SQL",
-          "jun": ["DML", "DDL", "Views", "Materialized views", "Triggers", "Stored procedures", "Functions", "Constraints", "Joins", "Indexes (B-tree, unique, composite)"],
-          "mid": ["CTE", "Temp tables", "Subquery vs join", "Window functions", "Index selectivity", "Query profiling / execution plans"],
-          "sen": ["Query optimization"]
+          "jun": ["DML", "DDL", "View", "Materialized view", "Trigger", "Stored Procedures", "Functions", "Constraints", "Joins"],
+          "mid": ["CTE", "Temp Table", "Subquery vs join", "Window functions", "Json vs JsonB", "Profiling of SQL queries"],
+          "sen": []
         },
         {
           "id": "relational-model",
           "title": "Relational Model",
-          "jun": ["Primary key", "Foreign key", "Normal forms"],
-          "mid": ["Denormalization", "Relationships & cardinality"],
+          "jun": ["Normal forms", "Primary key", "Foreign key"],
+          "mid": [],
           "sen": []
         },
         {
           "id": "transactions",
           "title": "Transactions",
-          "jun": ["ACID", "Isolation levels"],
-          "mid": ["Optimistic locking", "Pessimistic locking", "Deadlocks", "MVCC awareness"],
-          "sen": ["Distributed transactions awareness"]
+          "jun": ["Isolation levels"],
+          "mid": [],
+          "sen": []
         },
         {
           "id": "nosql-categories",
           "title": "NoSQL Categories",
-          "jun": ["Types of NoSQL", "Choice factors", "Examples"],
+          "jun": ["Key difference", "Choice factors between categories", "Types of NoSQL", "Examples of NoSQL"],
           "mid": ["Typologies", "Benefits", "Trade-offs"],
           "sen": []
         },
         {
           "id": "database-concepts",
           "title": "Database Concepts",
-          "jun": ["OLAP", "OLTP", "ERD", "BASE", "Migrations"],
-          "mid": ["Data distribution strategies", "CAP", "Backups", "Trade-offs"],
-          "sen": ["Eventual consistency", "Causal consistency"]
+          "jun": ["OLAP", "OLTP", "ACID", "ERD", "BASE", "Migrations"],
+          "mid": ["Data distribution strategies", "Benefits", "Trade-offs", "CAP", "Backups"],
+          "sen": ["Sequential consistency", "Casual consistency", "Eventual consistency"]
+        },
+        {
+          "id": "normalization",
+          "title": "Normalization",
+          "jun": ["Normal forms", "Denormalization"],
+          "mid": ["Optimistic locking", "Pessimistic locking"],
+          "sen": []
         },
         {
           "id": "nosql-databases",
           "title": "NoSQL Databases",
-          "jun": ["MongoDB", "Redis"],
-          "mid": ["DynamoDB", "ElasticSearch"],
+          "jun": ["Mongo", "Redis"],
+          "mid": ["DynamoDB", "ElasticSearch", "ClickHouse"],
           "sen": []
         },
         {
           "id": "postgresql",
           "title": "PostgreSQL",
-          "jun": ["PG-specific data types (arrays, JSONB, ranges, UUID, hstore)", "Benefits / trade-offs"],
-          "mid": ["PG index types (GIN, GiST, BRIN, partial, expression)", "JSON / JSONB operators & indexing", "EXPLAIN ANALYZE / query plans", "Full-text search (tsvector/tsquery)"],
-          "sen": ["Connection pooling (PgBouncer) awareness"]
+          "jun": ["Types", "Benefits", "Trade-offs"],
+          "mid": ["Index selectivity", "Query plan settings", "Explain analyze", "Full text search"],
+          "sen": ["Postgres architecture"]
+        },
+        {
+          "id": "postgresql-data-types-and-internals",
+          "title": "PostgreSQL Data Types & Internals",
+          "jun": ["Postgres data types"],
+          "mid": ["Vacuum", "WAL", "MVCC", "Table functions"],
+          "sen": ["SSI"]
         },
         {
           "id": "orm-and-query-builders",
           "title": "ORM & Query Builders",
-          "jun": ["What is an ORM", "Prisma basics", "TypeORM basics"],
-          "mid": ["Drizzle ORM", "Migration strategies", "Query optimization (N+1)", "Connection pooling"],
-          "sen": ["Multi-tenant patterns", "Raw query / query builders"]
+          "jun": ["What is ORM", "Prisma basics", "TypeORM basics"],
+          "mid": ["Migrations strategies", "Query optimization", "Connection pooling", "Sequelize"],
+          "sen": ["Custom query builders", "Multi-tenant patterns"]
         }
       ]
     },
@@ -170,37 +184,44 @@
         {
           "id": "http-and-rest",
           "title": "HTTP & REST",
-          "jun": ["Status codes", "Methods", "Request/response structure", "REST principles", "RESTful vs RESTlike", "Idempotency"],
-          "mid": ["OAuth2 (grant types, tokens, refresh)", "OpenID Connect", "SSL/TLS", "HTTP caching (ETag, Cache-Control)", "DNS"],
+          "jun": ["Status codes", "Principles", "Methods", "Response/request structure", "RESTful", "RESTlike", "Idempotence"],
+          "mid": ["Key concepts (tokens, refreshing, grant types etc.)", "OpenID connect", "SSL/TLS", "Cache", "DNS"],
           "sen": []
         },
         {
           "id": "protocols",
           "title": "Protocols",
-          "jun": ["WebSockets", "Polling vs long-polling"],
-          "mid": ["GraphQL", "gRPC", "SOAP", "Server-Sent Events (SSE)", "Socket.IO", "WebRTC basics"],
-          "sen": ["Scaling WebSockets", "WebRTC peer-to-peer"]
+          "jun": ["SOAP", "GraphQL", "GRPC", "Websockets"],
+          "mid": ["WebRTC", "Server-Sent Events", "HTTP/2 multiplexing"],
+          "sen": []
         },
         {
           "id": "auth-and-sessions",
           "title": "Auth & Sessions",
-          "jun": ["JWT", "Sessions", "Cookie-based auth", "CORS"],
-          "mid": ["OAuth2 / OIDC flows", "SameSite cookies", "CSRF protection"],
+          "jun": ["JWT", "Sessions", "CORS", "Cookie-based auth"],
+          "mid": [],
           "sen": []
         },
         {
           "id": "browser-storage-and-apis",
           "title": "Browser Storage & APIs",
-          "jun": ["localStorage", "sessionStorage", "Cookies", "Cache Storage"],
-          "mid": ["IndexedDB", "requestAnimationFrame", "Intersection/Resize/Mutation Observers", "Web Vitals"],
+          "jun": ["localStorage", "sessionStorage", "cacheStorage"],
+          "mid": ["Accessibility", "SEO", "requestAnimationFrame"],
           "sen": []
         },
         {
           "id": "http-versions",
           "title": "HTTP Versions",
-          "jun": ["HTTP/1.x", "HTTP/2", "HTTP/3"],
-          "mid": ["HTTP/2 multiplexing & streams", "QUIC basics"],
+          "jun": ["1.x", "2.x", "3.x"],
+          "mid": ["HTTP/2 streams", "QUIC protocol basics"],
           "sen": []
+        },
+        {
+          "id": "real-time-communication",
+          "title": "Real-time Communication",
+          "jun": ["Polling concepts", "WebSocket basics"],
+          "mid": ["Long-polling", "SSE", "Socket.IO"],
+          "sen": ["WebRTC peer-to-peer", "Scaling WebSockets"]
         }
       ]
     },
@@ -211,29 +232,29 @@
         {
           "id": "versioning",
           "title": "Versioning",
-          "jun": ["SemVer (major, minor, patch)", "Pre-release & build metadata", "Tools"],
-          "mid": ["Version ranges", "Changesets / conventional commits", "Release automation"],
-          "sen": ["Monorepo versioning strategies"]
+          "jun": ["Major", "minor", "patch", "release", "build", "Tools"],
+          "mid": ["Module management (add, delete, clone, .gitmodules, etc.)", "Working with submodules"],
+          "sen": ["Code Analysis", "Attack vectors and how to defend", "Infrastructural security"]
         },
         {
           "id": "git",
           "title": "Git",
-          "jun": ["Core concepts (branches, commits, remotes, .gitignore)", "Core commands (add, fetch, pull, push, clone, rebase)", "Flags (--amend, --force, --date, etc.)"],
-          "mid": ["Git Flow", "Trunk-based development", "Cherry-pick", "Bisect", "Submodules (.gitmodules)"],
-          "sen": ["Reflog", "Interactive rebase", "Worktrees", "Reset vs revert"]
+          "jun": ["Main concepts (branches, commits, remotes, .gitignore, etc.)", "Main commands (add, fetch, pull, push, clone, rebase, etc.)", "Flags (--amend, --force, --date, etc.)"],
+          "mid": ["Git Flow", "Trunk-based development", "Cherry-pick", "Bisect"],
+          "sen": []
         },
         {
           "id": "package-management",
           "title": "Package Management",
-          "jun": ["npm", "package.json", "node_modules", "Lock files"],
-          "mid": ["yarn", "pnpm", "Workspaces", "Monorepo tools (Nx, Turborepo)"],
+          "jun": ["npm", "package.json", "node_modules", "lock files"],
+          "mid": ["yarn", "pnpm", "Workspaces", "Monorepo tools"],
           "sen": ["Private registries", "Publishing packages"]
         },
         {
           "id": "computer-science-basics",
           "title": "Computer Science Basics",
-          "jun": ["Big O notation", "Hashing"],
-          "mid": ["Data structures (Stack, Queue, Tree, Graph)", "Sorting algorithms", "Search algorithms", "Concurrency & parallelism", "Threads / processes"],
+          "jun": ["Big O notation", "Hashing", "Concurrency & Parallelism", "Threads/Processes"],
+          "mid": ["Data structures (Stack, Queue, Tree, Graph)", "Sorting algorithms", "Search algorithms"],
           "sen": []
         }
       ]
@@ -245,51 +266,51 @@
         {
           "id": "aws",
           "title": "AWS",
-          "jun": ["S3", "IAM basics", "EC2", "ECS / ECR", "Lambda", "CloudWatch", "SES"],
-          "mid": ["RDS", "SQS / SNS", "Cognito", "API Gateway", "Secrets Manager"],
-          "sen": ["Scaling & availability concepts (awareness)"]
+          "jun": ["S3", "IAM", "ECS", "ECR", "EC2", "SES", "Lambda", "CloudWatch"],
+          "mid": ["SQS", "RDS", "Lambda", "Route53", "Cognito", "VPC and networking", "EKS", "SNS"],
+          "sen": ["Geographic distributed systems", "Availability vs scalability"]
         },
         {
           "id": "kubernetes",
           "title": "Kubernetes",
-          "jun": ["What is Kubernetes", "Pod", "Deployment", "Service", "ReplicaSet", "Namespace", "ConfigMap", "Secret"],
-          "mid": ["Probes", "HPA", "StatefulSet", "Ingress", "PersistentVolume / PVC", "Helm"],
-          "sen": ["Graceful shutdown (app perspective)"]
+          "jun": ["What is kubernetes", "Node", "Pod", "Service", "Deployment", "ReplicaSet", "Namespace", "Config map", "secret", "kube-apiserver", "etcd", "kube-scheduler", "kube-controller-manager", "kubelet", "kube-proxy"],
+          "mid": ["Probes", "HPA", "StatefulSet", "DaemonSet", "Job", "CronJob", "Ingress", "PersistentVolume and PersistentVolumeClaim", "Helm"],
+          "sen": ["RBAC", "Garbage Collection", "Scheduler", "Graceful shutdown"]
         },
         {
           "id": "ci-cd",
           "title": "CI/CD",
-          "jun": ["What is CI/CD", "CI/CD stages", "Writing pipelines"],
-          "mid": ["Deployment strategies (blue/green, canary, rolling, recreate)", "Monitoring", "GitHub Actions"],
-          "sen": ["GitOps (ArgoCD) awareness"]
+          "jun": ["What is CI/CD", "CI/CD stages", "How to write pipelines"],
+          "mid": ["Blue/green", "Canary (rolling and a/b)", "Recreate", "One service - multiple deployments", "Monitoring"],
+          "sen": []
         },
         {
           "id": "nginx",
           "title": "Nginx",
-          "jun": ["When to use (reverse proxy)", "Basic configuration"],
-          "mid": ["Routing", "HTTPS termination", "Load balancing basics"],
+          "jun": ["When to use", "Tools"],
+          "mid": ["Routing and configuration", "Connection processing", "Hashes", "Logging and debugging", "HTTPS", "Load balancing"],
           "sen": []
         },
         {
           "id": "docker",
           "title": "Docker",
           "jun": ["Images", "Volumes", "Networks", "Docker Compose"],
-          "mid": ["Dockerfile best practices", "Multi-stage builds", "Image optimization", "Container networking"],
-          "sen": ["Security scanning"]
+          "mid": ["Main concepts", "Deployments scaling and monitoring", "Modules", "Provisions", "States"],
+          "sen": ["Multi-stage builds", "Security scanning", "Image optimization"]
         },
         {
           "id": "terraform",
           "title": "Terraform",
           "jun": [],
-          "mid": ["HCL basics (awareness)", "Reading existing modules"],
-          "sen": ["State management concepts (awareness)"]
+          "mid": ["HCL basics", "State management", "Providers", "Modules"],
+          "sen": ["Workspaces", "Remote state", "Drift detection"]
         },
         {
           "id": "observability",
           "title": "Observability",
           "jun": ["Application logs", "Log levels"],
-          "mid": ["Structured logging", "Metrics (Prometheus/Grafana)", "Distributed tracing (OpenTelemetry)", "APM tools"],
-          "sen": ["SLI/SLO/SLA", "Alerting strategies"]
+          "mid": ["Structured logging", "Metrics (Prometheus/Grafana)", "Distributed tracing", "APM tools"],
+          "sen": ["SLI/SLO/SLA", "Alerting strategies", "Incident management"]
         }
       ]
     },
@@ -301,22 +322,22 @@
           "id": "kafka",
           "title": "Kafka",
           "jun": [],
-          "mid": ["Core principles", "Brokers / Topics / Partitions / Offsets", "Consumer groups", "Acknowledgement modes", "Idempotent producer"],
-          "sen": ["Partitioning strategy", "Replication (awareness)"]
+          "mid": ["Core principles", "Brokers", "Partitions", "Topic", "Offset", "Zookeeper/Kraft", "Offset control", "Partitioning strategy", "Acknowledgement modes", "Idempotent producer", "Usage of headers"],
+          "sen": ["Avro", "Replication", "Kafka streams"]
         },
         {
           "id": "message-broker-patterns",
           "title": "Message Broker Patterns",
           "jun": ["Producer", "Consumer", "Acknowledgement"],
-          "mid": ["DLQ", "Consumer groups", "Delivery guarantees", "Retry mechanisms", "Backpressure", "Transactional Outbox / Inbox", "Message deduplication", "Idempotency", "Command Bus / Event Bus"],
-          "sen": ["Event replay / event log pattern"]
+          "mid": ["DLQ", "Backpressure", "Consumer groups", "Delivery guarantees", "Retry mechanisms", "Transactional Outbox + Inbox", "Message Deduplication", "Event Replay / Event Log Pattern", "Command Bus and Event Bus"],
+          "sen": []
         },
         {
           "id": "rabbitmq",
           "title": "RabbitMQ",
           "jun": [],
-          "mid": ["Core principles", "Exchanges & queues", "Exchange types", "Durable queues / persistent messages", "Consumer prefetch", "Message/queue TTL"],
-          "sen": []
+          "mid": ["Core principles", "Exchange", "Queue", "Durable queue and persistent messages", "Exchange types", "Consumer prefetch", "Priority queues", "Streams", "Message TTL and queue TTL"],
+          "sen": ["Clustering", "Quorum queue"]
         },
         {
           "id": "nats",
@@ -334,16 +355,16 @@
         {
           "id": "common-principles",
           "title": "Common Principles",
-          "jun": ["SOLID", "OOP", "Functional programming", "DRY / KISS / YAGNI", "Clean code", "Dependency injection", "IoC / IoC container", "Imperative vs declarative"],
-          "mid": ["GoF design patterns", "GRASP", "Clean Architecture", "CQRS basics", "Chain of responsibility"],
+          "jun": ["Dependency injection", "IoC", "IoC container", "SOLID", "OOP", "Functional Programming", "Mini principals (KISS, DRY, YAGNI, BDUF, APO, Occam's razor)", "Clean code", "Imperative/functional programming"],
+          "mid": ["SOLID", "OOP", "GoF", "GRASP", "Clean Architecture", "CQRS basics"],
           "sen": []
         },
         {
           "id": "ddd",
           "title": "DDD",
           "jun": [],
-          "mid": ["Core principles (bounded context, ubiquitous language, aggregates)", "Context maps", "Layered & hexagonal architecture", "Code organization"],
-          "sen": ["CQRS & event sourcing in DDD", "Entities / value objects / aggregates"]
+          "mid": ["Main principles (bound context, ubiquitous language, aggregates etc.)", "Context maps", "Layers and hexagon architecture", "Code structure and organization"],
+          "sen": ["CQRS and event sourcing in DDD", "Aggregation managers", "Encapsulation and validation", "Modules entities value models etc."]
         }
       ]
     },
@@ -354,37 +375,37 @@
         {
           "id": "event-driven-and-distributed-systems",
           "title": "Event-Driven & Distributed Systems",
-          "jun": ["Core concepts", "Pros and cons"],
-          "mid": ["Event sourcing", "Event-based synchronization", "Eventual consistency"],
-          "sen": ["Distributed systems problems (awareness)", "Consensus algorithms awareness (Raft/Paxos)"]
+          "jun": ["Main concepts and ideas", "Differences", "Pros and cons"],
+          "mid": ["Event sourcing", "Event messaging", "Event based synchronizations"],
+          "sen": ["Distributed systems problems", "Consensus algos (Raft, Paxos etc.)", "Fault tolerance and guarantees"]
         },
         {
           "id": "microservices-vs-monolith",
           "title": "Microservices vs Monolith",
-          "jun": ["Monolith vs microservices (definitions)", "Pros & cons of each", "When to choose which"],
-          "mid": ["Service decomposition", "Inter-service communication", "Data ownership (DB per service)", "Main problems & limitations", "Two-phase commit", "SAGA", "Choreography vs orchestration"],
-          "sen": ["Migration strategies (both directions)", "When monolith is preferable", "Strangler Fig pattern", "Modular monolith"]
+          "jun": ["Client-Server", "API Gateway", "Serverless"],
+          "mid": ["Main problems and limitations", "Two phase commit", "SAGA", "Choreography vs Orchestration"],
+          "sen": ["How to migrate (both directions), where to start etc", "When monolith is preferable", "Strangler Fig pattern", "Macroservices"]
         },
         {
           "id": "system-design-and-scalability",
           "title": "System Design & Scalability",
-          "jun": ["Load balancing basics", "Caching basics", "Database indexing importance"],
-          "mid": ["API Gateway", "Rate limiter", "Sidecar", "Monitoring / telemetry"],
-          "sen": ["Horizontal & vertical scaling", "CDN", "Caching strategies", "DB optimizations", "Load testing"]
+          "jun": ["Basic load balancing concepts", "Caching basics", "Database indexing importance"],
+          "mid": ["Rate limiter", "Circuit breaker", "Sidecar", "Orchestration/Choreography", "Graceful Degradation", "Monitoring/Telemetry", "Loadshifting", "Backpressure"],
+          "sen": ["Load balancing", "Horizontal scaling", "CDN", "Caching", "DB optimizations", "Monitoring and alerting", "Load testing"]
         },
         {
           "id": "error-handling-and-resilience",
           "title": "Error Handling & Resilience",
-          "jun": ["Error codes & categories", "Logging basics", "Graceful error responses"],
-          "mid": ["Retry logic", "Fallbacks", "Circuit breaker", "Graceful degradation", "Backpressure", "Timeouts", "Network error handling"],
-          "sen": ["Bulkhead pattern", "Chaos / resilience testing (awareness)"]
+          "jun": ["Error codes and categories", "Logging basics", "Graceful error responses"],
+          "mid": ["Retries logic", "Fallbacks", "Logging strategies", "Network errors handling"],
+          "sen": []
         },
         {
           "id": "architectural-patterns",
           "title": "Architectural Patterns",
-          "jun": ["MVC basics", "Repository pattern", "Client-server", "Serverless"],
-          "mid": ["MVP", "MVVM", "Layered architecture", "SOA", "Hexagonal (Ports & Adapters)", "Modularity"],
-          "sen": ["UML", "Enterprise application patterns", "Cloud computing patterns"]
+          "jun": ["MVC basics", "Repository pattern"],
+          "mid": ["MVC", "MVP", "MVVM", "Modularity", "Layered Architecture", "IoC", "SOA", "EDA", "Hexagonal (Ports and Adapters)"],
+          "sen": ["UML", "Patterns of Enterprise Architecture Applications", "Cloud computing patterns"]
         }
       ]
     },
