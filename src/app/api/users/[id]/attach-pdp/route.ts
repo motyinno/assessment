@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireUserAccess } from "@/lib/auth-helpers";
 import { attachPdpSchema } from "@/lib/schemas";
 import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+import { deriveItemsFromDriveDoc } from "@/lib/pdp-items";
 
 /**
  * Extract the Google Drive / Docs file id from a variety of URL shapes.
@@ -45,7 +46,7 @@ export async function POST(
 
   const user = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, managerId: true },
   });
   if (!user) return notFound("User not found");
 
@@ -53,6 +54,11 @@ export async function POST(
   const fileName =
     parsed.data.fileName?.trim() ||
     `PDP (link) - ${user.name} - ${new Date().toISOString().slice(0, 10)}`;
+
+  // Manual PDPs are active immediately (no review step), so derive the
+  // checklist now — best-effort: if the linked doc doesn't match the template
+  // the plan simply has no trackable items.
+  const items = driveFileId ? await deriveItemsFromDriveDoc(me.id, driveFileId) : [];
 
   const pdp = await prisma.pdp.create({
     data: {
@@ -63,6 +69,15 @@ export async function POST(
       driveFileId,
       topicsJson: [],
       status: "ACTIVE",
+      items: {
+        create: items.map((it, idx) => ({
+          type: it.type,
+          category: it.category,
+          title: it.title,
+          order: idx,
+          reviewerId: user.managerId,
+        })),
+      },
     },
   });
 

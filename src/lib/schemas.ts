@@ -136,10 +136,42 @@ export const attachPdpSchema = z.object({
   fileName: z.string().optional(),
 });
 
+// Checklist item the admin confirmed on the review screen (parsed from the
+// final document, optionally trimmed/edited). When omitted on approval the
+// server parses the document itself.
+export const pdpItemInputSchema = z.object({
+  type: z.enum(["THEORY", "PRACTICE"]),
+  category: z.string().min(1).max(300),
+  title: z.string().min(1).max(2000),
+});
+
 export const reviewPdpSchema = z.object({
   action: z.enum(["approve", "comment"]),
   reviewNotes: z.string().optional(),
+  items: z.array(pdpItemInputSchema).optional(),
 });
+
+// ---- PDP items (per-task checklist) ----
+//
+// Status transitions, driven by `action`:
+//   start  : NOT_STARTED -> IN_PROGRESS               (employee)
+//   submit : IN_PROGRESS|REWORK -> SUBMITTED          (employee)
+//   verify : SUBMITTED -> VERIFIED                    (reviewer/admin)
+//   rework : SUBMITTED -> REWORK                      (reviewer/admin, comment required)
+// On `submit`, PRACTICE items require an evidenceLink; THEORY items don't.
+// Conditional requirements are enforced in the route since they depend on the
+// item's type (not known to the schema).
+export const patchPdpItemSchema = z
+  .object({
+    action: z.enum(["start", "submit", "verify", "rework"]),
+    evidenceLink: z.union([z.string().url(), z.literal(""), z.null()]).optional(),
+    evidenceNote: z.string().max(2000).optional().nullable(),
+    reviewComment: z.string().max(2000).optional().nullable(),
+  })
+  .refine(
+    (d) => d.action !== "rework" || !!d.reviewComment?.trim(),
+    { message: "A comment is required when sending an item back", path: ["reviewComment"] }
+  );
 
 // Admin decision on an ended assessment: upgrade the subject's grade (admin
 // picks the new grade) or record a no-upgrade decision.

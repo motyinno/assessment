@@ -62,6 +62,34 @@ export async function uploadPdpToDrive(
   return { fileId: data.id, webViewLink: data.webViewLink };
 }
 
+/**
+ * Export a Google Doc (the format PDPs are stored as — see uploadPdpToDrive)
+ * to a .docx buffer so its current content can be parsed. `userId` must be
+ * someone with read access to the file (typically the PDP's creator). Returns
+ * null when Drive is unavailable or the export fails.
+ */
+export async function exportGoogleDocAsDocx(
+  userId: string,
+  fileId: string
+): Promise<Buffer | null> {
+  const accessToken = await getValidAccessToken(userId);
+  if (!accessToken) return null;
+
+  const mimeType =
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(
+      mimeType
+    )}&supportsAllDrives=true`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!res.ok) {
+    console.error("Drive export failed:", res.status, await res.text());
+    return null;
+  }
+  return Buffer.from(await res.arrayBuffer());
+}
+
 export interface DriveFileSummary {
   id: string;
   name: string;

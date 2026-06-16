@@ -45,6 +45,12 @@ interface ReviewPdp {
   assessment: { id: string; title: string } | null;
 }
 
+interface PreviewItem {
+  type: "THEORY" | "PRACTICE";
+  category: string;
+  title: string;
+}
+
 const CREATOR_ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
   ASSESSOR: "Assessor",
@@ -60,6 +66,8 @@ export default function PdpReviewPage() {
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -79,7 +87,24 @@ export default function PdpReviewPage() {
   function openReview(pdp: ReviewPdp) {
     setSelected(pdp);
     setNotes(pdp.reviewNotes ?? "");
+    setPreviewItems([]);
     setOpen(true);
+    // Parse the (possibly admin-edited) document so the admin can confirm the
+    // checklist that approval will create.
+    setPreviewLoading(true);
+    fetch(`/api/pdps/${pdp.id}/parse-preview`)
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((d: { items: PreviewItem[] }) => setPreviewItems(d.items ?? []))
+      .catch(() => setPreviewItems([]))
+      .finally(() => setPreviewLoading(false));
+  }
+
+  function updatePreviewTitle(index: number, title: string) {
+    setPreviewItems((items) => items.map((it, i) => (i === index ? { ...it, title } : it)));
+  }
+
+  function removePreviewItem(index: number) {
+    setPreviewItems((items) => items.filter((_, i) => i !== index));
   }
 
   async function saveNotes() {
@@ -106,7 +131,10 @@ export default function PdpReviewPage() {
       const res = await fetch(`/api/pdps/${selected.id}/review`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "approve" }),
+        body: JSON.stringify({
+          action: "approve",
+          items: previewItems.map((it) => ({ ...it, title: it.title.trim() })).filter((it) => it.title),
+        }),
       });
       if (res.ok) {
         setOpen(false);
@@ -275,6 +303,55 @@ export default function PdpReviewPage() {
                     </svg>
                     Open in Drive
                   </a>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Checklist on approval</Label>
+                  <span className="text-xs text-muted-foreground">
+                    {previewLoading ? "Parsing…" : `${previewItems.length} task${previewItems.length === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Parsed from the current document. Edit or remove rows — these become the employee&apos;s checklist when you approve.
+                </p>
+                {previewLoading ? (
+                  <p className="text-sm text-muted-foreground py-2">Parsing the document…</p>
+                ) : previewItems.length === 0 ? (
+                  <p className="text-xs text-muted-foreground rounded-md border border-dashed px-3 py-2">
+                    No tasks detected. Approving will create a plan with no checklist.
+                  </p>
+                ) : (
+                  <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                    {previewItems.map((it, i) => (
+                      <li key={i} className="flex items-start gap-2">
+                        <Badge
+                          variant={it.type === "PRACTICE" ? "info" : "secondary"}
+                          className="shrink-0 mt-1"
+                        >
+                          {it.type === "PRACTICE" ? "P" : "T"}
+                        </Badge>
+                        <input
+                          className="flex-1 rounded-md border border-input bg-background px-2 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          value={it.title}
+                          onChange={(e) => updatePreviewTitle(i, e.target.value)}
+                          title={it.category}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removePreviewItem(i)}
+                          className="shrink-0 mt-1 text-muted-foreground hover:text-destructive transition-colors"
+                          aria-label="Remove task"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </svg>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
 

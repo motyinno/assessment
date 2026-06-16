@@ -122,6 +122,9 @@ async function generatePdpInBackground(opts: {
         error: null,
       },
     });
+    // Checklist items are intentionally NOT created here. They're derived from
+    // the *final* document when an admin approves the PDP (see
+    // api/pdps/[id]/review), so any edits made during review are captured.
   } catch (e) {
     log.error("PDP background generation failed", {
       pdpId,

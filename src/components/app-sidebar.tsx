@@ -20,6 +20,7 @@ interface SidebarProps {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "home" },
   { href: "/assessments", label: "Assessments", icon: "clipboard" },
+  { href: "/my-pdps", label: "Development Plan", icon: "file-text" },
   { href: "/tech-matrix", label: "Tech Matrix", icon: "grid" },
   { href: "/request-assessment", label: "Request Assessment", icon: "send", hideForAdmin: true },
 ];
@@ -39,6 +40,7 @@ const managerItems: Array<{
 }> = [
   { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
+  { href: "/pdp-review-queue", label: "PDP Tasks", icon: "clipboard", roles: ["MANAGER", "ADMIN"] },
 ];
 
 const adminItems = [

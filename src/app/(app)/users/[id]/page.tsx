@@ -654,6 +654,19 @@ export default function UserProfilePage() {
                                   )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
+                                  {(pdp.status === "ACTIVE" || pdp.status === "COMPLETED") && (
+                                    <Link
+                                      href={`/pdps/${pdp.id}`}
+                                      title="Open checklist"
+                                      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 px-2 py-1 rounded-md"
+                                    >
+                                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="9 11 12 14 22 4" />
+                                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                      </svg>
+                                      Checklist
+                                    </Link>
+                                  )}
                                   {!isGenerating && !isFailed && pdp.driveLink && (
                                     <a
                                       href={pdp.driveLink}

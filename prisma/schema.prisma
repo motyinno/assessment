@@ -72,11 +72,30 @@ enum RequestStatus {
   REJECTED
 }
 
+// A single task inside a PDP. THEORY items are checked verbally / via a written
+// note; PRACTICE items require a link to the implementation (enforced at the
+// API edge, see lib/schemas.ts).
+enum PdpItemType {
+  THEORY
+  PRACTICE
+}
+
+enum PdpItemStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED // employee sent it for the reviewer's check
+  VERIFIED // reviewer accepted it
+  REWORK // reviewer sent it back with a comment
+}
+
 enum NotificationType {
   REQUEST_SUBMITTED // -> admins: a user requested an assessment
   ASSESSMENT_ASSIGNED // -> assessor: assigned to an assessment
   REQUEST_APPROVED // -> requester: request approved
   REQUEST_REJECTED // -> requester: request rejected
+  PDP_ITEM_SUBMITTED // -> reviewer: an employee submitted a PDP item for review
+  PDP_ITEM_REVIEWED // -> employee: reviewer verified or sent back a PDP item
+  PDP_COMPLETED // -> employee: all PDP items verified; plan is closed
 }
 
 // ---- Models ----
@@ -107,6 +126,7 @@ model User {
   apiTokens            ApiToken[]
   notifications        Notification[]
   certificates         Certificate[]
+  reviewableItems      PdpItem[]                   @relation("pdpItemReviewer")
 
   @@index([managerId])
 }
@@ -236,10 +256,40 @@ model Pdp {
   user       User        @relation(fields: [userId], references: [id])
   createdBy  User?       @relation("createdPdps", fields: [createdById], references: [id])
   assessment Assessment? @relation(fields: [assessmentId], references: [id])
+  items      PdpItem[]
 
   @@index([userId])
   @@index([assessmentId])
   @@index([status])
+}
+
+/// A single theory question or practical task derived from a PDP's topics at
+/// generation time. The employee works through each item and submits it; the
+/// reviewer (the employee's manager, captured in `reviewerId`) verifies it or
+/// sends it back. When every item is VERIFIED the parent Pdp is closed
+/// (status COMPLETED).
+model PdpItem {
+  id            String        @id @default(cuid())
+  pdpId         String
+  type          PdpItemType
+  category      String // source topic/category, used to group items in the UI
+  title         String // the question text or the practical task description
+  order         Int
+  status        PdpItemStatus @default(NOT_STARTED)
+  evidenceLink  String? // PRACTICE: link to the implementation (PR / demo / doc)
+  evidenceNote  String? // THEORY: optional written answer / notes
+  submittedAt   DateTime?
+  reviewerId    String? // snapshot of the employee's manager at generation time
+  reviewedAt    DateTime?
+  reviewComment String? // reviewer feedback / mandatory reason on REWORK
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  pdp      Pdp   @relation(fields: [pdpId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("pdpItemReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([pdpId])
+  @@index([reviewerId, status])
 }
 
 model AssessmentRequest {

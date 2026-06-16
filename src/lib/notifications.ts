@@ -111,6 +111,55 @@ export async function notifyRequestRejected(
   });
 }
 
+/** An employee submitted a PDP item -> notify its reviewer. */
+export async function notifyPdpItemSubmitted(
+  reviewer: Recipient,
+  subjectName: string,
+  pdpId: string,
+  itemTitle: string
+): Promise<void> {
+  await notify({
+    recipient: reviewer,
+    type: "PDP_ITEM_SUBMITTED",
+    title: "A PDP task is ready for review",
+    body: `${subjectName} submitted "${itemTitle}" for your review.`,
+    link: `/pdps/${pdpId}`,
+  });
+}
+
+/** Reviewer verified or sent back a PDP item -> notify the employee. */
+export async function notifyPdpItemReviewed(
+  subject: Recipient,
+  pdpId: string,
+  itemTitle: string,
+  approved: boolean,
+  comment: string | null
+): Promise<void> {
+  await notify({
+    recipient: subject,
+    type: "PDP_ITEM_REVIEWED",
+    title: approved ? "A PDP task was accepted" : "A PDP task needs rework",
+    body: approved
+      ? `Your task "${itemTitle}" was accepted.`
+      : `Your task "${itemTitle}" was sent back.${comment ? ` Comment: ${comment}` : ""}`,
+    link: `/pdps/${pdpId}`,
+  });
+}
+
+/**
+ * Every PDP item was verified -> notify the employee that the plan is closed.
+ * Intentionally a terminal message: no call to action / no link to an
+ * assessment request.
+ */
+export async function notifyPdpClosed(subject: Recipient): Promise<void> {
+  await notify({
+    recipient: subject,
+    type: "PDP_COMPLETED",
+    title: "Your development plan is complete",
+    body: "Your personal development plan has been fully reviewed by your manager and is now closed. Congratulations on finishing it!",
+  });
+}
+
 /** An assessor was assigned to an assessment -> notify each one. */
 export async function notifyAssessorsAssigned(
   assessors: Recipient[],
