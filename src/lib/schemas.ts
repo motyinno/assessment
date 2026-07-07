@@ -98,6 +98,21 @@ export const selfAssessmentSchema = z.object({
   ),
 });
 
+export const updateCertificateSchema = z.object({
+  pinned: z.boolean(),
+});
+
+export const roadmapProgressSchema = z.object({
+  items: z.array(
+    z.object({
+      sectionId: z.string().min(1),
+      topicId: z.string().min(1),
+      grade: z.enum(["jun", "mid", "sen"]),
+      done: z.boolean(),
+    })
+  ),
+});
+
 export const sessionPatchSchema = z.object({
   sessionId: z.string().min(1),
   status: z.enum(["IN_PROGRESS", "COMPLETED", "SKIPPED"]).optional(),

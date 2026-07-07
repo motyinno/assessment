@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
 import { ManagerCombobox } from "@/components/manager-combobox";
+import { UserCertificatesCard } from "@/components/user-certificates-card";
 import { cn } from "@/lib/utils";
 
 interface Assessment {
@@ -708,6 +709,9 @@ export default function UserProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Certificates — visible to anyone viewing this profile */}
+      <UserCertificatesCard userId={profile.id} />
 
       {/* Edit user dialog */}
       {canEdit && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, Trash2 } from "lucide-react";
+import { ExternalLink, Trash2, Pin, PinOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,7 @@ interface CertificateRow {
   id: string;
   code: string;
   verifyUrl: string;
+  pinned: boolean;
   createdAt: string;
 }
 
@@ -51,6 +52,7 @@ export function CertificatesCard() {
 
   const [removeTarget, setRemoveTarget] = useState<CertificateRow | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [pinningId, setPinningId] = useState<string | null>(null);
 
   function openAdd(open: boolean) {
     setAdding(open);
@@ -96,6 +98,27 @@ export function CertificatesCard() {
     load();
   }
 
+  async function togglePin(cert: CertificateRow) {
+    setPinningId(cert.id);
+    // optimistic
+    setCertificates((prev) =>
+      prev.map((c) => (c.id === cert.id ? { ...c, pinned: !c.pinned } : c))
+    );
+    const res = await fetch(`/api/users/me/certificates/${cert.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned: !cert.pinned }),
+    });
+    setPinningId(null);
+    if (!res.ok) {
+      // revert on failure
+      setCertificates((prev) =>
+        prev.map((c) => (c.id === cert.id ? { ...c, pinned: cert.pinned } : c))
+      );
+      setError("Failed to update certificate");
+    }
+  }
+
   async function confirmRemove() {
     if (!removeTarget) return;
     setRemoving(true);
@@ -118,8 +141,8 @@ export function CertificatesCard() {
         <div>
           <CardTitle>Certificates</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Add certificates by their code. Each links to a public page where its
-            validity can be verified.
+            Add certificates by their code. Pin one to show it on your profile,
+            where anyone who can view your profile can see and verify it.
           </p>
         </div>
         <Button onClick={() => openAdd(true)}>Add certificate</Button>
@@ -135,6 +158,7 @@ export function CertificatesCard() {
               <TableRow>
                 <TableHead>Code</TableHead>
                 <TableHead>Verification</TableHead>
+                <TableHead>Profile</TableHead>
                 <TableHead>Added</TableHead>
                 <TableHead></TableHead>
               </TableRow>
@@ -153,6 +177,31 @@ export function CertificatesCard() {
                       Verify
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant={c.pinned ? "secondary" : "ghost"}
+                      size="sm"
+                      disabled={pinningId === c.id}
+                      onClick={() => togglePin(c)}
+                      title={
+                        c.pinned
+                          ? "Shown on your profile — click to unpin"
+                          : "Pin to show on your profile"
+                      }
+                    >
+                      {c.pinned ? (
+                        <>
+                          <Pin className="w-3.5 h-3.5" />
+                          Pinned
+                        </>
+                      ) : (
+                        <>
+                          <PinOff className="w-3.5 h-3.5" />
+                          Pin
+                        </>
+                      )}
+                    </Button>
                   </TableCell>
                   <TableCell>{fmtDate(c.createdAt)}</TableCell>
                   <TableCell className="text-right">

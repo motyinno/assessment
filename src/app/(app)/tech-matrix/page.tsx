@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
+import { RoadmapView } from "@/components/roadmap-view";
 
 interface TechMatrixTopic {
   id: string;
@@ -28,22 +31,10 @@ interface TechMatrix {
   sections: TechMatrixSection[];
 }
 
-const SECTION_COLORS: Record<string, { border: string; bg: string; text: string }> = {
-  js: { border: "border-l-yellow-400", bg: "bg-yellow-500/10", text: "text-yellow-700 dark:text-yellow-300" },
-  typescript: { border: "border-l-blue-500", bg: "bg-blue-500/10", text: "text-blue-700 dark:text-blue-300" },
-  backend: { border: "border-l-green-600", bg: "bg-green-500/10", text: "text-green-700 dark:text-green-300" },
-  react: { border: "border-l-cyan-500", bg: "bg-cyan-500/10", text: "text-cyan-700 dark:text-cyan-300" },
-  databases: { border: "border-l-orange-500", bg: "bg-orange-500/10", text: "text-orange-700 dark:text-orange-300" },
-  web: { border: "border-l-indigo-500", bg: "bg-indigo-500/10", text: "text-indigo-700 dark:text-indigo-300" },
-  general: { border: "border-l-gray-500", bg: "bg-gray-500/10", text: "text-gray-700 dark:text-gray-300" },
-  devops: { border: "border-l-red-500", bg: "bg-red-500/10", text: "text-red-700 dark:text-red-300" },
-  "message-brokers": { border: "border-l-amber-600", bg: "bg-amber-500/10", text: "text-amber-700 dark:text-amber-300" },
-  "principles-and-patterns": { border: "border-l-teal-600", bg: "bg-teal-500/10", text: "text-teal-700 dark:text-teal-300" },
-  architecture: { border: "border-l-violet-600", bg: "bg-violet-500/10", text: "text-violet-700 dark:text-violet-300" },
-  ai: { border: "border-l-pink-500", bg: "bg-pink-500/10", text: "text-pink-700 dark:text-pink-300" },
-};
+type ViewMode = "table" | "roadmap";
 
 export default function TechMatrixPage() {
+  const [view, setView] = useState<ViewMode>("table");
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -83,9 +74,6 @@ export default function TechMatrixPage() {
 
   const totalTopics = matrix?.sections.reduce((sum, s) => sum + s.topics.length, 0) || 0;
 
-  if (loading) return <p className="text-muted-foreground p-8">Loading matrix...</p>;
-  if (!matrix) return <p className="text-destructive p-8">Failed to load</p>;
-
   const showJun = gradeFilter === "all" || gradeFilter === "jun";
   const showMid = gradeFilter === "all" || gradeFilter === "mid";
   const showSen = gradeFilter === "all" || gradeFilter === "sen";
@@ -93,16 +81,50 @@ export default function TechMatrixPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Tech matrix</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {matrix.sections.length} sections &middot; {totalTopics} topics
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Tech matrix</h1>
+          {view === "table" ? (
+            matrix && (
+              <p className="text-muted-foreground text-sm mt-1">
+                {matrix.sections.length} sections &middot; {totalTopics} topics
+              </p>
+            )
+          ) : (
+            <p className="text-muted-foreground text-sm mt-1">
+              Your interactive skill roadmap
+            </p>
+          )}
+        </div>
+        <div className="inline-flex shrink-0 rounded-lg border border-border bg-card p-0.5">
+          <Button
+            variant={view === "table" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setView("table")}
+          >
+            Table
+          </Button>
+          <Button
+            variant={view === "roadmap" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setView("roadmap")}
+          >
+            Roadmap
+          </Button>
+        </div>
       </div>
 
-      {/* Sticky filters */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm py-3 border-b border-border/40">
-        <div className="flex flex-wrap gap-3">
+      {view === "roadmap" ? (
+        <RoadmapView />
+      ) : loading ? (
+        <p className="text-muted-foreground p-8">Loading matrix...</p>
+      ) : !matrix ? (
+        <p className="text-destructive p-8">Failed to load</p>
+      ) : (
+        <>
+      {/* Sticky filters + single column header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pt-3 border-b border-border/40">
+        <div className="flex flex-wrap gap-3 pb-3">
           <div className="relative flex-1 min-w-[200px] max-w-[300px]">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <Input
@@ -140,6 +162,43 @@ export default function TechMatrixPage() {
             </button>
           )}
         </div>
+
+        {/* Single column header — transparent border matches the section cards'
+            border widths so its grid lines up with the rows below. */}
+        {filteredSections.length > 0 && (
+          <div className="border border-l-4 border-transparent">
+            <div
+              className="grid bg-muted/40"
+              style={{ gridTemplateColumns: `180px repeat(${visibleGrades}, 1fr)` }}
+            >
+              <div className="px-5 py-2 border-r border-border/60" />
+              {showJun && (
+                <div className={`px-4 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-300 uppercase tracking-wide ${showMid || showSen ? "border-r border-border/60" : ""}`}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Junior
+                  </span>
+                </div>
+              )}
+              {showMid && (
+                <div className={`px-4 py-2 text-[11px] font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide ${showSen ? "border-r border-border/60" : ""}`}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    Middle
+                  </span>
+                </div>
+              )}
+              {showSen && (
+                <div className="px-4 py-2 text-[11px] font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    Senior
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sections */}
@@ -149,7 +208,7 @@ export default function TechMatrixPage() {
         <div className="space-y-4">
           {filteredSections.map((section) => {
             const isCollapsed = collapsedSections.has(section.id);
-            const colors = SECTION_COLORS[section.id] || { border: "border-l-gray-400", bg: "bg-gray-500/10", text: "text-gray-700 dark:text-gray-300" };
+            const colors = SECTION_COLORS[section.id] || DEFAULT_SECTION_COLOR;
 
             return (
               <div key={section.id} className={`border rounded-xl overflow-hidden border-l-4 ${colors.border} bg-card`}>
@@ -204,44 +263,14 @@ export default function TechMatrixPage() {
                         )}
                       </div>
                     ))}
-
-                    {/* Column headers at bottom for context */}
-                    <div
-                      className="grid bg-muted/30"
-                      style={{ gridTemplateColumns: `180px repeat(${visibleGrades}, 1fr)` }}
-                    >
-                      <div className="px-5 py-2 border-r border-border/60" />
-                      {showJun && (
-                        <div className={`px-4 py-2 text-[11px] font-medium text-emerald-600 dark:text-emerald-300 uppercase tracking-wide ${showMid || showSen ? "border-r border-border/60" : ""}`}>
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Junior
-                          </span>
-                        </div>
-                      )}
-                      {showMid && (
-                        <div className={`px-4 py-2 text-[11px] font-medium text-blue-600 dark:text-blue-300 uppercase tracking-wide ${showSen ? "border-r border-border/60" : ""}`}>
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                            Middle
-                          </span>
-                        </div>
-                      )}
-                      {showSen && (
-                        <div className="px-4 py-2 text-[11px] font-medium text-purple-600 dark:text-purple-300 uppercase tracking-wide">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                            Senior
-                          </span>
-                        </div>
-                      )}
-                    </div>
                   </div>
                 )}
               </div>
             );
           })}
         </div>
+      )}
+        </>
       )}
     </div>
   );
