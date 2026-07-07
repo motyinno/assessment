@@ -13,7 +13,7 @@ export async function GET() {
   const rows = await prisma.certificate.findMany({
     where: { userId: a.session.user.id },
     orderBy: { createdAt: "desc" },
-    select: { id: true, code: true, createdAt: true },
+    select: { id: true, code: true, pinned: true, createdAt: true },
   });
   const certificates = rows.map((c) => ({ ...c, verifyUrl: certVerifyUrl(c.code) }));
   return NextResponse.json({ certificates });
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   try {
     const record = await prisma.certificate.create({
       data: { userId: a.session.user.id, code: body.data.code },
-      select: { id: true, code: true, createdAt: true },
+      select: { id: true, code: true, pinned: true, createdAt: true },
     });
     return NextResponse.json(
       { ...record, verifyUrl: certVerifyUrl(record.code) },

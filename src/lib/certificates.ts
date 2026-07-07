@@ -31,6 +31,7 @@ export interface CertVerification {
   category: string | null;
   dateIssued: string | null;
   expirationDate: string | null;
+  issuedBy: string | null;
 }
 
 export type VerifyResult =

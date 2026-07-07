@@ -107,6 +107,7 @@ model User {
   apiTokens            ApiToken[]
   notifications        Notification[]
   certificates         Certificate[]
+  roadmapProgress      RoadmapProgress[]
 
   @@index([managerId])
 }
@@ -118,6 +119,10 @@ model Certificate {
   id        String   @id @default(cuid())
   userId    String
   code      String
+  /// When true, this certificate is shown on the owner's user profile page
+  /// (visible to anyone who can view that profile). Off by default — a private
+  /// certificate the owner has added but not published.
+  pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -322,6 +327,25 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
+}
+
+/// A user's self-tracked progress on a single tech-matrix topic at one grade
+/// band. A row means the user has marked that (topic, grade) as done. Combined
+/// with assessment-derived scores by lib/roadmap.ts to compute node status.
+model RoadmapProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  sectionId String // denormalized (mirrors SelfAssessment) so the toggle writes without loading the matrix
+  topicId   String
+  grade     String // base band: "jun" | "mid" | "sen"
+  done      Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topicId, grade])
+  @@index([userId])
 }
 
 model SelfAssessment {
