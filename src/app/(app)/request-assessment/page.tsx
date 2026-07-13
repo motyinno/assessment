@@ -179,7 +179,7 @@ export default function RequestAssessmentPage() {
           <div className="space-y-3">
             {requests.map((req) => (
               <Card key={req.id} size="sm">
-                <CardContent className="flex flex-col gap-2">
+                <CardContent className="flex min-w-0 flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">
                       {gradeLabel(req.grade)}
@@ -208,7 +208,9 @@ export default function RequestAssessmentPage() {
                   </p>
 
                   {req.notes && (
-                    <p className="text-sm text-muted-foreground">{req.notes}</p>
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">
+                      {req.notes}
+                    </p>
                   )}
 
                   {req.status === "APPROVED" && req.assessors && req.assessors.length > 0 && (

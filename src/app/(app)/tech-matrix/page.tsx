@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,8 @@ interface TechMatrix {
 type ViewMode = "table" | "roadmap";
 
 export default function TechMatrixPage() {
+  const { data: session } = useSession();
+  const myId = (session?.user as { id?: string } | undefined)?.id;
   const [view, setView] = useState<ViewMode>("table");
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
@@ -115,7 +118,11 @@ export default function TechMatrixPage() {
       </div>
 
       {view === "roadmap" ? (
-        <RoadmapView />
+        myId ? (
+          <RoadmapView userId={myId} canEdit />
+        ) : (
+          <p className="text-muted-foreground p-8">Loading roadmap...</p>
+        )
       ) : loading ? (
         <p className="text-muted-foreground p-8">Loading matrix...</p>
       ) : !matrix ? (

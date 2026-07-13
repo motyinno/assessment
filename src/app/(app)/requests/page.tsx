@@ -263,7 +263,7 @@ export default function RequestsPage() {
             <DialogTitle>Review request</DialogTitle>
           </DialogHeader>
           {selected && (
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Employee</p>
                 <p className="font-medium">{selected.user.name}</p>
@@ -275,7 +275,7 @@ export default function RequestsPage() {
               {selected.notes && (
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">Employee comment</p>
-                  <p className="text-sm">{selected.notes}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{selected.notes}</p>
                 </div>
               )}
 

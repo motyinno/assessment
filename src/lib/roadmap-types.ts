@@ -23,7 +23,12 @@ export interface RoadmapTopicDTO {
    * Junior assessment never sets the mid/sen score.
    */
   scores: Record<Grade, number | null>;
-  manualDone: Record<Grade, boolean>;
+  /**
+   * The individual skill strings the user has ticked off per band (already
+   * intersected with the current skill list). `resolvedSkills[band].length`
+   * out of `skills[band].length` gives the per-question progress.
+   */
+  resolvedSkills: Record<Grade, string[]>;
 }
 
 export interface RoadmapSectionDTO {
@@ -97,3 +102,55 @@ export const STATUS_ORDER: RoadmapStatus[] = [
   "assessed",
   "mastered",
 ];
+
+/** Score at/above which an assessed topic is "mastered"; scores are 0-10. */
+export const MASTERY_THRESHOLD = 8;
+/** Score at/above which a topic counts as "assessed" (touched, not mastered). */
+export const ASSESSED_THRESHOLD = 4;
+
+export function statusRank(s: RoadmapStatus): number {
+  return STATUS_ORDER.indexOf(s);
+}
+
+/** Status implied by an assessment score alone. */
+export function scoreStatus(score: number | null): RoadmapStatus {
+  if (score === null) return "not-started";
+  if (score >= MASTERY_THRESHOLD) return "mastered";
+  if (score >= ASSESSED_THRESHOLD) return "assessed";
+  return "in-progress";
+}
+
+/** Status implied by ticked questions alone: all → mastered, some → in-progress. */
+export function manualStatus(resolvedCount: number, total: number): RoadmapStatus {
+  if (total > 0 && resolvedCount >= total) return "mastered";
+  if (resolvedCount > 0) return "in-progress";
+  return "not-started";
+}
+
+/**
+ * Combine assessment score and ticked-question progress into one status —
+ * whichever is further along wins. Shared by the server builder and the
+ * client's optimistic update so they never diverge.
+ */
+export function combineStatus(
+  score: number | null,
+  resolvedCount: number,
+  total: number
+): RoadmapStatus {
+  const a = scoreStatus(score);
+  const b = manualStatus(resolvedCount, total);
+  return statusRank(a) >= statusRank(b) ? a : b;
+}
+
+/**
+ * Questions counted as resolved for display — a topic mastered by assessment
+ * reads as fully resolved (total/total) so the count never contradicts a
+ * "Mastered" badge; otherwise it's the number of ticked questions.
+ */
+export function effectiveResolved(
+  status: RoadmapStatus,
+  resolvedCount: number,
+  total: number
+): number {
+  return status === "mastered" ? total : resolvedCount;
+}

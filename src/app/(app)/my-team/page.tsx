@@ -89,6 +89,7 @@ export default async function MyTeamPage() {
                   <TableHead>User</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead>Project</TableHead>
+                  <TableHead className="text-right">Roadmap</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -121,6 +122,14 @@ export default async function MyTeamPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {report.project || "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link
+                        href={`/users/${report.id}/roadmap`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}

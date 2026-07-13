@@ -7,30 +7,21 @@ import {
   STATUS_ORDER,
   BAND_LABELS,
   BANDS,
+  combineStatus,
   type RoadmapDTO,
-  type RoadmapStatus,
   type RoadmapTopicDTO,
 } from "@/lib/roadmap-types";
 import { gradeLabel } from "@/lib/grades";
 import { cn } from "@/lib/utils";
 import { RoadmapSection } from "@/components/roadmap-section";
 import { RoadmapNodeDetail } from "@/components/roadmap-node-detail";
-import { ArrowRight } from "lucide-react";
 
-/** Client-side mirror of lib/roadmap.ts thresholds for optimistic updates. */
-function deriveStatus(score: number | null, manualDone: boolean): RoadmapStatus {
-  if (manualDone) return "mastered";
-  if (score === null) return "not-started";
-  if (score >= 8) return "mastered";
-  if (score >= 4) return "assessed";
-  return "in-progress";
-}
-
-function applyToggle(
+/** Optimistically set the resolved-skill set for one topic+band. */
+function applyResolved(
   dto: RoadmapDTO,
   topicId: string,
   band: Grade,
-  done: boolean
+  resolved: string[]
 ): RoadmapDTO {
   return {
     ...dto,
@@ -38,13 +29,17 @@ function applyToggle(
       ...section,
       topics: section.topics.map((topic) => {
         if (topic.id !== topicId) return topic;
-        const manualDone = { ...topic.manualDone, [band]: done };
+        const resolvedSkills = { ...topic.resolvedSkills, [band]: resolved };
         return {
           ...topic,
-          manualDone,
+          resolvedSkills,
           status: {
             ...topic.status,
-            [band]: deriveStatus(topic.scores[band], done),
+            [band]: combineStatus(
+              topic.scores[band],
+              resolved.length,
+              topic.skills[band].length
+            ),
           },
         };
       }),
@@ -52,7 +47,13 @@ function applyToggle(
   };
 }
 
-export function RoadmapView() {
+export function RoadmapView({
+  userId,
+  canEdit = false,
+}: {
+  userId: string;
+  canEdit?: boolean;
+}) {
   const [roadmap, setRoadmap] = useState<RoadmapDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -60,12 +61,14 @@ export function RoadmapView() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/roadmap")
+    setLoading(true);
+    setError(false);
+    fetch(`/api/users/${userId}/roadmap`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: RoadmapDTO) => setRoadmap(data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [userId]);
 
   // The band the roadmap focuses on. Defaults to the user's current grade — the
   // level they're actually being assessed at — and can be changed to look ahead.
@@ -94,23 +97,32 @@ export function RoadmapView() {
     return null;
   }, [roadmap, selectedId]);
 
-  async function handleToggle(topic: RoadmapTopicDTO, grade: Grade, done: boolean) {
-    if (!roadmap) return;
+  async function handleSetResolved(
+    topic: RoadmapTopicDTO,
+    grade: Grade,
+    resolved: string[]
+  ) {
+    if (!roadmap || !canEdit) return;
     const section = roadmap.sections.find((s) =>
       s.topics.some((t) => t.id === topic.id)
     );
     if (!section) return;
 
     const prev = roadmap;
-    setRoadmap(applyToggle(roadmap, topic.id, grade, done)); // optimistic
+    setRoadmap(applyResolved(roadmap, topic.id, grade, resolved)); // optimistic
     setSaving(true);
     try {
-      const res = await fetch("/api/roadmap/progress", {
+      const res = await fetch(`/api/users/${userId}/roadmap/progress`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: [
-            { sectionId: section.id, topicId: topic.id, grade, done },
+            {
+              sectionId: section.id,
+              topicId: topic.id,
+              grade,
+              resolvedSkills: resolved,
+            },
           ],
         }),
       });
@@ -131,25 +143,9 @@ export function RoadmapView() {
   return (
     <div className="space-y-5">
       {/* Progress header */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card/40 px-5 py-4">
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Your grade:</span>
-          <span className="rounded-md bg-muted px-2 py-0.5 font-medium">
-            {gradeLabel(roadmap.currentGrade)}
-          </span>
-          {roadmap.nextGrade && (
-            <>
-              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-700 dark:text-emerald-300">
-                {gradeLabel(roadmap.nextGrade)}
-              </span>
-            </>
-          )}
-        </div>
-
-        {/* Focal-grade selector — which band the nodes reflect */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Show level:</span>
+      <div className="space-y-2.5 rounded-xl border bg-card/40 px-5 py-3.5">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* Focal-grade selector — which band the nodes reflect */}
           <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
             {BANDS.map((band) => {
               const active = band === focalGrade;
@@ -176,17 +172,30 @@ export function RoadmapView() {
               );
             })}
           </div>
+
+          {/* Legend */}
+          <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-1">
+            {STATUS_ORDER.map((s) => (
+              <span key={s} className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className={cn("h-2 w-2 rounded-full border", STATUS_META[s].dot)} />
+                {STATUS_META[s].label}
+              </span>
+            ))}
+          </div>
         </div>
 
-        {/* Legend */}
-        <div className="ml-auto flex flex-wrap items-center gap-3">
-          {STATUS_ORDER.map((s) => (
-            <span key={s} className="inline-flex items-center gap-1.5 text-[11px]">
-              <span className={cn("h-2.5 w-2.5 rounded-full border", STATUS_META[s].dot)} />
-              {STATUS_META[s].label}
-            </span>
-          ))}
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Currently{" "}
+          <span className="font-medium text-foreground">{gradeLabel(roadmap.currentGrade)}</span>
+          {roadmap.nextGrade && (
+            <>
+              {" "}· working toward{" "}
+              <span className="font-medium text-foreground">{gradeLabel(roadmap.nextGrade)}</span>
+            </>
+          )}
+          {" "}· showing{" "}
+          <span className="font-medium text-foreground">{BAND_LABELS[focalGrade]}</span> level
+        </p>
       </div>
 
       {/* Section spines */}
@@ -210,8 +219,9 @@ export function RoadmapView() {
       <RoadmapNodeDetail
         focalGrade={focalGrade}
         topic={selectedTopic}
+        canEdit={canEdit}
         onClose={() => setSelectedId(null)}
-        onToggle={handleToggle}
+        onSetResolved={handleSetResolved}
         saving={saving}
       />
     </div>

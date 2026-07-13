@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 
 const BAND_DOT: Record<Grade, string> = {
   jun: "bg-emerald-400",
@@ -25,20 +25,26 @@ const BAND_DOT: Record<Grade, string> = {
 
 /**
  * Detail dialog for a single topic, scoped to the focal grade: shows that
- * level's skills, its status/score, and a "Mark as done" toggle that persists
- * a manual checkmark for that level.
+ * level's skills as individually checkable "questions", a resolved/total count,
+ * and a "mark all" shortcut. Read-only when `canEdit` is false.
  */
 export function RoadmapNodeDetail({
   topic,
   focalGrade,
+  canEdit,
   onClose,
-  onToggle,
+  onSetResolved,
   saving,
 }: {
   topic: RoadmapTopicDTO | null;
   focalGrade: Grade;
+  canEdit: boolean;
   onClose: () => void;
-  onToggle: (topic: RoadmapTopicDTO, grade: Grade, done: boolean) => void;
+  onSetResolved: (
+    topic: RoadmapTopicDTO,
+    grade: Grade,
+    resolvedSkills: string[]
+  ) => void;
   saving: boolean;
 }) {
   const open = topic !== null;
@@ -46,7 +52,27 @@ export function RoadmapNodeDetail({
   const meta = topic ? STATUS_META[topic.status[focalGrade]] : null;
   const skills = topic ? topic.skills[focalGrade] : [];
   const score = topic ? topic.scores[focalGrade] : null;
-  const done = topic ? topic.manualDone[focalGrade] : false;
+  const resolved = new Set(topic ? topic.resolvedSkills[focalGrade] : []);
+  const allResolved = skills.length > 0 && resolved.size >= skills.length;
+
+  function commit(next: Set<string>) {
+    if (!topic) return;
+    // Preserve skill order; only keep skills that still exist.
+    onSetResolved(topic, focalGrade, skills.filter((s) => next.has(s)));
+  }
+
+  function toggleSkill(skill: string) {
+    if (!canEdit) return;
+    const next = new Set(resolved);
+    if (next.has(skill)) next.delete(skill);
+    else next.add(skill);
+    commit(next);
+  }
+
+  function toggleAll() {
+    if (!canEdit) return;
+    commit(allResolved ? new Set() : new Set(skills));
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -59,46 +85,72 @@ export function RoadmapNodeDetail({
                 {topic.title}
               </DialogTitle>
               <DialogDescription>
-                {BAND_LABELS[focalGrade]}-level skills ·{" "}
+                {BAND_LABELS[focalGrade]}-level questions ·{" "}
                 {score !== null ? `assessed ${score}/10` : "not assessed"}
               </DialogDescription>
             </DialogHeader>
 
             <div className="flex items-center justify-between gap-2">
-              <span className={cn("rounded px-2 py-0.5 text-xs font-medium", meta.badge)}>
-                {meta.label}
-              </span>
-              <Button
-                type="button"
-                size="sm"
-                variant={done ? "secondary" : "outline"}
-                disabled={saving}
-                onClick={() => onToggle(topic, focalGrade, !done)}
-              >
-                {saving ? (
-                  <Loader2 className="animate-spin" />
-                ) : done ? (
-                  <Check />
-                ) : null}
-                {done ? "Done" : "Mark as done"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <span className={cn("rounded px-2 py-0.5 text-xs font-medium", meta.badge)}>
+                  {meta.label}
+                </span>
+                {skills.length > 0 && (
+                  <span className="text-xs tabular-nums text-muted-foreground">
+                    {resolved.size}/{skills.length} resolved
+                  </span>
+                )}
+              </div>
+              {canEdit && skills.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={allResolved ? "secondary" : "outline"}
+                  disabled={saving}
+                  onClick={toggleAll}
+                >
+                  {allResolved ? "Unmark all" : "Mark all as resolved"}
+                </Button>
+              )}
             </div>
 
             {skills.length === 0 ? (
               <p className="text-[13px] italic text-muted-foreground/60">
-                No skills listed at this level.
+                No questions listed at this level.
               </p>
             ) : (
-              <ul className="grid gap-1.5 sm:grid-cols-2">
-                {skills.map((skill, i) => (
-                  <li
-                    key={i}
-                    className="flex items-start gap-2 text-[13px] leading-relaxed text-foreground/85"
-                  >
-                    <span className={cn("mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full", BAND_DOT[focalGrade])} />
-                    {skill}
-                  </li>
-                ))}
+              <ul className="space-y-1">
+                {skills.map((skill, i) => {
+                  const checked = resolved.has(skill);
+                  return (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        disabled={!canEdit || saving}
+                        onClick={() => toggleSkill(skill)}
+                        className={cn(
+                          "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-[13px] leading-relaxed transition-colors",
+                          canEdit && "hover:bg-muted/50",
+                          !canEdit && "cursor-default"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                            checked
+                              ? "border-emerald-600 bg-emerald-500 text-white"
+                              : "border-border bg-background"
+                          )}
+                        >
+                          {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+                        </span>
+                        <span className={cn(checked ? "text-muted-foreground line-through" : "text-foreground/85")}>
+                          {skill}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </>

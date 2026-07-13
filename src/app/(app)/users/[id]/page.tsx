@@ -34,6 +34,15 @@ import {
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { UserCertificatesCard } from "@/components/user-certificates-card";
+import { Separator } from "@/components/ui/separator";
+import {
+  FileText,
+  ClipboardList,
+  Map,
+  Paperclip,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Assessment {
@@ -382,60 +391,69 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch lg:w-52 lg:shrink-0">
+            <div className="flex flex-wrap gap-1.5 lg:flex-col lg:items-stretch lg:w-56 lg:shrink-0">
               {profile.grade ? (
                 <Link
                   href={`/users/${profile.id}/generate-pdp`}
-                  className={buttonVariants({ size: "lg" }) + " justify-center"}
+                  className={cn(buttonVariants({ size: "sm" }), "justify-start")}
                 >
+                  <FileText />
                   Generate PDP
                 </Link>
               ) : (
-                <div className="text-[11px] text-muted-foreground rounded-md border border-dashed px-3 py-2 text-center">
-                  No grade — generation unavailable
-                </div>
+                <p className="px-1 py-1 text-[11px] text-muted-foreground">
+                  No grade — PDP generation unavailable
+                </p>
               )}
-              {latestCompletedAssessment ? (
+              {latestCompletedAssessment && (
                 <Link
                   href={`/assessments/${latestCompletedAssessment.id}/generate`}
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    "h-auto min-h-9 py-1.5 whitespace-normal text-center leading-tight"
-                  )}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start")}
                 >
-                  Generate PDP from assessment
+                  <ClipboardList />
+                  PDP from assessment
                 </Link>
-              ) : (
-                <div className="text-[11px] text-muted-foreground rounded-md border border-dashed px-3 py-2 text-center">
-                  No completed assessment
-                </div>
               )}
-              <Button variant="outline" size="lg" onClick={openAttach}>
+              <Link
+                href={`/users/${profile.id}/roadmap`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start")}
+              >
+                <Map />
+                View roadmap
+              </Link>
+              <Button variant="outline" size="sm" className="justify-start" onClick={openAttach}>
+                <Paperclip />
                 Attach PDP file
               </Button>
+
+              {(canEdit || isAdmin) && (
+                <Separator className="my-1 hidden lg:block" />
+              )}
               {canEdit && (
-                <Button variant="outline" size="lg" onClick={openEdit}>
+                <Button variant="ghost" size="sm" className="justify-start" onClick={openEdit}>
+                  <Pencil />
                   Edit
                 </Button>
               )}
               {isAdmin && (
                 <>
                   <Button
-                    variant="outline"
-                    size="lg"
+                    variant="ghost"
+                    size="sm"
                     onClick={handleDelete}
                     disabled={deleteLoading || profile.id === currentUserId}
-                    className="text-destructive hover:bg-destructive/5 hover:text-destructive border-destructive/30"
+                    className="justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
                     title={
                       profile.id === currentUserId
                         ? "Can't delete your own account"
                         : undefined
                     }
                   >
+                    <Trash2 />
                     {deleteLoading ? "Deleting..." : "Delete"}
                   </Button>
                   {deleteError && (
-                    <p className="text-xs text-destructive">{deleteError}</p>
+                    <p className="px-1 text-xs text-destructive">{deleteError}</p>
                   )}
                 </>
               )}
