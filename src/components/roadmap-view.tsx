@@ -7,8 +7,8 @@ import {
   STATUS_ORDER,
   BAND_LABELS,
   BANDS,
+  combineStatus,
   type RoadmapDTO,
-  type RoadmapStatus,
   type RoadmapTopicDTO,
 } from "@/lib/roadmap-types";
 import { gradeLabel } from "@/lib/grades";
@@ -17,20 +17,12 @@ import { RoadmapSection } from "@/components/roadmap-section";
 import { RoadmapNodeDetail } from "@/components/roadmap-node-detail";
 import { ArrowRight } from "lucide-react";
 
-/** Client-side mirror of lib/roadmap.ts thresholds for optimistic updates. */
-function deriveStatus(score: number | null, manualDone: boolean): RoadmapStatus {
-  if (manualDone) return "mastered";
-  if (score === null) return "not-started";
-  if (score >= 8) return "mastered";
-  if (score >= 4) return "assessed";
-  return "in-progress";
-}
-
-function applyToggle(
+/** Optimistically set the resolved-skill set for one topic+band. */
+function applyResolved(
   dto: RoadmapDTO,
   topicId: string,
   band: Grade,
-  done: boolean
+  resolved: string[]
 ): RoadmapDTO {
   return {
     ...dto,
@@ -38,13 +30,17 @@ function applyToggle(
       ...section,
       topics: section.topics.map((topic) => {
         if (topic.id !== topicId) return topic;
-        const manualDone = { ...topic.manualDone, [band]: done };
+        const resolvedSkills = { ...topic.resolvedSkills, [band]: resolved };
         return {
           ...topic,
-          manualDone,
+          resolvedSkills,
           status: {
             ...topic.status,
-            [band]: deriveStatus(topic.scores[band], done),
+            [band]: combineStatus(
+              topic.scores[band],
+              resolved.length,
+              topic.skills[band].length
+            ),
           },
         };
       }),
@@ -52,7 +48,13 @@ function applyToggle(
   };
 }
 
-export function RoadmapView() {
+export function RoadmapView({
+  userId,
+  canEdit = false,
+}: {
+  userId: string;
+  canEdit?: boolean;
+}) {
   const [roadmap, setRoadmap] = useState<RoadmapDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -60,12 +62,14 @@ export function RoadmapView() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch("/api/roadmap")
+    setLoading(true);
+    setError(false);
+    fetch(`/api/users/${userId}/roadmap`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: RoadmapDTO) => setRoadmap(data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [userId]);
 
   // The band the roadmap focuses on. Defaults to the user's current grade — the
   // level they're actually being assessed at — and can be changed to look ahead.
@@ -94,23 +98,32 @@ export function RoadmapView() {
     return null;
   }, [roadmap, selectedId]);
 
-  async function handleToggle(topic: RoadmapTopicDTO, grade: Grade, done: boolean) {
-    if (!roadmap) return;
+  async function handleSetResolved(
+    topic: RoadmapTopicDTO,
+    grade: Grade,
+    resolved: string[]
+  ) {
+    if (!roadmap || !canEdit) return;
     const section = roadmap.sections.find((s) =>
       s.topics.some((t) => t.id === topic.id)
     );
     if (!section) return;
 
     const prev = roadmap;
-    setRoadmap(applyToggle(roadmap, topic.id, grade, done)); // optimistic
+    setRoadmap(applyResolved(roadmap, topic.id, grade, resolved)); // optimistic
     setSaving(true);
     try {
-      const res = await fetch("/api/roadmap/progress", {
+      const res = await fetch(`/api/users/${userId}/roadmap/progress`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: [
-            { sectionId: section.id, topicId: topic.id, grade, done },
+            {
+              sectionId: section.id,
+              topicId: topic.id,
+              grade,
+              resolvedSkills: resolved,
+            },
           ],
         }),
       });
@@ -133,7 +146,7 @@ export function RoadmapView() {
       {/* Progress header */}
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3 rounded-xl border bg-card/40 px-5 py-4">
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-muted-foreground">Your grade:</span>
+          <span className="text-muted-foreground">Grade:</span>
           <span className="rounded-md bg-muted px-2 py-0.5 font-medium">
             {gradeLabel(roadmap.currentGrade)}
           </span>
@@ -169,7 +182,7 @@ export function RoadmapView() {
                   {BAND_LABELS[band]}
                   {isCurrent && (
                     <span className="ml-1 text-[9px] uppercase text-muted-foreground">
-                      you
+                      current
                     </span>
                   )}
                 </button>
@@ -210,8 +223,9 @@ export function RoadmapView() {
       <RoadmapNodeDetail
         focalGrade={focalGrade}
         topic={selectedTopic}
+        canEdit={canEdit}
         onClose={() => setSelectedId(null)}
-        onToggle={handleToggle}
+        onSetResolved={handleSetResolved}
         saving={saving}
       />
     </div>

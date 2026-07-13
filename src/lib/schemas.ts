@@ -108,7 +108,8 @@ export const roadmapProgressSchema = z.object({
       sectionId: z.string().min(1),
       topicId: z.string().min(1),
       grade: z.enum(["jun", "mid", "sen"]),
-      done: z.boolean(),
+      // The full ticked set for this (topic, grade). Empty clears it.
+      resolvedSkills: z.array(z.string()),
     })
   ),
 });

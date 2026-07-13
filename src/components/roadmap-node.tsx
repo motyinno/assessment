@@ -1,7 +1,11 @@
 "use client";
 
 import type { Grade } from "@/lib/types";
-import { STATUS_META, type RoadmapTopicDTO } from "@/lib/roadmap-types";
+import {
+  STATUS_META,
+  effectiveResolved,
+  type RoadmapTopicDTO,
+} from "@/lib/roadmap-types";
 import type { SectionColor } from "@/lib/section-colors";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +27,15 @@ export function RoadmapNode({
   focalGrade: Grade;
   onClick: () => void;
 }) {
-  const meta = STATUS_META[topic.status[focalGrade]];
+  const status = topic.status[focalGrade];
+  const meta = STATUS_META[status];
+  const total = topic.skills[focalGrade].length;
+  const resolved = effectiveResolved(
+    status,
+    topic.resolvedSkills[focalGrade].length,
+    total
+  );
+  const showCount = total > 0 && resolved > 0;
   return (
     <button
       type="button"
@@ -39,7 +51,7 @@ export function RoadmapNode({
       </span>
       <span
         className={cn(
-          "mt-1.5 flex",
+          "mt-1.5 flex items-center gap-1.5",
           align === "left" ? "justify-end" : "justify-start"
         )}
       >
@@ -51,6 +63,11 @@ export function RoadmapNode({
         >
           {meta.label}
         </span>
+        {showCount && (
+          <span className="text-[10px] tabular-nums text-muted-foreground">
+            {resolved}/{total}
+          </span>
+        )}
       </span>
     </button>
   );

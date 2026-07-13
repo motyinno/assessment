@@ -3,6 +3,7 @@
 import type { Grade } from "@/lib/types";
 import {
   STATUS_META,
+  effectiveResolved,
   type RoadmapSectionDTO,
   type RoadmapTopicDTO,
 } from "@/lib/roadmap-types";
@@ -27,11 +28,21 @@ export function RoadmapSection({
   onSelect: (topic: RoadmapTopicDTO) => void;
 }) {
   const color = sectionColor(section.id);
-  const mastered = section.topics.filter(
-    (t) => t.status[focalGrade] === "mastered"
-  ).length;
-  const total = section.topics.length;
-  const pct = total ? Math.round((mastered / total) * 100) : 0;
+  // Section progress counts individual questions across the focal-grade topics.
+  let resolvedQuestions = 0;
+  let totalQuestions = 0;
+  for (const t of section.topics) {
+    const n = t.skills[focalGrade].length;
+    totalQuestions += n;
+    resolvedQuestions += effectiveResolved(
+      t.status[focalGrade],
+      t.resolvedSkills[focalGrade].length,
+      n
+    );
+  }
+  const pct = totalQuestions
+    ? Math.round((resolvedQuestions / totalQuestions) * 100)
+    : 0;
 
   return (
     <div className={cn("rounded-xl border border-l-4 bg-card/40", color.border)}>
@@ -39,7 +50,7 @@ export function RoadmapSection({
       <div className="flex items-center gap-3 px-5 py-3">
         <h2 className="text-sm font-semibold">{section.title}</h2>
         <span className={cn("rounded-full px-2 py-0.5 text-[11px]", color.bg, color.text)}>
-          {mastered}/{total}
+          {resolvedQuestions}/{totalQuestions}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">

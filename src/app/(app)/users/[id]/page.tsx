@@ -410,6 +410,12 @@ export default function UserProfilePage() {
                   No completed assessment
                 </div>
               )}
+              <Link
+                href={`/users/${profile.id}/roadmap`}
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "justify-center")}
+              >
+                View roadmap
+              </Link>
               <Button variant="outline" size="lg" onClick={openAttach}>
                 Attach PDP file
               </Button>

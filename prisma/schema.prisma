@@ -330,17 +330,20 @@ model Notification {
 }
 
 /// A user's self-tracked progress on a single tech-matrix topic at one grade
-/// band. A row means the user has marked that (topic, grade) as done. Combined
-/// with assessment-derived scores by lib/roadmap.ts to compute node status.
+/// band. `resolvedSkills` holds the individual skill strings the user has ticked
+/// off for that (topic, grade); combined with assessment-derived scores by
+/// lib/roadmap.ts to compute node status. `done` is legacy (pre per-skill
+/// tracking) — still read as "all skills resolved" but no longer written.
 model RoadmapProgress {
-  id        String   @id @default(cuid())
-  userId    String
-  sectionId String // denormalized (mirrors SelfAssessment) so the toggle writes without loading the matrix
-  topicId   String
-  grade     String // base band: "jun" | "mid" | "sen"
-  done      Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String
+  sectionId      String // denormalized (mirrors SelfAssessment) so the toggle writes without loading the matrix
+  topicId        String
+  grade          String // base band: "jun" | "mid" | "sen"
+  resolvedSkills String[] @default([]) // individual skill strings ticked at this (topic, grade)
+  done           Boolean  @default(true) // legacy: pre per-skill tracking; read as "all resolved"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
