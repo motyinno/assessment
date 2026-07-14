@@ -42,6 +42,7 @@ const assessmentStatusVariants: Record<
 interface SessionRow {
   id: string;
   type: string;
+  title?: string | null;
   status: string;
   order: number;
   assessorName: string | null;
@@ -334,7 +335,7 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                         <SessionStatusDot status={s.status} />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {SESSION_TYPE_LABELS[s.type] || s.type}
+                        {s.title ?? SESSION_TYPE_LABELS[s.type] ?? s.type}
                       </TableCell>
                       <TableCell className="text-xs">
                         {SESSION_STATUS_LABELS[s.status] || s.status}

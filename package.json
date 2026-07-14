@@ -11,7 +11,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:matrix": "tsx scripts/seed-tech-matrix.ts",
+    "seed:sessions": "tsx scripts/seed-session-templates.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

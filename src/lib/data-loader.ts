@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import prisma from "./prisma";
 import type { Grade, TopicMapping, TechMatrix } from "./types";
 
 /**
@@ -97,13 +98,42 @@ export function loadPdpTopicsMarkdown(): string {
 }
 
 /**
- * Load tech matrix from data/tech-matrix.json.
+ * Read the seed tech matrix from data/tech-matrix.json. Used as the fallback
+ * source before the DB tables are populated, and by the seed script.
  */
-let techMatrixCache: TechMatrix | null = null;
-export function loadTechMatrix(): TechMatrix {
-  if (techMatrixCache) return techMatrixCache;
+export function loadTechMatrixFromFile(): TechMatrix {
   const filePath = path.join(getDataDir(), "tech-matrix.json");
   const content = fs.readFileSync(filePath, "utf-8");
-  techMatrixCache = JSON.parse(content);
-  return techMatrixCache!;
+  return JSON.parse(content);
+}
+
+/**
+ * Load the tech matrix from the DB (MatrixSection + MatrixTopic), ordered by
+ * `order`. Falls back to the seed JSON file when the tables are still empty
+ * (pre-migration / before the seed script has run). The response shape matches
+ * the {@link TechMatrix} type consumed across the app.
+ */
+export async function loadTechMatrix(): Promise<TechMatrix> {
+  const sections = await prisma.matrixSection.findMany({
+    orderBy: { order: "asc" },
+    include: { topics: { orderBy: { order: "asc" } } },
+  });
+
+  if (sections.length === 0) {
+    return loadTechMatrixFromFile();
+  }
+
+  return {
+    sections: sections.map((s) => ({
+      id: s.id,
+      title: s.title,
+      topics: s.topics.map((t) => ({
+        id: t.id,
+        title: t.title,
+        jun: t.jun,
+        mid: t.mid,
+        sen: t.sen,
+      })),
+    })),
+  };
 }

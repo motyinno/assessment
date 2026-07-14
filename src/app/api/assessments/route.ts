@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const subject = participants?.find((p) => p.participantRole === "SUBJECT");
 
-  const sessionTemplates = subject ? buildSessionsForGrade(grade) : [];
+  const sessionTemplates = subject ? await buildSessionsForGrade(grade) : [];
 
   // Atomic: create assessment + participants + sessions, or none of them.
   const assessment = await prisma.$transaction(async (tx) => {
@@ -79,7 +79,8 @@ export async function POST(req: NextRequest) {
       await tx.assessmentSession.createMany({
         data: sessionTemplates.map((t) => ({
           assessmentId: created.id,
-          type: t.type as never,
+          type: t.type,
+          title: t.title,
           status: t.status as never,
           order: t.order,
           durationMin: t.durationMin,

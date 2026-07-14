@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { gradeLabel } from "@/lib/grades";
+import { DailyTopicButton } from "@/components/daily-topic-button";
 
 type StatTone = "primary" | "success" | "warning" | "muted";
 
@@ -160,6 +161,7 @@ export default async function DashboardPage() {
             Overview of your assessments and development plans
           </p>
         </div>
+        <DailyTopicButton isAdmin={role === "ADMIN"} />
       </div>
 
       <div

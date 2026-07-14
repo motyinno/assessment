@@ -4,29 +4,25 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { notFound, serverError } from "@/lib/api-helpers";
 
 export const runtime = "nodejs";
-// Tech matrix is loaded from disk and never changes between deploys.
-export const revalidate = 3600;
+// The matrix is now admin-editable and DB-backed, so it must not be cached.
+export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
 
   try {
-    const matrix = loadTechMatrix();
+    const matrix = await loadTechMatrix();
     const { searchParams } = new URL(request.url);
     const sectionId = searchParams.get("section");
 
     if (sectionId) {
       const section = matrix.sections.find((s) => s.id === sectionId);
       if (!section) return notFound("Section not found");
-      return NextResponse.json(section, {
-        headers: { "Cache-Control": "private, max-age=3600" },
-      });
+      return NextResponse.json(section);
     }
 
-    return NextResponse.json(matrix, {
-      headers: { "Cache-Control": "private, max-age=3600" },
-    });
+    return NextResponse.json(matrix);
   } catch (e) {
     return serverError(e instanceof Error ? e.message : String(e));
   }

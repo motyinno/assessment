@@ -127,6 +127,55 @@ export const meetingScheduleSchema = z.object({
   startsAt: z.string().datetime(),
 });
 
+// ---- Session templates (admin-managed session generation) ----
+
+const gradeBandEnum = z.enum(["jun", "mid", "sen"]);
+const assessmentTypeEnum = z.enum(["GENERAL", "PDP_CHECK"]);
+
+export const createSessionTemplateSchema = z.object({
+  assessmentType: assessmentTypeEnum,
+  gradeBand: gradeBandEnum,
+  // Optional stable slug; derived from the title server-side when omitted.
+  key: z.string().min(1).max(60).optional(),
+  title: z.string().trim().min(1).max(100),
+  order: z.number().int().min(0),
+  durationMin: z.number().int().min(1).max(480),
+  enabled: z.boolean().optional(),
+});
+
+export const patchSessionTemplateSchema = z.object({
+  title: z.string().trim().min(1).max(100).optional(),
+  order: z.number().int().min(0).optional(),
+  durationMin: z.number().int().min(1).max(480).optional(),
+  enabled: z.boolean().optional(),
+});
+
+// ---- Tech matrix editing (admin-only) ----
+
+const skillsArray = z.array(z.string().trim().min(1).max(300));
+
+export const createSectionSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+});
+
+export const patchSectionSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  order: z.number().int().min(0).optional(),
+});
+
+export const createTopicSchema = z.object({
+  sectionId: z.string().min(1),
+  title: z.string().trim().min(1).max(200),
+});
+
+export const patchTopicSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  order: z.number().int().min(0).optional(),
+  jun: skillsArray.optional(),
+  mid: skillsArray.optional(),
+  sen: skillsArray.optional(),
+});
+
 // ---- Assessment requests ----
 
 export const createRequestSchema = z.object({

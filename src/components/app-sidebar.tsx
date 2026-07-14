@@ -20,7 +20,9 @@ interface SidebarProps {
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: "home" },
   { href: "/assessments", label: "Assessments", icon: "clipboard" },
-  { href: "/tech-matrix", label: "Tech Matrix", icon: "grid" },
+  // Exact match so the viewer isn't highlighted while on the /tech-matrix/edit
+  // configuration page (which has its own Configuration nav entry).
+  { href: "/tech-matrix", label: "Tech Matrix", icon: "grid", exact: true },
   { href: "/request-assessment", label: "Request Assessment", icon: "send", hideForAdmin: true },
 ];
 
@@ -41,11 +43,18 @@ const managerItems: Array<{
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
 ];
 
+// Admin review queues & insights — all "Assessment X" / "PDP X" review actions.
 const adminItems = [
-  { href: "/requests", label: "Requests", icon: "inbox" },
+  { href: "/requests", label: "Assessment Requests", icon: "inbox" },
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
-  { href: "/pdp-review", label: "PDPs in Review", icon: "file-text" },
+  { href: "/pdp-review", label: "PDP Review", icon: "file-text" },
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
+];
+
+// Admin configuration — how the app generates work, not a review action.
+const configItems = [
+  { href: "/tech-matrix/edit", label: "Tech Matrix", icon: "grid" },
+  { href: "/session-templates", label: "Session Templates", icon: "sliders" },
 ];
 
 function NavIcon({ name, className }: { name: string; className?: string }) {
@@ -122,6 +131,19 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
         <line x1="6" y1="20" x2="6" y2="16" />
       </svg>
     ),
+    sliders: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14" />
+        <line x1="4" y1="10" x2="4" y2="3" />
+        <line x1="12" y1="21" x2="12" y2="12" />
+        <line x1="12" y1="8" x2="12" y2="3" />
+        <line x1="20" y1="21" x2="20" y2="16" />
+        <line x1="20" y1="12" x2="20" y2="3" />
+        <line x1="1" y1="14" x2="7" y2="14" />
+        <line x1="9" y1="8" x2="15" y2="8" />
+        <line x1="17" y1="16" x2="23" y2="16" />
+      </svg>
+    ),
   };
   return <>{icons[name] || null}</>;
 }
@@ -129,9 +151,9 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
 export function AppSidebar({ user }: SidebarProps) {
   const pathname = usePathname();
 
-  const isActive = (href: string) => {
+  const isActive = (href: string, exact = false) => {
     if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    return exact ? pathname === href : pathname.startsWith(href);
   };
 
   const initials = user.name
@@ -164,7 +186,7 @@ export function AppSidebar({ user }: SidebarProps) {
         {navItems
           .filter((item) => !("hideForAdmin" in item && item.hideForAdmin && user.role === "ADMIN"))
           .map((item) => {
-            const active = isActive(item.href);
+            const active = isActive(item.href, "exact" in item && item.exact === true);
             return (
               <Link
                 key={item.href}
@@ -270,6 +292,40 @@ export function AppSidebar({ user }: SidebarProps) {
               </p>
             </div>
             {adminItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <NavIcon
+                    name={item.icon}
+                    className={cn(
+                      "w-[18px] h-[18px] shrink-0 transition-colors",
+                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+                    )}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
+
+        {user.role === "ADMIN" && (
+          <>
+            <div className="pt-5 pb-2 px-3">
+              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
+                Configuration
+              </p>
+            </div>
+            {configItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Link

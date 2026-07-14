@@ -40,56 +40,83 @@ import { baseGrade } from "./grades";
 
 export interface SessionTemplate {
   type: string;
+  title: string | null;
   status: string;
   order: number;
   durationMin: number;
 }
 
 /**
- * Build session templates for a given grade and assessment type.
+ * Hardcoded fallback used when no admin-defined SessionTemplate rows exist for
+ * the given (gradeBand, assessmentType). Mirrors the original behaviour:
  * - GENERAL: 2 technical sessions (jun) or 3 (mid/sen).
  * - PDP_CHECK: single 1-hour tech session (PDP_TECH).
  */
-export function buildSessionsForGrade(
+export function buildDefaultSessions(
   grade: string,
   assessmentType: string = ASSESSMENT_TYPES.GENERAL
 ): SessionTemplate[] {
+  const mk = (type: string, order: number): SessionTemplate => ({
+    type,
+    title: SESSION_TYPE_LABELS[type] ?? type,
+    status: SESSION_STATUSES.NOT_STARTED,
+    order,
+    durationMin: 60,
+  });
+
   if (assessmentType === ASSESSMENT_TYPES.PDP_CHECK) {
-    return [
-      {
-        type: SESSION_TYPES.PDP_TECH,
-        status: SESSION_STATUSES.NOT_STARTED,
-        order: 0,
-        durationMin: 60,
-      },
-    ];
+    return [mk(SESSION_TYPES.PDP_TECH, 0)];
   }
 
   const sessions: SessionTemplate[] = [
-    {
-      type: SESSION_TYPES.TECHNICAL_1,
-      status: SESSION_STATUSES.NOT_STARTED,
-      order: 0,
-      durationMin: 60,
-    },
-    {
-      type: SESSION_TYPES.TECHNICAL_2,
-      status: SESSION_STATUSES.NOT_STARTED,
-      order: 1,
-      durationMin: 60,
-    },
+    mk(SESSION_TYPES.TECHNICAL_1, 0),
+    mk(SESSION_TYPES.TECHNICAL_2, 1),
   ];
 
   // Mid and Sen get a 3rd technical session (grade may be "mid-", "mid+", etc.)
   const base = baseGrade(grade);
   if (base === "mid" || base === "sen") {
-    sessions.push({
-      type: SESSION_TYPES.TECHNICAL_3,
-      status: SESSION_STATUSES.NOT_STARTED,
-      order: 2,
-      durationMin: 60,
-    });
+    sessions.push(mk(SESSION_TYPES.TECHNICAL_3, 2));
   }
 
   return sessions;
+}
+
+/**
+ * Build session templates for a given grade and assessment type. Reads the
+ * admin-managed SessionTemplate rows for the resolved grade band; falls back to
+ * {@link buildDefaultSessions} when none are configured.
+ */
+export async function buildSessionsForGrade(
+  grade: string,
+  assessmentType: string = ASSESSMENT_TYPES.GENERAL
+): Promise<SessionTemplate[]> {
+  // Dynamic import keeps this module client-safe: the label constants above are
+  // imported by client components, but Prisma must never reach the browser.
+  const { default: prisma } = await import("./prisma");
+  const gradeBand = baseGrade(grade);
+  const rows = await prisma.sessionTemplate.findMany({
+    where: {
+      assessmentType: assessmentType as "GENERAL" | "PDP_CHECK",
+      gradeBand,
+      enabled: true,
+    },
+    orderBy: { order: "asc" },
+  });
+
+  if (rows.length === 0) {
+    return buildDefaultSessions(grade, assessmentType);
+  }
+
+  // Re-sequence order contiguously (0,1,2,…). Templates keep their own `order`
+  // for admin sorting, but disabling one must not leave a gap in the generated
+  // sessions — otherwise the assessment page numbers them 1, 3, 4 instead of
+  // 1, 2, 3 (it renders `session.order + 1`).
+  return rows.map((r, idx) => ({
+    type: r.key,
+    title: r.title,
+    status: SESSION_STATUSES.NOT_STARTED,
+    order: idx,
+    durationMin: r.durationMin,
+  }));
 }

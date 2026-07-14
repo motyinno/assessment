@@ -84,7 +84,7 @@ export async function POST(
   );
   if (!subject) return badRequest("Assessment subject not found");
 
-  const templates = buildSessionsForGrade(
+  const templates = await buildSessionsForGrade(
     assessment.grade,
     assessment.assessmentType
   );
@@ -92,7 +92,8 @@ export async function POST(
   await prisma.assessmentSession.createMany({
     data: templates.map((t) => ({
       assessmentId: id,
-      type: t.type as never,
+      type: t.type,
+      title: t.title,
       status: t.status as never,
       order: t.order,
       durationMin: t.durationMin,
