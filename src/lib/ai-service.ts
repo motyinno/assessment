@@ -2,6 +2,38 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { normalizeCategory, ensureCategoryMapping } from "./category-mapper";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+// Overridable via env so a flaky/overloaded preview model can be swapped
+// without a code change or rebuild. Defaults to the model used before.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+
+/**
+ * Retry a Gemini call through transient errors (503 overloaded, 429 rate limit,
+ * 500) with exponential backoff. Non-transient errors are re-thrown immediately.
+ */
+async function withGeminiRetry<T>(
+  fn: () => Promise<T>,
+  attempts = 3,
+  baseMs = 800
+): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastError = e;
+      const status = (e as { status?: number })?.status;
+      const transient =
+        status === 503 ||
+        status === 429 ||
+        status === 500 ||
+        /50\d|overloaded|high demand|unavailable|rate limit/i.test(String(e));
+      if (!transient || i === attempts - 1) throw e;
+      await new Promise((r) => setTimeout(r, baseMs * 2 ** i));
+    }
+  }
+  throw lastError;
+}
 export interface AssessmentResult {
   category: string;
   score: number | null;
@@ -87,24 +119,26 @@ Respond ONLY with valid JSON in exactly this shape:
 Rules for resources: 2-3 items. Only link to well-known, canonical, stable sources (MDN, official language/framework docs, Wikipedia, well-known references). Never invent URLs — if unsure of an exact URL, link to the site's stable root/section rather than a guessed deep link. All text in ENGLISH.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "You are a precise technical writer. Always respond with valid JSON only.",
-            },
-            { text: prompt },
-          ],
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+    const result = await withGeminiRetry(() =>
+      model.generateContent({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "You are a precise technical writer. Always respond with valid JSON only.",
+              },
+              { text: prompt },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.9,
+          responseMimeType: "application/json",
         },
-      ],
-      generationConfig: {
-        temperature: 0.9,
-        responseMimeType: "application/json",
-      },
-    });
+      })
+    );
 
     const responseContent = result.response.text();
     if (!responseContent) throw new Error("No response content from Gemini");
@@ -174,7 +208,7 @@ Format your response as JSON with this structure:
 Use the EXACT same category name as shown in the Assessment Results above (maintain the original capitalization and formatting). Respond ONLY with valid JSON, no other text.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
     const result = await model.generateContent({
       contents: [
@@ -265,7 +299,7 @@ Respond ONLY with valid JSON:
 }`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
     const result = await model.generateContent({
       contents: [
         {
@@ -349,7 +383,7 @@ Format your response as JSON with this structure:
 Only include categories in pdpTopics that have scores below 7 or need improvement. If all scores are good, focus on advanced growth areas. Respond ONLY with valid JSON, no other text.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
     const result = await model.generateContent({
       contents: [
