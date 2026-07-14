@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -37,6 +38,8 @@ type ViewMode = "table" | "roadmap";
 export default function TechMatrixPage() {
   const { data: session } = useSession();
   const myId = (session?.user as { id?: string } | undefined)?.id;
+  const isAdmin =
+    (session?.user as { role?: string } | undefined)?.role === "ADMIN";
   const [view, setView] = useState<ViewMode>("table");
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,21 +102,44 @@ export default function TechMatrixPage() {
             </p>
           )}
         </div>
-        <div className="inline-flex shrink-0 rounded-lg border border-border bg-card p-0.5">
-          <Button
-            variant={view === "table" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setView("table")}
-          >
-            Table
-          </Button>
-          <Button
-            variant={view === "roadmap" ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => setView("roadmap")}
-          >
-            Roadmap
-          </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/tech-matrix/edit"
+              aria-label="Edit matrix"
+              title="Edit matrix"
+              className={buttonVariants({ variant: "outline", size: "icon-sm" })}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="size-4"
+              >
+                <path d="M12 20h9" />
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+              </svg>
+            </Link>
+          )}
+          <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+            <Button
+              variant={view === "table" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setView("table")}
+            >
+              Table
+            </Button>
+            <Button
+              variant={view === "roadmap" ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setView("roadmap")}
+            >
+              Roadmap
+            </Button>
+          </div>
         </div>
       </div>
 

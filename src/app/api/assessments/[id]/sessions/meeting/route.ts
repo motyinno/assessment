@@ -48,7 +48,7 @@ export async function POST(
   });
   if (!subject?.user) return badRequest("Assessment subject not found");
 
-  const partLabel = SESSION_TYPE_LABELS[sess.type] || sess.type;
+  const partLabel = sess.title ?? SESSION_TYPE_LABELS[sess.type] ?? sess.type;
   const summary = `${subject.user.name}/${me.name} ${partLabel}`;
   const durationMin = sess.durationMin || 60;
 

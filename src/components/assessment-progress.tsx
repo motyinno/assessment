@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 interface Session {
   id: string;
   type: string;
+  title?: string | null;
   status: string;
   order: number;
   durationMin: number;
@@ -138,7 +139,7 @@ export function AssessmentProgress({
                         : "text-foreground/70"
                 }`}
               >
-                {SESSION_TYPE_LABELS[session.type] ?? session.type}
+                {session.title ?? SESSION_TYPE_LABELS[session.type] ?? session.type}
               </span>
 
               {/* Status */}
@@ -266,7 +267,7 @@ function CompleteSessionDialog({
   loading: boolean;
 }) {
   if (!session) return null;
-  const label = SESSION_TYPE_LABELS[session.type] ?? session.type;
+  const label = session.title ?? SESSION_TYPE_LABELS[session.type] ?? session.type;
   const canSubmit = notes.trim().length > 0 && !loading;
 
   return (
@@ -393,7 +394,7 @@ function ScheduleMeetingControl({
         open={open}
         onOpenChange={setOpen}
         initialIso={session.meetingScheduledAt}
-        sessionLabel={SESSION_TYPE_LABELS[session.type] ?? session.type}
+        sessionLabel={session.title ?? SESSION_TYPE_LABELS[session.type] ?? session.type}
         sessionDurationMin={session.durationMin}
         saving={saving}
         error={error}

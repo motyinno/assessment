@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { normalizeCategory } from "./category-mapper";
+import { normalizeCategory, ensureCategoryMapping } from "./category-mapper";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 export interface AssessmentResult {
@@ -27,6 +27,108 @@ export interface AIGeneratedPDPTopics {
 export interface TechMatrixTopicInput {
   title: string;
   skills: string[];
+}
+
+export interface DailyTopicResource {
+  label: string;
+  url: string;
+}
+
+export interface AIGeneratedDailyTopic {
+  kind: "concept" | "problem";
+  title: string;
+  category: string;
+  summary: string;
+  detail: string;
+  code: string | null;
+  resources: DailyTopicResource[];
+}
+
+/**
+ * Generate a "Topic of the day" for the dashboard: an evergreen, interesting
+ * programming concept or a small problem with its solution — plus a few
+ * reputable resources. Not tied to the tech matrix.
+ *
+ * @param kind        "concept" | "problem" — which flavour to produce.
+ * @param avoidTitles recent titles to steer away from, reducing repeats.
+ */
+export async function generateDailyTopic(
+  kind: "concept" | "problem",
+  avoidTitles: string[] = []
+): Promise<AIGeneratedDailyTopic> {
+  const avoidLine = avoidTitles.length
+    ? `Avoid these recently used topics (pick something clearly different): ${avoidTitles.join("; ")}.`
+    : "";
+
+  const flavour =
+    kind === "problem"
+      ? `Produce a small, interesting PROBLEM with its solution. In "detail": state the problem clearly first, then walk through the solution and the key insight. Keep it approachable but non-trivial.`
+      : `Produce an interesting CONCEPT explainer. In "detail": explain what it is, why it matters, and when to use it, with a concrete example. Keep it concise but substantial.`;
+
+  const prompt = `You are curating a daily "Topic of the day" for a team of software engineers.
+
+${flavour}
+Pick something genuinely interesting from ANY area of software engineering (algorithms, data structures, language internals, design patterns, databases, concurrency, networking, performance, security, tooling, etc.). Vary the difficulty day to day. It must be evergreen and factually correct — do NOT invent news, dates, or statistics.
+${avoidLine}
+
+Respond ONLY with valid JSON in exactly this shape:
+{
+  "kind": "${kind}",
+  "title": "Short, catchy title",
+  "category": "One or two word tag, e.g. Algorithms, JavaScript, Databases, Concurrency",
+  "summary": "1-2 sentence hook that makes someone want to read on",
+  "detail": "2-4 short paragraphs. Use plain text; separate paragraphs with a blank line. No markdown headers.",
+  "code": "OPTIONAL short illustrative snippet (max ~18 lines), plain code with NO markdown fences; use null if not helpful",
+  "resources": [
+    { "label": "Human-readable source name, e.g. 'MDN: Event loop'", "url": "https://..." }
+  ]
+}
+
+Rules for resources: 2-3 items. Only link to well-known, canonical, stable sources (MDN, official language/framework docs, Wikipedia, well-known references). Never invent URLs — if unsure of an exact URL, link to the site's stable root/section rather than a guessed deep link. All text in ENGLISH.`;
+
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    const result = await model.generateContent({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              text: "You are a precise technical writer. Always respond with valid JSON only.",
+            },
+            { text: prompt },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.9,
+        responseMimeType: "application/json",
+      },
+    });
+
+    const responseContent = result.response.text();
+    if (!responseContent) throw new Error("No response content from Gemini");
+
+    const parsed = JSON.parse(responseContent) as AIGeneratedDailyTopic;
+    // Normalize/guard the fields we depend on.
+    parsed.kind = parsed.kind === "problem" ? "problem" : "concept";
+    parsed.code = parsed.code && parsed.code.trim() ? parsed.code : null;
+    parsed.resources = Array.isArray(parsed.resources)
+      ? parsed.resources
+          .filter(
+            (r) =>
+              r &&
+              typeof r.url === "string" &&
+              /^https?:\/\//i.test(r.url) &&
+              typeof r.label === "string"
+          )
+          .slice(0, 3)
+      : [];
+    return parsed;
+  } catch (error) {
+    console.error("Error generating daily topic:", error);
+    throw new Error("Failed to generate the topic of the day.");
+  }
 }
 
 /**
@@ -103,6 +205,7 @@ Use the EXACT same category name as shown in the Assessment Results above (maint
     console.log("AI Feedback Response:", JSON.stringify(parsed, null, 2));
 
     // Normalize category names to match tech matrix titles
+    await ensureCategoryMapping();
     parsed.feedback = parsed.feedback.map((item) => ({
       ...item,
       category: normalizeCategory(item.category),
@@ -185,6 +288,7 @@ Respond ONLY with valid JSON:
     if (!responseContent) throw new Error("No response content from Gemini");
 
     const parsed = JSON.parse(responseContent) as AIGeneratedPDPTopics;
+    await ensureCategoryMapping();
     parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
       ...topic,
       category: normalizeCategory(topic.category),
@@ -276,6 +380,7 @@ Only include categories in pdpTopics that have scores below 7 or need improvemen
     console.log("AI Response:", JSON.stringify(parsed, null, 2));
 
     // Normalize category names to match tech matrix titles
+    await ensureCategoryMapping();
     parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
       ...topic,
       category: normalizeCategory(topic.category),

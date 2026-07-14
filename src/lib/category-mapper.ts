@@ -19,15 +19,15 @@ function normalizeCategoryName(name: string): string {
 /**
  * Creates a mapping from normalized category names to proper titles from tech matrix
  */
-function createCategoryMapping(): Map<string, string> {
-  const techMatrix = loadTechMatrix();
+async function createCategoryMapping(): Promise<Map<string, string>> {
+  const techMatrix = await loadTechMatrix();
   const mapping = new Map<string, string>();
 
   techMatrix.sections.forEach((section: any) => {
     section.topics.forEach((topic: TechMatrixTopic) => {
       const normalized = normalizeCategoryName(topic.title);
       mapping.set(normalized, topic.title);
-      
+
       // Also map by ID for extra flexibility
       const normalizedId = normalizeCategoryName(topic.id);
       mapping.set(normalizedId, topic.title);
@@ -40,16 +40,23 @@ function createCategoryMapping(): Map<string, string> {
 let categoryMapping: Map<string, string> | null = null;
 
 /**
- * Returns the proper category title from the tech matrix
- * Falls back to the original name if no match is found
+ * Warm the category-title lookup from the (now async, DB-backed) tech matrix.
+ * Callers must await this once before invoking the synchronous
+ * {@link normalizeCategory} in tight loops / .map()s.
+ */
+export async function ensureCategoryMapping(): Promise<void> {
+  if (!categoryMapping) {
+    categoryMapping = await createCategoryMapping();
+  }
+}
+
+/**
+ * Returns the proper category title from the tech matrix. Falls back to the
+ * original name if no match is found (or if the mapping isn't warmed yet).
  */
 export function normalizeCategory(category: string): string {
-  if (!categoryMapping) {
-    categoryMapping = createCategoryMapping();
-  }
-
   const normalized = normalizeCategoryName(category);
-  const properTitle = categoryMapping.get(normalized);
-  
+  const properTitle = categoryMapping?.get(normalized);
+
   return properTitle || category;
 }

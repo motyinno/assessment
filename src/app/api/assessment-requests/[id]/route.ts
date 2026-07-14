@@ -56,7 +56,7 @@ export async function PATCH(
       return badRequest("At least one assessor must be assigned");
     }
 
-    const sessionTemplates = buildSessionsForGrade(
+    const sessionTemplates = await buildSessionsForGrade(
       request.grade,
       resolvedType
     );
@@ -87,7 +87,8 @@ export async function PATCH(
         await tx.assessmentSession.createMany({
           data: sessionTemplates.map((t) => ({
             assessmentId: assessment.id,
-            type: t.type as never,
+            type: t.type,
+            title: t.title,
             status: t.status as never,
             order: t.order,
             durationMin: t.durationMin,

@@ -23,7 +23,7 @@ function nextBand(grade: Grade): Grade | null {
  * (b) their self-tracked per-question progress (RoadmapProgress.resolvedSkills).
  */
 export async function buildRoadmap(userId: string): Promise<RoadmapDTO> {
-  const matrix = loadTechMatrix();
+  const matrix = await loadTechMatrix();
 
   const [user, assessments, progressRows] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { grade: true } }),

@@ -95,6 +95,7 @@ function SessionStatusBadge({ status }: { status: string }) {
 interface SessionInfo {
   id: string;
   type: string;
+  title?: string | null;
   status: string;
   order: number;
   durationMin: number;
@@ -719,7 +720,7 @@ export default function AssessmentDetailPage() {
                                 s.status === "SKIPPED" && "text-muted-foreground line-through"
                               )}
                             >
-                              {SESSION_TYPE_LABELS[s.type] || s.type}
+                              {s.title ?? SESSION_TYPE_LABELS[s.type] ?? s.type}
                             </p>
                             <SessionStatusBadge status={s.status} />
                           </div>

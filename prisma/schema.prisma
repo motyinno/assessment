@@ -43,13 +43,6 @@ enum ParticipantRole {
   ASSESSOR
 }
 
-enum SessionType {
-  TECHNICAL_1
-  TECHNICAL_2
-  TECHNICAL_3
-  PDP_TECH
-}
-
 enum SessionStatus {
   NOT_STARTED
   IN_PROGRESS
@@ -287,7 +280,13 @@ model AssessmentRequestAssessor {
 model AssessmentSession {
   id                 String        @id @default(cuid())
   assessmentId       String
-  type               SessionType
+  // Slug of the session kind (e.g. "TECHNICAL_1", "PDP_TECH", or an
+  // admin-defined key). Was an enum; now free-form so admins can define
+  // arbitrary session types via SessionTemplate.
+  type               String
+  // Display name captured from the SessionTemplate at creation time so
+  // renaming a template never rewrites historical sessions.
+  title              String?
   status             SessionStatus @default(NOT_STARTED)
   order              Int
   durationMin        Int           @default(60)
@@ -364,4 +363,71 @@ model SelfAssessment {
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@unique([assessmentId, topicId])
+}
+
+/// Admin-managed template that drives session generation for new assessments.
+/// One row per (assessmentType, gradeBand, session). buildSessionsForGrade()
+/// reads these ordered by `order`; falls back to hardcoded defaults when empty.
+model SessionTemplate {
+  id             String             @id @default(cuid())
+  assessmentType AssessmentTypeEnum
+  gradeBand      String // base band: "jun" | "mid" | "sen"
+  key            String // stable slug written to AssessmentSession.type
+  title          String // display name, e.g. "Technical 1"
+  order          Int
+  durationMin    Int                @default(60)
+  enabled        Boolean            @default(true) // toggled off = skipped when generating sessions
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([assessmentType, gradeBand, key])
+  @@index([assessmentType, gradeBand])
+}
+
+/// Editable technical matrix — a section groups related topics. String `id` is
+/// preserved from the seed JSON so RoadmapProgress / SelfAssessment references
+/// (which key on section/topic id strings) stay valid across the DB migration.
+model MatrixSection {
+  id        String        @id
+  title     String
+  order     Int
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  topics MatrixTopic[]
+}
+
+/// A topic inside a section. `jun`/`mid`/`sen` hold the individual skill
+/// strings ("questions") per grade band — kept as string arrays so they keep
+/// matching RoadmapProgress.resolvedSkills exactly.
+model MatrixTopic {
+  id        String        @id
+  sectionId String
+  title     String
+  order     Int
+  jun       String[]      @default([])
+  mid       String[]      @default([])
+  sen       String[]      @default([])
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  section MatrixSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+
+  @@index([sectionId])
+}
+
+/// AI-generated "Topic of the day" shown on the dashboard. One row per calendar
+/// day (server-local "YYYY-MM-DD"); generated lazily on first view and cached so
+/// everyone sees the same topic that day. `resources` is [{ label, url }].
+model DailyTopic {
+  id        String   @id @default(cuid())
+  date      String   @unique // "YYYY-MM-DD"
+  kind      String // "concept" | "problem"
+  title     String
+  category  String // short tag, e.g. "Algorithms", "JavaScript"
+  summary   String // 1-2 sentence hook
+  detail    String // main explanation / problem + solution walkthrough
+  code      String? // optional illustrative snippet
+  resources Json // [{ label: string, url: string }]
+  createdAt DateTime @default(now())
 }

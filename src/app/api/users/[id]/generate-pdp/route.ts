@@ -47,7 +47,7 @@ export async function POST(
 
   // Filter tech matrix to selected topic ids, pulling grade-relevant skills
   const base = baseGrade(user.grade);
-  const matrix = loadTechMatrix();
+  const matrix = await loadTechMatrix();
   // Build an O(1) topic lookup once instead of scanning the matrix N×M times.
   const topicById = new Map<string, { title: string; jun: string[]; mid: string[]; sen: string[] }>();
   for (const section of matrix.sections) {
