@@ -3,17 +3,39 @@
  *
  * Idempotent: upserts by the JSON's string ids and refreshes title/order/skills,
  * so re-running keeps the DB in sync with the seed file without duplicating rows
- * or losing admin edits' referential keys (ids are preserved).
+ * or losing referential keys (ids are preserved).
  *
- * Usage: npx tsx scripts/seed-tech-matrix.ts
+ * Self-contained (only @prisma/client + node built-ins) so it runs both locally
+ * (`npm run seed:matrix`) and inside the standalone Docker image, where the
+ * `@/lib` path alias and src/ are unavailable. `data/` is copied into the image.
+ *
+ * Usage: npm run seed:matrix   |   docker compose exec app npm run seed:matrix
  */
 import { PrismaClient } from "@prisma/client";
-import { loadTechMatrixFromFile } from "@/lib/data-loader";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const prisma = new PrismaClient();
 
+interface Topic {
+  id: string;
+  title: string;
+  jun?: string[];
+  mid?: string[];
+  sen?: string[];
+}
+interface Section {
+  id: string;
+  title: string;
+  topics: Topic[];
+}
+
 async function main() {
-  const matrix = loadTechMatrixFromFile();
+  const file = join(process.cwd(), "data", "tech-matrix.json");
+  const matrix = JSON.parse(readFileSync(file, "utf-8")) as {
+    sections: Section[];
+  };
+
   let sectionCount = 0;
   let topicCount = 0;
 
