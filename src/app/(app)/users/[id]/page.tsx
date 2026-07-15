@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { gradeLabel, GRADE_VALUES } from "@/lib/grades";
+import { apiErrorMessage } from "@/lib/api-error";
 import {
   Select,
   SelectContent,
@@ -265,7 +266,7 @@ export default function UserProfilePage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to save");
+        throw new Error(apiErrorMessage(data, "Failed to save"));
       }
       setEditOpen(false);
       await fetchProfile();
@@ -288,7 +289,7 @@ export default function UserProfilePage() {
       const res = await fetch(`/api/users/${profile.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to delete");
+        throw new Error(apiErrorMessage(data, "Failed to delete"));
       }
       router.push("/users");
     } catch (e) {
@@ -319,7 +320,7 @@ export default function UserProfilePage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to add");
+        throw new Error(apiErrorMessage(data, "Failed to add"));
       }
       setAttachOpen(false);
       await fetchProfile();

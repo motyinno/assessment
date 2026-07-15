@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/api-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -105,7 +106,7 @@ export default function NewAssessmentPage() {
       router.push(`/assessments/${assessment.id}`);
     } else {
       const data = await res.json();
-      setError(data.error || "Failed to create assessment");
+      setError(apiErrorMessage(data, "Failed to create assessment"));
     }
   }
 

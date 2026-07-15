@@ -23,6 +23,7 @@ import {
   ASSESSMENT_TYPE_LABELS,
 } from "@/lib/assessment-sessions";
 import { gradeLabel } from "@/lib/grades";
+import { apiErrorMessage } from "@/lib/api-error";
 import { AssessmentMatrix } from "@/components/assessment-matrix";
 import { cn } from "@/lib/utils";
 
@@ -237,7 +238,7 @@ export default function AssessmentDetailPage() {
         await fetchAssessment();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to add assessor");
+        alert(apiErrorMessage(err, "Failed to add assessor"));
       }
     } finally {
       setRosterLoading(false);
@@ -255,7 +256,7 @@ export default function AssessmentDetailPage() {
         await fetchAssessment();
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to remove assessor");
+        alert(apiErrorMessage(err, "Failed to remove assessor"));
       }
     } finally {
       setRosterLoading(false);
@@ -285,7 +286,7 @@ export default function AssessmentDetailPage() {
         setFeedbackSavedAt(null);
       } else {
         const error = await res.json();
-        alert(error.error || "Failed to generate feedback");
+        alert(apiErrorMessage(error, "Failed to generate feedback"));
       }
     } catch {
       alert("Failed to generate feedback");
@@ -306,7 +307,7 @@ export default function AssessmentDetailPage() {
         setAssessment((prev) => (prev ? { ...prev, aiFeedback: feedbackText } : prev));
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || "Failed to save feedback");
+        alert(apiErrorMessage(err, "Failed to save feedback"));
       }
     } catch {
       alert("Failed to save feedback");
@@ -333,7 +334,7 @@ export default function AssessmentDetailPage() {
         await fetchAssessment();
       } else {
         const err = await res.json().catch(() => ({}));
-        setCancelError(err.error || "Failed to cancel assessment");
+        setCancelError(apiErrorMessage(err, "Failed to cancel assessment"));
       }
     } finally {
       setCancelling(false);
@@ -350,7 +351,7 @@ export default function AssessmentDetailPage() {
       await fetchAssessment();
     } else {
       const err = await res.json().catch(() => ({}));
-      alert(err.error || "Failed to end assessment");
+      alert(apiErrorMessage(err, "Failed to end assessment"));
     }
   }
 
@@ -1013,7 +1014,7 @@ function RecordingSyncButton({
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to sync");
+        throw new Error(apiErrorMessage(data, "Failed to sync"));
       }
       const data = await res.json();
       if (!data.recordingFound) {

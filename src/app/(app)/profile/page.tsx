@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/api-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -112,7 +113,7 @@ export default function ProfilePage() {
       update();
     } else {
       const d = await res.json();
-      setError(d.error || "Failed to save");
+      setError(apiErrorMessage(d, "Failed to save"));
     }
     setSaving(false);
   }

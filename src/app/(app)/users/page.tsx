@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/api-error";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +132,7 @@ export default function UsersPage() {
       fetchUsers();
     } else {
       const data = await res.json();
-      setError(data.error || "Failed to create user");
+      setError(apiErrorMessage(data, "Failed to create user"));
     }
   }
 
