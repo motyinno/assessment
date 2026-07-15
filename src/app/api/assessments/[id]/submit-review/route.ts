@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAssessmentAssessor } from "@/lib/auth-helpers";
 import { badRequest, notFound } from "@/lib/api-helpers";
+import { notifyAdminsReviewSubmitted } from "@/lib/notifications";
 
 /**
  * Assessor "ends" a completed assessment and submits it for admin review.
@@ -16,7 +17,17 @@ export async function POST(
 
   const assessment = await prisma.assessment.findUnique({
     where: { id: params.id },
-    select: { status: true, aiFeedback: true, reviewStatus: true },
+    select: {
+      status: true,
+      aiFeedback: true,
+      reviewStatus: true,
+      title: true,
+      request: { select: { chatSpaceName: true } },
+      participants: {
+        where: { participantRole: "SUBJECT" },
+        select: { user: { select: { name: true } } },
+      },
+    },
   });
   if (!assessment) return notFound("Assessment not found");
 
@@ -33,6 +44,14 @@ export async function POST(
   const updated = await prisma.assessment.update({
     where: { id: params.id },
     data: { reviewStatus: "PENDING", submittedForReviewAt: new Date() },
+  });
+
+  await notifyAdminsReviewSubmitted({
+    actingUserId: guard.session.user.id,
+    actingUserName: guard.session.user.name ?? "An assessor",
+    subjectName: assessment.participants[0]?.user.name ?? assessment.title,
+    assessmentId: params.id,
+    space: assessment.request?.chatSpaceName ?? null,
   });
 
   return NextResponse.json(updated);

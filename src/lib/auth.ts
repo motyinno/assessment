@@ -21,13 +21,19 @@ if (devLoginEnabled && (!devPassword || devPassword.length < 8)) {
 // Scopes needed for Drive file upload + Calendar event creation with Meet.
 // `drive` (full) is required — `drive.file` only sees files the app itself created.
 // `calendar.events` is needed to create events + embedded Meet links on behalf of
-// the signed-in assessor. Users must re-authorize when the scope list changes.
+// the signed-in assessor. The `chat.*` scopes let us post assessment-lifecycle
+// notifications into a Google Chat space *authored by the acting user* (see
+// lib/google-chat.ts): create the space, add members, and send messages.
+// Users must re-authorize when the scope list changes.
 const GOOGLE_SCOPES = [
   "openid",
   "email",
   "profile",
   "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/chat.spaces.create",
+  "https://www.googleapis.com/auth/chat.memberships",
+  "https://www.googleapis.com/auth/chat.messages.create",
 ].join(" ");
 
 const providers: Provider[] = [
@@ -82,13 +88,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const email = profile!.email as string;
       const name = (profile?.name as string | undefined) ?? email.split("@")[0];
 
-      // Persist Google tokens for later Drive API calls
+      // Persist Google tokens for later Drive API calls, plus the account id
+      // (`sub`) which Google Chat needs to @mention / add the user in a space.
       const tokenData: {
+        googleId?: string;
         googleAccessToken?: string;
         googleRefreshToken?: string;
         googleTokenExpiresAt?: Date;
       } = {};
       if (account?.provider === "google") {
+        if (account.providerAccountId) tokenData.googleId = account.providerAccountId;
         if (account.access_token) tokenData.googleAccessToken = account.access_token;
         if (account.refresh_token) tokenData.googleRefreshToken = account.refresh_token;
         if (account.expires_at) {

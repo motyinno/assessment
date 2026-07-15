@@ -131,7 +131,12 @@ export async function PATCH(
         notifyAssessorsAssigned(
           updated.assessors.map((a) => a.assessor),
           updated.user.name,
-          updated.assessment.id
+          updated.assessment.id,
+          {
+            actingUserId: auth.session.user.id,
+            space: request.chatSpaceName,
+            grade: request.grade,
+          }
         ),
       ]);
     }
