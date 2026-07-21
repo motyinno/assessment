@@ -29,6 +29,8 @@ export interface AssessmentRow {
   // Everyone who conducted this assessment: assigned assessors + whoever ran a
   // completed stage. Deduplicated server-side.
   conductors: { id: string; name: string }[];
+  // The people who were assessed (SUBJECT participants) — usually one.
+  subjects: { id: string; name: string }[];
 }
 
 type PeriodKey = "1m" | "3m" | "6m" | "12m" | "all";
@@ -69,13 +71,22 @@ function shortMonth(d: Date): string {
 interface TrendDatum {
   bucket: string;
   count: number;
+  // Names of the people assessed in this bucket, for the hover tooltip.
+  people: string[];
+}
+
+/** One completed assessment reduced to what the trend needs: when + who. */
+interface TrendItem {
+  date: Date;
+  people: string[];
 }
 
 /**
  * Build a time-series for the trend chart whose granularity adapts to the
  * selected period: weekly buckets for short ranges, monthly for longer ones.
+ * Each bucket also collects the names of the people assessed for the tooltip.
  */
-function buildTrend(dates: Date[], period: PeriodKey, now: number): TrendDatum[] {
+function buildTrend(items: TrendItem[], period: PeriodKey, now: number): TrendDatum[] {
   const weekly = period === "1m" || period === "3m";
 
   if (weekly) {
@@ -84,14 +95,17 @@ function buildTrend(dates: Date[], period: PeriodKey, now: number): TrendDatum[]
       const i = weeks - 1 - idx;
       const end = now - i * 7 * DAY_MS;
       const start = end - 7 * DAY_MS;
-      return { start, end, bucket: shortDay(new Date(end)), count: 0 };
+      return { start, end, bucket: shortDay(new Date(end)), count: 0, people: [] as string[] };
     });
-    for (const d of dates) {
-      const t = d.getTime();
+    for (const it of items) {
+      const t = it.date.getTime();
       const b = buckets.find((x) => t > x.start && t <= x.end);
-      if (b) b.count += 1;
+      if (b) {
+        b.count += 1;
+        b.people.push(...it.people);
+      }
     }
-    return buckets.map(({ bucket, count }) => ({ bucket, count }));
+    return buckets.map(({ bucket, count, people }) => ({ bucket, count, people }));
   }
 
   // monthly
@@ -101,10 +115,10 @@ function buildTrend(dates: Date[], period: PeriodKey, now: number): TrendDatum[]
   else if (period === "12m") months = 12;
   else {
     // all time — span from earliest completed date to now (capped)
-    if (dates.length === 0) {
+    if (items.length === 0) {
       months = 12;
     } else {
-      const earliest = new Date(Math.min(...dates.map((d) => d.getTime())));
+      const earliest = new Date(Math.min(...items.map((it) => it.date.getTime())));
       const diff =
         (nowDate.getFullYear() - earliest.getFullYear()) * 12 +
         (nowDate.getMonth() - earliest.getMonth()) +
@@ -113,20 +127,63 @@ function buildTrend(dates: Date[], period: PeriodKey, now: number): TrendDatum[]
     }
   }
 
-  const buckets: { key: string; bucket: string; count: number }[] = [];
-  const byKey = new Map<string, { count: number }>();
+  const buckets: { key: string; bucket: string; count: number; people: string[] }[] = [];
+  const byKey = new Map<string, { count: number; people: string[] }>();
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
-    const b = { key, bucket: shortMonth(d), count: 0 };
+    const b = { key, bucket: shortMonth(d), count: 0, people: [] as string[] };
     buckets.push(b);
     byKey.set(key, b);
   }
-  for (const d of dates) {
-    const b = byKey.get(`${d.getFullYear()}-${d.getMonth()}`);
-    if (b) b.count += 1;
+  for (const it of items) {
+    const b = byKey.get(`${it.date.getFullYear()}-${it.date.getMonth()}`);
+    if (b) {
+      b.count += 1;
+      b.people.push(...it.people);
+    }
   }
-  return buckets.map(({ bucket, count }) => ({ bucket, count }));
+  return buckets.map(({ bucket, count, people }) => ({ bucket, count, people }));
+}
+
+/** Shared tooltip that lists the people behind a count, with overflow capped. */
+function PeopleTooltip({
+  active,
+  payload,
+  label,
+  countLabel,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: { count: number; people: string[] } }>;
+  label?: string | number;
+  countLabel: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const datum = payload[0].payload;
+  const people = datum.people ?? [];
+  const MAX = 12;
+  const shown = people.slice(0, MAX);
+  const extra = people.length - shown.length;
+  return (
+    <div style={tooltipStyle} className="px-3 py-2 shadow-md">
+      <p className="font-medium">{label}</p>
+      <p className="text-muted-foreground">
+        {datum.count} {countLabel}
+      </p>
+      {shown.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5 border-t border-border/60 pt-1.5">
+          {shown.map((name, i) => (
+            <li key={`${name}-${i}`} className="truncate">
+              {name}
+            </li>
+          ))}
+          {extra > 0 && (
+            <li className="text-muted-foreground">+{extra} more</li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 // ---------- small presentational pieces ----------
@@ -200,13 +257,20 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
 
   const gradeDistribution = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const r of completedInPeriod) counts.set(r.grade, (counts.get(r.grade) ?? 0) + 1);
+    const people = new Map<string, string[]>();
+    for (const r of completedInPeriod) {
+      counts.set(r.grade, (counts.get(r.grade) ?? 0) + 1);
+      const names = people.get(r.grade) ?? [];
+      names.push(...r.subjects.map((s) => s.name));
+      people.set(r.grade, names);
+    }
     const ordered = (GRADE_VALUES as readonly string[]).filter((g) => counts.has(g));
     const extra = [...counts.keys()].filter((g) => !(GRADE_VALUES as readonly string[]).includes(g));
     return [...ordered, ...extra].map((grade) => ({
       grade,
       label: gradeLabel(grade),
       count: counts.get(grade) ?? 0,
+      people: people.get(grade) ?? [],
     }));
   }, [completedInPeriod]);
 
@@ -236,7 +300,10 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
   const trend = useMemo(
     () =>
       buildTrend(
-        completedInPeriod.map((r) => new Date(r.completedAt!)),
+        completedInPeriod.map((r) => ({
+          date: new Date(r.completedAt!),
+          people: r.subjects.map((s) => s.name),
+        })),
         period,
         now
       ),
@@ -352,7 +419,10 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #e5e7eb)" vertical={false} />
                   <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke={MUTED} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke={MUTED} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(99,102,241,0.08)" }} />
+                  <Tooltip
+                    cursor={{ fill: "rgba(99,102,241,0.08)" }}
+                    content={<PeopleTooltip countLabel="assessed" />}
+                  />
                   <Bar dataKey="count" name="Assessments" fill={PRIMARY} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -376,7 +446,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #e5e7eb)" vertical={false} />
                   <XAxis dataKey="bucket" tick={{ fontSize: 11 }} stroke={MUTED} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke={MUTED} />
-                  <Tooltip contentStyle={tooltipStyle} />
+                  <Tooltip content={<PeopleTooltip countLabel="completed" />} />
                   <Line
                     type="monotone"
                     dataKey="count"

@@ -25,7 +25,15 @@ export async function PATCH(
     include: {
       participants: {
         where: { participantRole: "SUBJECT" },
-        include: { user: { select: { id: true, grade: true } } },
+        include: {
+          user: {
+            select: {
+              id: true,
+              grade: true,
+              _count: { select: { certificates: { where: { pinned: true } } } },
+            },
+          },
+        },
       },
     },
   });
@@ -38,6 +46,15 @@ export async function PATCH(
   if (!subject) return badRequest("Assessment has no subject");
 
   const upgrading = action === "upgrade";
+
+  // A grade upgrade requires proof of certification pinned to the subject's
+  // profile. Without a pinned certificate the promotion is blocked until the
+  // subject pins one.
+  if (upgrading && subject._count.certificates === 0) {
+    return badRequest(
+      "Cannot upgrade grade: the subject has no certificate pinned to their profile. Ask them to pin a certificate before promoting."
+    );
+  }
   const previousGrade = subject.grade ?? null;
   const resolvedNewGrade = upgrading ? newGrade! : null;
   const notes = (reviewNotes ?? "").trim();

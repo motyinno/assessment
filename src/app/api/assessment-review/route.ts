@@ -14,7 +14,13 @@ export async function GET() {
         where: { participantRole: "SUBJECT" },
         include: {
           user: {
-            select: { id: true, name: true, email: true, grade: true },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              grade: true,
+              _count: { select: { certificates: { where: { pinned: true } } } },
+            },
           },
         },
       },
