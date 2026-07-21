@@ -4,7 +4,15 @@ import { NextResponse } from "next/server";
 // Public paths — anything else requires an authenticated session.
 // /api/health is intentionally public so that orchestrators (Docker, k8s,
 // Caddy) can probe liveness without an auth context.
-const publicPaths = ["/login", "/api/auth", "/api/health"];
+// /app-icon.png + /icon.png must be reachable without a session so Google Chat
+// can fetch the app avatar and browsers can load the favicon on /login.
+const publicPaths = [
+  "/login",
+  "/api/auth",
+  "/api/health",
+  "/app-icon.png",
+  "/icon.png",
+];
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;

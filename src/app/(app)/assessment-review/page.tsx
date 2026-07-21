@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { apiErrorMessage } from "@/lib/api-error";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -175,7 +176,7 @@ export default function AssessmentReviewPage() {
         await fetchAssessments();
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Failed to record decision");
+        setError(apiErrorMessage(data, "Failed to record decision"));
       }
     } finally {
       setUpgrading(false);
