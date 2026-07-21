@@ -31,8 +31,10 @@ export async function PATCH(
     new Set([...(assessorIds ?? []), ...(assessorId ? [assessorId] : [])])
   );
 
-  const resolvedType: "GENERAL" | "PDP_CHECK" =
-    assessmentType === "PDP_CHECK" ? "PDP_CHECK" : "GENERAL";
+  const resolvedType: "GENERAL" | "PDP_CHECK" | "SYSTEM_DESIGN" =
+    assessmentType === "PDP_CHECK" || assessmentType === "SYSTEM_DESIGN"
+      ? assessmentType
+      : "GENERAL";
 
   const request = await prisma.assessmentRequest.findUnique({
     where: { id },
@@ -64,7 +66,12 @@ export async function PATCH(
     // Create assessment + participants + sessions + flip the request status
     // atomically.
     const updated = await prisma.$transaction(async (tx) => {
-      const titlePrefix = resolvedType === "PDP_CHECK" ? "PDP review" : "Assessment";
+      const titlePrefix =
+        resolvedType === "PDP_CHECK"
+          ? "PDP review"
+          : resolvedType === "SYSTEM_DESIGN"
+            ? "System design"
+            : "Assessment";
       const assessment = await tx.assessment.create({
         data: {
           title: `${titlePrefix}: ${request.user.name}`,

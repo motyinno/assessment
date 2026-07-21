@@ -16,6 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
+import { ASSESSMENT_TYPES, ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
+
+const ASSESSMENT_TYPE_HINTS: Record<string, string> = {
+  GENERAL: "2–3 technical sessions, 1 hr each",
+  PDP_CHECK: "1 tech session, 1 hr",
+  SYSTEM_DESIGN: "1 system-design session, 1.5 hr — no tech matrix, design feedback only",
+};
 
 interface UserItem {
   id: string;
@@ -38,6 +45,7 @@ export default function NewAssessmentPage() {
   const [form, setForm] = useState({
     title: "",
     grade: "jun",
+    assessmentType: ASSESSMENT_TYPES.GENERAL as string,
     scheduledAt: "",
     notes: "",
   });
@@ -132,6 +140,35 @@ export default function NewAssessmentPage() {
                 placeholder="e.g. Node.js Assessment Q2 2026"
                 required
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Assessment type</Label>
+              <Select
+                value={form.assessmentType}
+                onValueChange={(v) =>
+                  v && setForm({ ...form, assessmentType: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {(v: unknown) =>
+                      typeof v === "string" && v
+                        ? ASSESSMENT_TYPE_LABELS[v] ?? v
+                        : ""
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(ASSESSMENT_TYPES).map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {ASSESSMENT_TYPE_LABELS[t] ?? t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {ASSESSMENT_TYPE_HINTS[form.assessmentType]}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

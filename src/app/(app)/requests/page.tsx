@@ -23,6 +23,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { gradeLabel, baseGrade } from "@/lib/grades";
 
+type AssessmentType = "GENERAL" | "PDP_CHECK" | "SYSTEM_DESIGN";
+
 interface RequestUser {
   id: string;
   name: string;
@@ -66,7 +68,8 @@ export default function RequestsPage() {
   const [selected, setSelected] = useState<AssessmentRequest | null>(null);
   const [selectedAssessorIds, setSelectedAssessorIds] = useState<string[]>([]);
   const [adminNotes, setAdminNotes] = useState("");
-  const [assessmentType, setAssessmentType] = useState<"GENERAL" | "PDP_CHECK">("GENERAL");
+  const [assessmentType, setAssessmentType] =
+    useState<AssessmentType>("GENERAL");
   const [suggestion, setSuggestion] = useState<{
     need: number;
     pickedIds: string[];
@@ -112,7 +115,7 @@ export default function RequestsPage() {
 
   async function loadSuggestion(
     requestId: string,
-    type: "GENERAL" | "PDP_CHECK",
+    type: AssessmentType,
     applyPicked: boolean
   ) {
     setLoadingSuggestion(true);
@@ -144,7 +147,7 @@ export default function RequestsPage() {
     }
   }
 
-  function onAssessmentTypeChange(type: "GENERAL" | "PDP_CHECK") {
+  function onAssessmentTypeChange(type: AssessmentType) {
     setAssessmentType(type);
     if (selected) void loadSuggestion(selected.id, type, true);
   }
@@ -281,7 +284,7 @@ export default function RequestsPage() {
 
               <div className="space-y-2">
                 <Label>Assessment type</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <label
                     className={`flex flex-col gap-1 rounded-md border p-3 cursor-pointer text-sm transition-colors ${
                       assessmentType === "GENERAL"
@@ -320,6 +323,26 @@ export default function RequestsPage() {
                     </div>
                     <span className="text-xs text-muted-foreground ml-5">
                       1 tech session, 1 hr
+                    </span>
+                  </label>
+                  <label
+                    className={`flex flex-col gap-1 rounded-md border p-3 cursor-pointer text-sm transition-colors ${
+                      assessmentType === "SYSTEM_DESIGN"
+                        ? "border-primary bg-primary/5"
+                        : "border-input hover:bg-muted/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="assessmentType"
+                        checked={assessmentType === "SYSTEM_DESIGN"}
+                        onChange={() => onAssessmentTypeChange("SYSTEM_DESIGN")}
+                      />
+                      <span className="font-medium">System design</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground ml-5">
+                      1 design session, 1.5 hr — design feedback only
                     </span>
                   </label>
                 </div>

@@ -39,15 +39,20 @@ export async function POST(req: NextRequest) {
   const {
     title,
     grade,
+    assessmentType,
     scheduledAt,
     notes,
     participants,
     optionalGuestEmail,
   } = parsed.data;
 
+  const resolvedType = assessmentType ?? "GENERAL";
+
   const subject = participants?.find((p) => p.participantRole === "SUBJECT");
 
-  const sessionTemplates = subject ? buildSessionsForGrade(grade) : [];
+  const sessionTemplates = subject
+    ? buildSessionsForGrade(grade, resolvedType)
+    : [];
 
   // Atomic: create assessment + participants + sessions, or none of them.
   const assessment = await prisma.$transaction(async (tx) => {
@@ -55,6 +60,7 @@ export async function POST(req: NextRequest) {
       data: {
         title,
         grade,
+        assessmentType: resolvedType,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         notes: notes ?? null,
         optionalGuestEmail: optionalGuestEmail ?? null,

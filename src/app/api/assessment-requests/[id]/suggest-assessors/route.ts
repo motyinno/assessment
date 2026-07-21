@@ -13,8 +13,10 @@ export async function GET(
 
   const { id } = await params;
   const typeParam = req.nextUrl.searchParams.get("assessmentType");
-  const assessmentType: "GENERAL" | "PDP_CHECK" =
-    typeParam === "PDP_CHECK" ? "PDP_CHECK" : "GENERAL";
+  const assessmentType: "GENERAL" | "PDP_CHECK" | "SYSTEM_DESIGN" =
+    typeParam === "PDP_CHECK" || typeParam === "SYSTEM_DESIGN"
+      ? typeParam
+      : "GENERAL";
 
   const request = await prisma.assessmentRequest.findUnique({
     where: { id },

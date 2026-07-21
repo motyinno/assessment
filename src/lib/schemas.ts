@@ -41,6 +41,12 @@ export const createCertificateSchema = z.object({
 
 // ---- Assessments ----
 
+export const assessmentTypeEnum = z.enum([
+  "GENERAL",
+  "PDP_CHECK",
+  "SYSTEM_DESIGN",
+]);
+
 export const participantInputSchema = z.object({
   userId: z.string().min(1),
   participantRole: z.enum(["SUBJECT", "ASSESSOR"]),
@@ -50,6 +56,7 @@ export const participantInputSchema = z.object({
 export const createAssessmentSchema = z.object({
   title: z.string().min(1).max(300),
   grade: gradeEnum,
+  assessmentType: assessmentTypeEnum.optional(),
   scheduledAt: z.string().datetime().optional().nullable(),
   notes: z.string().optional().nullable(),
   optionalGuestEmail: z.string().email().optional().nullable(),
@@ -127,6 +134,26 @@ export const meetingScheduleSchema = z.object({
   startsAt: z.string().datetime(),
 });
 
+// ---- System design task pool ----
+
+export const createSystemDesignTaskSchema = z.object({
+  title: z.string().trim().min(1).max(300),
+  description: z.string().max(20000).optional().default(""),
+  difficulty: z.string().trim().max(60).optional().nullable(),
+});
+
+export const patchSystemDesignTaskSchema = z.object({
+  title: z.string().trim().min(1).max(300).optional(),
+  description: z.string().max(20000).optional(),
+  difficulty: z.string().trim().max(60).optional().nullable(),
+  isArchived: z.boolean().optional(),
+});
+
+// Full set of task ids the assessor used for this assessment (empty clears it).
+export const assessmentSystemDesignTasksSchema = z.object({
+  taskIds: z.array(z.string().min(1)),
+});
+
 // ---- Assessment requests ----
 
 export const createRequestSchema = z.object({
@@ -138,7 +165,7 @@ export const patchRequestSchema = z.object({
   assessorIds: z.array(z.string().min(1)).optional(),
   assessorId: z.string().optional(),
   adminNotes: z.string().optional().nullable(),
-  assessmentType: z.enum(["GENERAL", "PDP_CHECK"]).optional(),
+  assessmentType: assessmentTypeEnum.optional(),
 });
 
 // ---- PDPs ----

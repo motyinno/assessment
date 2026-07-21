@@ -36,6 +36,7 @@ enum AssessmentReviewStatus {
 enum AssessmentTypeEnum {
   GENERAL
   PDP_CHECK
+  SYSTEM_DESIGN // mid+/sen- promotion: single 1.5h system-design session, no tech matrix
 }
 
 enum ParticipantRole {
@@ -43,12 +44,11 @@ enum ParticipantRole {
   ASSESSOR
 }
 
-enum SessionType {
-  TECHNICAL_1
-  TECHNICAL_2
-  TECHNICAL_3
-  PDP_TECH
-}
+// NOTE: AssessmentSession.type is a plain String in the database — the legacy
+// `SessionType` enum was dropped by an earlier (ahead-of-branch) migration when
+// session generation became data-driven. Values still come from
+// `SESSION_TYPES` in lib/assessment-sessions.ts (TECHNICAL_1, …, PDP_TECH,
+// SYSTEM_DESIGN); they are just no longer constrained by a DB enum.
 
 enum SessionStatus {
   NOT_STARTED
@@ -181,13 +181,14 @@ model Assessment {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  participants    AssessmentParticipant[]
-  results         AssessmentResult[]
-  selfAssessments SelfAssessment[]
-  pdps            Pdp[]
-  sessions        AssessmentSession[]
-  request         AssessmentRequest?
-  reviewedBy      User?                   @relation("reviewedAssessments", fields: [reviewedById], references: [id])
+  participants      AssessmentParticipant[]
+  results           AssessmentResult[]
+  selfAssessments   SelfAssessment[]
+  pdps              Pdp[]
+  sessions          AssessmentSession[]
+  request           AssessmentRequest?
+  systemDesignTasks AssessmentSystemDesignTask[]
+  reviewedBy        User?                        @relation("reviewedAssessments", fields: [reviewedById], references: [id])
 
   @@index([reviewStatus])
 }
@@ -287,7 +288,7 @@ model AssessmentRequestAssessor {
 model AssessmentSession {
   id                 String        @id @default(cuid())
   assessmentId       String
-  type               SessionType
+  type               String // see note above: values from SESSION_TYPES, not a DB enum
   status             SessionStatus @default(NOT_STARTED)
   order              Int
   durationMin        Int           @default(60)
@@ -364,4 +365,36 @@ model SelfAssessment {
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@unique([assessmentId, topicId])
+}
+
+/// Admin-curated pool of system-design problems. Assessors browse this pool
+/// during a SYSTEM_DESIGN assessment and pick the task(s) they used; the
+/// selection is recorded via AssessmentSystemDesignTask. `isArchived` retires a
+/// task from the picker without deleting historical links.
+model SystemDesignTask {
+  id          String   @id @default(cuid())
+  title       String
+  description String   @default("")
+  difficulty  String? // optional freeform tag, e.g. "mid+", "hard"
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  assessmentLinks AssessmentSystemDesignTask[]
+
+  @@index([isArchived])
+}
+
+/// Join row recording that an assessor used `task` in `assessment`.
+model AssessmentSystemDesignTask {
+  id           String   @id @default(cuid())
+  assessmentId String
+  taskId       String
+  createdAt    DateTime @default(now())
+
+  assessment Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  task       SystemDesignTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, taskId])
+  @@index([taskId])
 }

@@ -11,7 +11,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "seed:system-design-tasks": "tsx scripts/seed-system-design-tasks.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

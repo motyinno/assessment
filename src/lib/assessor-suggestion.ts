@@ -88,6 +88,9 @@ export async function suggestAssessors(opts: {
   return candidates;
 }
 
-export function countForType(assessmentType: "GENERAL" | "PDP_CHECK"): number {
-  return assessmentType === "PDP_CHECK" ? 1 : 2;
+export function countForType(
+  assessmentType: "GENERAL" | "PDP_CHECK" | "SYSTEM_DESIGN"
+): number {
+  // Single-session assessments (PDP review, system design) need one assessor.
+  return assessmentType === "GENERAL" ? 2 : 1;
 }

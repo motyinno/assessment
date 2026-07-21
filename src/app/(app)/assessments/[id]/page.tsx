@@ -24,6 +24,7 @@ import {
 } from "@/lib/assessment-sessions";
 import { gradeLabel } from "@/lib/grades";
 import { AssessmentMatrix } from "@/components/assessment-matrix";
+import { SystemDesignTasks } from "@/components/system-design-tasks";
 import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
@@ -359,6 +360,7 @@ export default function AssessmentDetailPage() {
     return <p className="text-destructive">Assessment not found</p>;
 
   const isPdpCheck = assessment.assessmentType === "PDP_CHECK";
+  const isSystemDesign = assessment.assessmentType === "SYSTEM_DESIGN";
 
   const subjects = assessment.participants.filter(
     (p) => p.participantRole === "SUBJECT"
@@ -798,8 +800,17 @@ export default function AssessmentDetailPage() {
         </Card>
       )}
 
-      {/* Tech Matrix with Self-Assessment — hidden for PDP check, collapsed by default */}
-      {assessment.status !== "CANCELLED" && !isPdpCheck && (
+      {/* System design task pool — the assessor picks the problem(s) used. */}
+      {assessment.status !== "CANCELLED" && isSystemDesign && (
+        <SystemDesignTasks
+          assessmentId={assessment.id}
+          canAssess={canRunSessions}
+        />
+      )}
+
+      {/* Tech Matrix with Self-Assessment — hidden for PDP check & system
+          design, collapsed by default */}
+      {assessment.status !== "CANCELLED" && !isPdpCheck && !isSystemDesign && (
         <Card>
           <button
             type="button"

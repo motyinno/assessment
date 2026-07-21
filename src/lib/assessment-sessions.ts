@@ -3,6 +3,7 @@ export const SESSION_TYPES = {
   TECHNICAL_2: "TECHNICAL_2",
   TECHNICAL_3: "TECHNICAL_3",
   PDP_TECH: "PDP_TECH",
+  SYSTEM_DESIGN: "SYSTEM_DESIGN",
 } as const;
 
 export const SESSION_STATUSES = {
@@ -15,11 +16,13 @@ export const SESSION_STATUSES = {
 export const ASSESSMENT_TYPES = {
   GENERAL: "GENERAL",
   PDP_CHECK: "PDP_CHECK",
+  SYSTEM_DESIGN: "SYSTEM_DESIGN",
 } as const;
 
 export const ASSESSMENT_TYPE_LABELS: Record<string, string> = {
   GENERAL: "General assessment",
   PDP_CHECK: "PDP review",
+  SYSTEM_DESIGN: "System design",
 };
 
 export const SESSION_TYPE_LABELS: Record<string, string> = {
@@ -27,6 +30,7 @@ export const SESSION_TYPE_LABELS: Record<string, string> = {
   TECHNICAL_2: "Technical 2",
   TECHNICAL_3: "Technical 3",
   PDP_TECH: "PDP review",
+  SYSTEM_DESIGN: "System design",
 };
 
 export const SESSION_STATUS_LABELS: Record<string, string> = {
@@ -49,11 +53,23 @@ export interface SessionTemplate {
  * Build session templates for a given grade and assessment type.
  * - GENERAL: 2 technical sessions (jun) or 3 (mid/sen).
  * - PDP_CHECK: single 1-hour tech session (PDP_TECH).
+ * - SYSTEM_DESIGN: single 1.5-hour design session (any grade).
  */
 export function buildSessionsForGrade(
   grade: string,
   assessmentType: string = ASSESSMENT_TYPES.GENERAL
 ): SessionTemplate[] {
+  if (assessmentType === ASSESSMENT_TYPES.SYSTEM_DESIGN) {
+    return [
+      {
+        type: SESSION_TYPES.SYSTEM_DESIGN,
+        status: SESSION_STATUSES.NOT_STARTED,
+        order: 0,
+        durationMin: 90,
+      },
+    ];
+  }
+
   if (assessmentType === ASSESSMENT_TYPES.PDP_CHECK) {
     return [
       {
