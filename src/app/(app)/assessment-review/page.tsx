@@ -29,13 +29,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { gradeLabel, GRADE_VALUES } from "@/lib/grades";
+import { gradeLabel, GRADE_VALUES, gradeRank, isValidGrade } from "@/lib/grades";
+import { MASTERY_THRESHOLD, ASSESSED_THRESHOLD } from "@/lib/roadmap-types";
+import { cn } from "@/lib/utils";
 
 interface SubjectUser {
   id: string;
   name: string;
   email: string;
   grade: string | null;
+  // Number of certificates the subject has pinned to their profile. A grade
+  // upgrade is blocked until at least one is pinned.
+  _count: { certificates: number };
 }
 
 interface ReviewResult {
@@ -55,6 +60,59 @@ interface ReviewAssessment {
   results: ReviewResult[];
 }
 
+/** Average score (0-10) and how topics split across mastery bands. */
+function summarizeResults(results: ReviewResult[]) {
+  let sum = 0;
+  let scored = 0;
+  let mastered = 0;
+  let onTrack = 0;
+  let needsWork = 0;
+  for (const r of results) {
+    if (r.score === null) continue;
+    scored += 1;
+    sum += r.score;
+    if (r.score >= MASTERY_THRESHOLD) mastered += 1;
+    else if (r.score >= ASSESSED_THRESHOLD) onTrack += 1;
+    else needsWork += 1;
+  }
+  return {
+    total: results.length,
+    scored,
+    avg: scored > 0 ? sum / scored : null,
+    mastered,
+    onTrack,
+    needsWork,
+  };
+}
+
+// An assessment "passes" at avg 7+ (matches the PDP "needs improvement below 7"
+// rule). Assessment.grade is the subject's grade at assessment time, not a
+// target — a promotion moves them one step up the ladder (e.g. Middle+ → Senior-).
+const PASS_THRESHOLD = 7;
+
+/**
+ * Suggested grade to pre-fill: one step up from the subject's current grade
+ * when the assessment passed cleanly (avg ≥ 7 and no critically-failing topic),
+ * otherwise their current grade (i.e. no upgrade suggested).
+ */
+function recommendedGradeFor(a: ReviewAssessment): string {
+  const currentGrade = a.participants[0]?.user.grade ?? null;
+  const { avg, needsWork } = summarizeResults(a.results);
+  const passed = avg !== null && avg >= PASS_THRESHOLD && needsWork === 0;
+  if (passed && isValidGrade(currentGrade)) {
+    const next = GRADE_VALUES[gradeRank(currentGrade) + 1];
+    if (next) return next;
+  }
+  return currentGrade ?? "";
+}
+
+function scoreTone(score: number | null): string {
+  if (score === null) return "text-muted-foreground";
+  if (score >= MASTERY_THRESHOLD) return "text-success";
+  if (score >= ASSESSED_THRESHOLD) return "text-foreground";
+  return "text-destructive";
+}
+
 export default function AssessmentReviewPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -63,6 +121,7 @@ export default function AssessmentReviewPage() {
   const [selected, setSelected] = useState<ReviewAssessment | null>(null);
   const [newGrade, setNewGrade] = useState("");
   const [notes, setNotes] = useState("");
+  const [showTopics, setShowTopics] = useState(false);
   const [upgrading, setUpgrading] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [error, setError] = useState("");
@@ -88,9 +147,10 @@ export default function AssessmentReviewPage() {
 
   function openReview(a: ReviewAssessment) {
     setSelected(a);
-    setNewGrade(subjectOf(a)?.grade ?? "");
+    setNewGrade(recommendedGradeFor(a));
     setNotes("");
     setError("");
+    setShowTopics(false);
     setOpen(true);
   }
 
@@ -125,8 +185,12 @@ export default function AssessmentReviewPage() {
 
   const selectedSubject = selected ? subjectOf(selected) : null;
   const currentGrade = selectedSubject?.grade ?? null;
+  const summary = selected ? summarizeResults(selected.results) : null;
+  const recommendedGrade = selected ? recommendedGradeFor(selected) : "";
+  const sameAsCurrent = !!newGrade && newGrade === currentGrade;
+  const hasPinnedCertificate = (selectedSubject?._count.certificates ?? 0) > 0;
   const upgradeDisabled =
-    upgrading || declining || !newGrade || newGrade === currentGrade;
+    upgrading || declining || !newGrade || sameAsCurrent || !hasPinnedCertificate;
 
   return (
     <div className="space-y-6">
@@ -249,27 +313,85 @@ export default function AssessmentReviewPage() {
                 )}
               </div>
 
-              {selected.results.length > 0 && (
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">Scores</p>
-                  <ul className="text-sm divide-y divide-border rounded-md border border-border/60">
-                    {selected.results.map((r) => (
-                      <li
-                        key={r.id}
-                        className="flex items-center justify-between px-3 py-1.5"
-                      >
-                        <span className="truncate">{r.category}</span>
-                        <span className="text-muted-foreground tabular-nums">
-                          {r.score ?? "—"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+              {summary && summary.total > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Result</p>
+                    <button
+                      type="button"
+                      onClick={() => setShowTopics((v) => !v)}
+                      className="text-[11px] font-medium text-primary hover:underline"
+                    >
+                      {showTopics
+                        ? "Hide topics"
+                        : `Show topics (${summary.total})`}
+                    </button>
+                  </div>
+                  <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-semibold tabular-nums text-foreground">
+                        {summary.avg !== null ? summary.avg.toFixed(1) : "—"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        avg score · {summary.scored}/{summary.total} scored
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                      <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-success">
+                        {summary.mastered} mastered
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
+                        {summary.onTrack} on track
+                      </span>
+                      <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-destructive">
+                        {summary.needsWork} needs work
+                      </span>
+                    </div>
+                  </div>
+                  {showTopics && (
+                    <ul className="text-sm divide-y divide-border rounded-md border border-border/60">
+                      {selected.results.map((r) => (
+                        <li
+                          key={r.id}
+                          className="flex items-center justify-between px-3 py-1.5"
+                        >
+                          <span className="truncate">{r.category}</span>
+                          <span
+                            className={cn(
+                              "tabular-nums font-medium",
+                              scoreTone(r.score)
+                            )}
+                          >
+                            {r.score ?? "—"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label>New grade (when upgrading)</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>New grade</Label>
+                  {recommendedGrade && recommendedGrade !== currentGrade ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      Suggested:{" "}
+                      <button
+                        type="button"
+                        onClick={() => setNewGrade(recommendedGrade)}
+                        disabled={newGrade === recommendedGrade}
+                        className="font-medium text-primary hover:underline disabled:no-underline disabled:text-muted-foreground disabled:opacity-100"
+                      >
+                        {gradeLabel(recommendedGrade)}
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      Suggested: no upgrade
+                    </span>
+                  )}
+                </div>
                 <Select
                   value={newGrade || "__none__"}
                   onValueChange={(v) =>
@@ -289,13 +411,15 @@ export default function AssessmentReviewPage() {
                     {GRADE_VALUES.map((g) => (
                       <SelectItem key={g} value={g}>
                         {gradeLabel(g)}
+                        {g === currentGrade ? " · current" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {newGrade && newGrade === currentGrade && (
+                {sameAsCurrent && (
                   <p className="text-[11px] text-muted-foreground">
-                    Same as current grade — pick a different grade to upgrade.
+                    Matches the current grade — choose “No upgrade” to keep it,
+                    or pick a higher grade to promote.
                   </p>
                 )}
               </div>
@@ -309,6 +433,35 @@ export default function AssessmentReviewPage() {
                   placeholder="Reasoning for the decision"
                 />
               </div>
+
+              {!hasPinnedCertificate && (
+                <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px] text-warning-foreground dark:text-warning">
+                  <svg
+                    className="mt-0.5 h-4 w-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <p>
+                    No certificate is pinned to{" "}
+                    <Link
+                      href={`/users/${selectedSubject.id}`}
+                      className="font-medium underline"
+                    >
+                      {selectedSubject.name}
+                    </Link>
+                    ’s profile. Grade upgrades are blocked until a certificate is
+                    pinned. You can still record “No upgrade”.
+                  </p>
+                </div>
+              )}
 
               {error && <p className="text-sm text-destructive">{error}</p>}
 

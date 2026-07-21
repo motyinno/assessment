@@ -24,8 +24,10 @@ export default async function AssessmentStatisticsPage() {
   // by user id (falling back to assessor name when a session has no id).
   const rows: AssessmentRow[] = assessments.map((a) => {
     const conductors = new Map<string, string>();
+    const subjects = new Map<string, string>();
     for (const p of a.participants) {
       if (p.participantRole === "ASSESSOR") conductors.set(p.userId, p.user.name);
+      else if (p.participantRole === "SUBJECT") subjects.set(p.userId, p.user.name);
     }
     for (const s of a.sessions) {
       if (s.status !== "COMPLETED") continue;
@@ -42,6 +44,7 @@ export default async function AssessmentStatisticsPage() {
       reviewStatus: a.reviewStatus,
       gradeUpgraded: a.gradeUpgraded,
       conductors: [...conductors.entries()].map(([id, name]) => ({ id, name })),
+      subjects: [...subjects.entries()].map(([id, name]) => ({ id, name })),
     };
   });
 
