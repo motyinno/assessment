@@ -70,6 +70,7 @@ enum NotificationType {
   ASSESSMENT_ASSIGNED // -> assessor: assigned to an assessment
   REQUEST_APPROVED // -> requester: request approved
   REQUEST_REJECTED // -> requester: request rejected
+  ASSESSMENT_REVIEW_SUBMITTED // -> admins: assessment finished, grade needs review
 }
 
 // ---- Models ----
@@ -83,6 +84,7 @@ model User {
   project               String?
   isArchived            Boolean   @default(false) // left the department; kept for historical assessments
   managerId             String?
+  googleId              String?   @unique // Google account id (OAuth `sub`); used to @mention/add the user in Google Chat
   googleAccessToken     String?
   googleRefreshToken    String?
   googleTokenExpiresAt  DateTime?
@@ -249,6 +251,7 @@ model AssessmentRequest {
   notes          String?
   adminNotes     String?
   assessmentId   String?            @unique
+  chatSpaceName  String? // Google Chat space resource name ("spaces/AAAA…") for this assessment's notification thread
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

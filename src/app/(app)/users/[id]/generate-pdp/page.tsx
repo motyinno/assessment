@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { baseGrade, gradeLabel } from "@/lib/grades";
+import { apiErrorMessage } from "@/lib/api-error";
 
 interface UserInfo {
   id: string;
@@ -124,7 +125,7 @@ export default function GeneratePdpForUserPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to generate");
+        throw new Error(apiErrorMessage(data, "Failed to generate"));
       }
       // Generation runs in the background — go straight to the user's page
       // where the new PDP shows with a "Generating..." indicator.

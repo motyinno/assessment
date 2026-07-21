@@ -1,9 +1,31 @@
 import prisma from "@/lib/prisma";
 import { log } from "@/lib/api-helpers";
 import { sendEmail, appBaseUrl } from "@/lib/email";
+import {
+  chatEnabled,
+  createSpace,
+  addMembers,
+  postMessage,
+  mention,
+} from "@/lib/google-chat";
+import { gradeLabel } from "@/lib/grades";
 import type { NotificationType } from "@prisma/client";
 
+/** Absolute link to an in-app path, for clickable Chat messages. */
+function chatLink(path: string): string {
+  return `${appBaseUrl()}${path}`;
+}
+
 type Recipient = { id: string; name: string; email: string };
+type Admin = Recipient & { googleId: string | null };
+
+/** Admins receive both the review queue and the request queue notifications. */
+async function getAdmins(): Promise<Admin[]> {
+  return prisma.user.findMany({
+    where: { role: "ADMIN" },
+    select: { id: true, name: true, email: true, googleId: true },
+  });
+}
 
 type NotifyArgs = {
   recipient: Recipient;
@@ -63,11 +85,14 @@ async function notify({ recipient, type, title, body, link }: NotifyArgs): Promi
 // ---- Event-level helpers -------------------------------------------------
 
 /** A user submitted an assessment request -> notify every admin. */
-export async function notifyAdminsOfNewRequest(requesterName: string): Promise<void> {
-  const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
-    select: { id: true, name: true, email: true },
-  });
+export async function notifyAdminsOfNewRequest(params: {
+  requestId: string;
+  requesterId: string;
+  requesterName: string;
+  grade: string;
+}): Promise<void> {
+  const { requestId, requesterId, requesterName, grade } = params;
+  const admins = await getAdmins();
   await Promise.all(
     admins.map((admin) =>
       notify({
@@ -79,6 +104,50 @@ export async function notifyAdminsOfNewRequest(requesterName: string): Promise<v
       })
     )
   );
+
+  // Google Chat: open the per-assessment thread authored by the requester and
+  // @mention the admins so they get a push. The space id is persisted on the
+  // request and reused for the assign + review-submitted stages.
+  await chatOpenRequestThread({ requestId, requesterId, requesterName, grade, admins });
+}
+
+async function chatOpenRequestThread(params: {
+  requestId: string;
+  requesterId: string;
+  requesterName: string;
+  grade: string;
+  admins: Admin[];
+}): Promise<void> {
+  if (!chatEnabled()) return;
+  const { requestId, requesterId, requesterName, grade, admins } = params;
+  try {
+    const space = await createSpace(requesterId, `Assessment: ${requesterName}`);
+    if (!space) return;
+    await prisma.assessmentRequest.update({
+      where: { id: requestId },
+      data: { chatSpaceName: space },
+    });
+    await addMembers(
+      requesterId,
+      space,
+      admins.map((a) => a.googleId)
+    );
+    const tags = admins.map((a) => mention(a.googleId, a.name)).join(", ");
+    await postMessage(
+      requesterId,
+      space,
+      `Hi ${tags} 👋\n\n` +
+        `${requesterName} has requested an assessment (grade: ${gradeLabel(grade)}). ` +
+        `Please review the request and assign assessors when you get a chance:\n` +
+        `${chatLink("/requests")}\n\n` +
+        `Thanks! 🙌`
+    );
+  } catch (e) {
+    log.error("chat: open request thread failed", {
+      requestId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 }
 
 /** Request approved -> notify the requester. */
@@ -115,7 +184,8 @@ export async function notifyRequestRejected(
 export async function notifyAssessorsAssigned(
   assessors: Recipient[],
   subjectName: string,
-  assessmentId: string
+  assessmentId: string,
+  chat?: { actingUserId: string; space: string | null; grade: string }
 ): Promise<void> {
   await Promise.all(
     assessors.map((assessor) =>
@@ -128,4 +198,104 @@ export async function notifyAssessorsAssigned(
       })
     )
   );
+
+  // Google Chat: the approving admin adds the assessors to the existing thread
+  // and @mentions them.
+  if (chat?.space && chatEnabled()) {
+    await chatNotifyAssessorsAssigned(
+      chat.actingUserId,
+      chat.space,
+      assessors,
+      subjectName,
+      chat.grade,
+      assessmentId
+    );
+  }
+}
+
+async function chatNotifyAssessorsAssigned(
+  actingUserId: string,
+  space: string,
+  assessors: Recipient[],
+  subjectName: string,
+  grade: string,
+  assessmentId: string
+): Promise<void> {
+  try {
+    // `assessors` carries no googleId; look them up so we can add + mention them.
+    const rows = await prisma.user.findMany({
+      where: { id: { in: assessors.map((a) => a.id) } },
+      select: { id: true, name: true, googleId: true },
+    });
+    const googleIdById = new Map(rows.map((r) => [r.id, r.googleId]));
+    await addMembers(
+      actingUserId,
+      space,
+      rows.map((r) => r.googleId)
+    );
+    const tags = assessors
+      .map((a) => mention(googleIdById.get(a.id), a.name))
+      .join(", ");
+    await postMessage(
+      actingUserId,
+      space,
+      `Hi ${tags} 👋\n\n` +
+        `You've been assigned to assess ${subjectName} (grade: ${gradeLabel(grade)}). ` +
+        `Open the assessment to see the schedule and details:\n` +
+        `${chatLink(`/assessments/${assessmentId}`)}\n\n` +
+        `Good luck! 🚀`
+    );
+  } catch (e) {
+    log.error("chat: assessors-assigned post failed", {
+      space,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+/**
+ * An assessor finished an assessment and submitted it for grade review ->
+ * notify every admin (in-app + email) and @mention them in the Chat thread,
+ * authored by the assessor.
+ */
+export async function notifyAdminsReviewSubmitted(params: {
+  actingUserId: string;
+  actingUserName: string;
+  subjectName: string;
+  assessmentId: string;
+  space: string | null;
+}): Promise<void> {
+  const { actingUserId, actingUserName, subjectName, assessmentId, space } = params;
+  const admins = await getAdmins();
+  await Promise.all(
+    admins.map((admin) =>
+      notify({
+        recipient: admin,
+        type: "ASSESSMENT_REVIEW_SUBMITTED",
+        title: "Assessment ready for grade review",
+        body: `${actingUserName} finished assessing ${subjectName} and submitted it for grade review.`,
+        link: "/assessment-review",
+      })
+    )
+  );
+
+  if (space && chatEnabled()) {
+    try {
+      const tags = admins.map((a) => mention(a.googleId, a.name)).join(", ");
+      await postMessage(
+        actingUserId,
+        space,
+        `Hi ${tags} 👋\n\n` +
+          `${actingUserName} has finished the assessment of ${subjectName} and left feedback. ` +
+          `The grade is ready for your review:\n` +
+          `${chatLink("/assessment-review")}\n\n` +
+          `Thanks! ✅`
+      );
+    } catch (e) {
+      log.error("chat: review-submitted post failed", {
+        space,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
 }

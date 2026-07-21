@@ -66,7 +66,12 @@ export async function POST(req: NextRequest) {
     include: { user: { select: { id: true, name: true, email: true } } },
   });
 
-  await notifyAdminsOfNewRequest(request.user.name);
+  await notifyAdminsOfNewRequest({
+    requestId: request.id,
+    requesterId: request.user.id,
+    requesterName: request.user.name,
+    grade: request.grade,
+  });
 
   return NextResponse.json(request, { status: 201 });
 }

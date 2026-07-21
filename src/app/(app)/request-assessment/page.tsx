@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { gradeLabel } from "@/lib/grades";
+import { apiErrorMessage } from "@/lib/api-error";
 
 interface AssessmentRequest {
   id: string;
@@ -93,7 +94,7 @@ export default function RequestAssessmentPage() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to submit request");
+        throw new Error(apiErrorMessage(data, "Failed to submit request"));
       }
 
       setNotes("");

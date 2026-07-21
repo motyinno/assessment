@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { apiErrorMessage } from "@/lib/api-error";
 import {
   SESSION_TYPE_LABELS,
   SESSION_STATUS_LABELS,
@@ -352,7 +353,7 @@ function ScheduleMeetingControl({
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Failed to create meeting");
+        throw new Error(apiErrorMessage(data, "Failed to create meeting"));
       }
       await onMeetingChange();
       setOpen(false);
