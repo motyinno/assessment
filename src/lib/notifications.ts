@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { log } from "@/lib/api-helpers";
-import { appBaseUrl } from "@/lib/email";
+import { appBaseUrl } from "@/lib/app-url";
 import {
   chatEnabled,
   createSpace,
