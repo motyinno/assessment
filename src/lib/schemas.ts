@@ -192,9 +192,17 @@ export const patchRequestSchema = z.object({
 
 // ---- PDPs ----
 
-export const generatePdpSchema = z.object({
-  topicIds: z.array(z.string().min(1)).min(1),
-});
+export const generatePdpSchema = z
+  .object({
+    topicIds: z.array(z.string().min(1)),
+    // Free-text technologies the mentor wants to see in the PDP no matter what.
+    // These are treated as priority items and don't have to exist in the matrix.
+    customTopics: z.array(z.string().trim().min(1)).max(20).default([]),
+  })
+  .refine((v) => v.topicIds.length > 0 || v.customTopics.length > 0, {
+    message: "Select at least one topic or add a custom technology",
+    path: ["topicIds"],
+  });
 
 export const attachPdpSchema = z.object({
   driveLink: z.string().min(1),

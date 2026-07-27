@@ -230,6 +230,9 @@ model Pdp {
   error        String?
   reviewNotes  String?
   topicsJson   Json
+  // Original generation inputs ({ topicIds, customTopics }) so a FAILED pdp can
+  // be retried in place without re-selecting topics. Null for legacy rows.
+  generationInputs Json?
   startedAt    DateTime  @default(now())
   createdAt    DateTime  @default(now())
 
