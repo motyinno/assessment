@@ -34,6 +34,9 @@ const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/chat.spaces.create",
   "https://www.googleapis.com/auth/chat.memberships",
   "https://www.googleapis.com/auth/chat.messages.create",
+  // Resolve a colleague's Google account id from the Workspace directory by
+  // email (People API) so we can @mention/add people who never signed in.
+  "https://www.googleapis.com/auth/directory.readonly",
 ].join(" ");
 
 const providers: Provider[] = [

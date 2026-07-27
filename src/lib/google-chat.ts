@@ -1,3 +1,4 @@
+import prisma from "@/lib/prisma";
 import { log } from "@/lib/api-helpers";
 import { getValidAccessToken } from "@/lib/google-auth";
 
@@ -18,9 +19,103 @@ import { getValidAccessToken } from "@/lib/google-auth";
  */
 
 const CHAT_API = "https://chat.googleapis.com/v1";
+const PEOPLE_API = "https://people.googleapis.com/v1";
 
 export function chatEnabled(): boolean {
   return process.env.ENABLE_GOOGLE_CHAT === "true";
+}
+
+type ResolvableUser = { id: string; email: string; googleId: string | null };
+
+/**
+ * Look up a person's Google account id from the Workspace directory by email,
+ * using `actingUserId`'s token (People API, `directory.readonly` scope). The
+ * *looked-up* person does NOT need to have signed in — only the caller. Returns
+ * the numeric id (same value as the OAuth `sub` / Chat `users/{id}`) or null.
+ */
+async function lookupDirectoryUserId(
+  actingUserId: string,
+  email: string
+): Promise<string | null> {
+  const token = await getValidAccessToken(actingUserId);
+  if (!token) return null;
+  const params = new URLSearchParams({
+    query: email,
+    readMask: "emailAddresses,metadata",
+    sources: "DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE",
+  });
+  try {
+    const res = await fetch(`${PEOPLE_API}/people:searchDirectoryPeople?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      log.error("people directory lookup failed", {
+        email,
+        status: res.status,
+        body: (await res.text()).slice(0, 300),
+      });
+      return null;
+    }
+    const data = (await res.json()) as {
+      people?: Array<{
+        resourceName?: string;
+        emailAddresses?: Array<{ value?: string }>;
+      }>;
+    };
+    // Prefer an exact email match; fall back to the first prefix-query hit.
+    const match =
+      data.people?.find((p) =>
+        p.emailAddresses?.some(
+          (e) => e.value?.toLowerCase() === email.toLowerCase()
+        )
+      ) ?? data.people?.[0];
+    const rn = match?.resourceName; // "people/1234567890"
+    if (!rn) return null;
+    return rn.startsWith("people/") ? rn.slice("people/".length) : rn;
+  } catch (e) {
+    log.error("people directory lookup threw", {
+      email,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return null;
+  }
+}
+
+/**
+ * Ensure every user has a Google account id so they can be @mentioned/added,
+ * resolving the missing ones via the directory (see lookupDirectoryUserId) with
+ * `actingUserId`'s token and caching the result on User.googleId — so a person
+ * is looked up at most once, whether or not they've ever signed in.
+ *
+ * Returns a map of app userId -> googleId (null when still unresolved, which
+ * falls back to a plain-name mention). Best-effort; never throws.
+ */
+export async function ensureGoogleIds(
+  actingUserId: string,
+  users: ResolvableUser[]
+): Promise<Map<string, string | null>> {
+  const result = new Map<string, string | null>(
+    users.map((u) => [u.id, u.googleId])
+  );
+  if (!chatEnabled()) return result;
+
+  const missing = users.filter((u) => !u.googleId);
+  await Promise.all(
+    missing.map(async (u) => {
+      const googleId = await lookupDirectoryUserId(actingUserId, u.email);
+      if (!googleId) return;
+      result.set(u.id, googleId);
+      try {
+        await prisma.user.update({ where: { id: u.id }, data: { googleId } });
+      } catch (e) {
+        log.error("chat: cache resolved googleId failed", {
+          userId: u.id,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    })
+  );
+  return result;
 }
 
 /** Wrap a Google account id into the Chat user resource name used for members/mentions. */
