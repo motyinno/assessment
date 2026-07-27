@@ -1,6 +1,6 @@
 import prisma from "@/lib/prisma";
 import { log } from "@/lib/api-helpers";
-import { sendEmail, appBaseUrl } from "@/lib/email";
+import { appBaseUrl } from "@/lib/email";
 import {
   chatEnabled,
   createSpace,
@@ -37,29 +37,10 @@ type NotifyArgs = {
   link?: string;
 };
 
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function emailHtml(title: string, body: string | undefined, ctaUrl: string | null): string {
-  const cta = ctaUrl
-    ? `<p style="margin:24px 0 0"><a href="${ctaUrl}" style="display:inline-block;background:#4f46e5;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px">Open in Node Assessment</a></p>`
-    : "";
-  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;margin:0 auto;color:#111">
-  <h2 style="font-size:18px;margin:0 0 8px">${escapeHtml(title)}</h2>
-  ${body ? `<p style="font-size:14px;line-height:1.5;color:#374151;margin:0">${escapeHtml(body)}</p>` : ""}
-  ${cta}
-  <p style="font-size:12px;color:#9ca3af;margin:28px 0 0">Node Assessment — Assessments & PDPs</p>
-</div>`;
-}
-
 /**
- * Create one in-app notification and mirror it to email (best-effort).
- * Never throws — a failure here must not break the triggering request.
+ * Create one in-app notification (shown in the bell). Best-effort — never
+ * throws, so a failure here can't break the triggering request. Email delivery
+ * was intentionally dropped; notifications go to the in-app bell + Google Chat.
  */
 async function notify({ recipient, type, title, body, link }: NotifyArgs): Promise<void> {
   try {
@@ -73,14 +54,6 @@ async function notify({ recipient, type, title, body, link }: NotifyArgs): Promi
       error: e instanceof Error ? e.message : String(e),
     });
   }
-
-  const ctaUrl = link ? `${appBaseUrl()}${link}` : null;
-  await sendEmail({
-    to: recipient.email,
-    subject: title,
-    html: emailHtml(title, body, ctaUrl),
-    text: body ? `${title}\n\n${body}${ctaUrl ? `\n\n${ctaUrl}` : ""}` : title,
-  });
 }
 
 // ---- Event-level helpers -------------------------------------------------
