@@ -59,6 +59,9 @@ export interface AIGeneratedPDPTopics {
 export interface TechMatrixTopicInput {
   title: string;
   skills: string[];
+  // Mentor-requested technology that MUST appear in the PDP, even if it isn't
+  // part of the grade matrix.
+  priority?: boolean;
 }
 
 export interface DailyTopicResource {
@@ -266,12 +269,24 @@ export async function generateStandalonePDP(
     return { pdpTopics: [] };
   }
 
-  const topicsList = topics
-    .map(
-      (t) =>
-        `- ${t.title} (grade-relevant skills: ${t.skills.length ? t.skills.join("; ") : "general fundamentals"})`
-    )
-    .join("\n");
+  const formatTopic = (t: TechMatrixTopicInput) =>
+    `- ${t.title} (grade-relevant skills: ${t.skills.length ? t.skills.join("; ") : "general fundamentals"})`;
+
+  const matrixTopics = topics.filter((t) => !t.priority);
+  const priorityTopics = topics.filter((t) => t.priority);
+
+  const matrixList = matrixTopics.length
+    ? matrixTopics.map(formatTopic).join("\n")
+    : "(none)";
+
+  const prioritySection = priorityTopics.length
+    ? `
+
+PRIORITY technologies the mentor specifically requested. You MUST include EACH of
+these as its own topic in the output — do not skip, rename, or merge them, even if
+they are not part of the technical matrix. Target them at the ${grade} grade:
+${priorityTopics.map(formatTopic).join("\n")}`
+    : "";
 
   const prompt = `You are an expert technical mentor preparing a Professional Development Plan (PDP) for an employee.
 
@@ -279,7 +294,7 @@ Employee Name: ${employeeName}
 Grade: ${grade}
 
 Topics to cover (from the ${grade}-grade technical matrix):
-${topicsList}
+${matrixList}${prioritySection}
 
 For each topic, produce:
 - 2-3 concise study questions the employee should learn/research to master the topic at their grade
@@ -300,23 +315,25 @@ Respond ONLY with valid JSON:
 
   try {
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "You are an expert technical mentor. Always respond with valid JSON only.",
-            },
-            { text: prompt },
-          ],
+    const result = await withGeminiRetry(() =>
+      model.generateContent({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: "You are an expert technical mentor. Always respond with valid JSON only.",
+              },
+              { text: prompt },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+          responseMimeType: "application/json",
         },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        responseMimeType: "application/json",
-      },
-    });
+      })
+    );
 
     const responseContent = result.response.text();
     if (!responseContent) throw new Error("No response content from Gemini");
@@ -330,8 +347,19 @@ Respond ONLY with valid JSON:
     return parsed;
   } catch (error) {
     console.error("Error generating standalone PDP:", error);
+    // Surface the real cause instead of always blaming the API key — a 503/429
+    // means the model is overloaded, which is transient and unrelated to auth.
+    const status = (error as { status?: number })?.status;
+    if (status === 503 || /overloaded|high demand|unavailable/i.test(String(error))) {
+      throw new Error(
+        "The AI model is temporarily overloaded (503). Please try again in a moment."
+      );
+    }
+    if (status === 429) {
+      throw new Error("AI rate limit reached (429). Please try again shortly.");
+    }
     throw new Error(
-      "Failed to generate PDP via AI. Check GEMINI_API_KEY and try again."
+      "Failed to generate PDP via AI. Check GEMINI_API_KEY / GEMINI_MODEL and try again."
     );
   }
 }

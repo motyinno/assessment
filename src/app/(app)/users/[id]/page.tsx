@@ -178,6 +178,11 @@ export default function UserProfilePage() {
   >([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  // Per-row retry/remove on a FAILED pdp: which row is busy + any row-level error.
+  const [pdpActionId, setPdpActionId] = useState<string | null>(null);
+  const [pdpError, setPdpError] = useState<{ id: string; msg: string } | null>(null);
+  // The FAILED pdp queued for removal, shown in a confirm dialog.
+  const [removeTarget, setRemoveTarget] = useState<{ id: string; fileName: string } | null>(null);
 
   const currentRole = (session?.user as { role?: string } | undefined)?.role;
   const currentUserId = (session?.user as { id?: string } | undefined)?.id;
@@ -295,6 +300,45 @@ export default function UserProfilePage() {
     } catch (e) {
       setDeleteError(e instanceof Error ? e.message : "Error");
       setDeleteLoading(false);
+    }
+  }
+
+  async function retryPdp(pdpId: string) {
+    setPdpError(null);
+    setPdpActionId(pdpId);
+    try {
+      const res = await fetch(`/api/pdps/${pdpId}/retry`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(apiErrorMessage(data, "Failed to retry"));
+      }
+      // Row flips to GENERATING; the existing poll takes over from here.
+      await fetchProfile();
+    } catch (e) {
+      setPdpError({ id: pdpId, msg: e instanceof Error ? e.message : "Error" });
+    } finally {
+      setPdpActionId(null);
+    }
+  }
+
+  async function confirmRemovePdp() {
+    if (!removeTarget) return;
+    const pdpId = removeTarget.id;
+    setPdpError(null);
+    setPdpActionId(pdpId);
+    try {
+      const res = await fetch(`/api/pdps/${pdpId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(apiErrorMessage(data, "Failed to remove"));
+      }
+      setRemoveTarget(null);
+      await fetchProfile();
+    } catch (e) {
+      setPdpError({ id: pdpId, msg: e instanceof Error ? e.message : "Error" });
+      setRemoveTarget(null);
+    } finally {
+      setPdpActionId(null);
     }
   }
 
@@ -662,6 +706,11 @@ export default function UserProfilePage() {
                                       {pdp.error}
                                     </p>
                                   )}
+                                  {pdpError?.id === pdp.id && (
+                                    <p className="text-[11px] text-destructive mt-1">
+                                      {pdpError.msg}
+                                    </p>
+                                  )}
                                   {isOnReview && pdp.reviewNotes && (
                                     <div className="mt-1.5 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-1.5">
                                       <p className="text-[10px] font-semibold uppercase tracking-wide text-warning-foreground/80">
@@ -689,6 +738,33 @@ export default function UserProfilePage() {
                                       </svg>
                                       Drive
                                     </a>
+                                  )}
+                                  {isFailed && canEdit && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => retryPdp(pdp.id)}
+                                        disabled={pdpActionId === pdp.id}
+                                        title="Retry generation with the same topics"
+                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:bg-primary/5 px-2 py-1 rounded-md disabled:opacity-50"
+                                      >
+                                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                          <path d="M23 4v6h-6" />
+                                          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                                        </svg>
+                                        {pdpActionId === pdp.id ? "Retrying…" : "Retry"}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setRemoveTarget({ id: pdp.id, fileName: pdp.fileName })}
+                                        disabled={pdpActionId === pdp.id}
+                                        title="Remove this failed PDP from the list"
+                                        className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive hover:bg-destructive/5 px-2 py-1 rounded-md disabled:opacity-50"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        Remove
+                                      </button>
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -890,6 +966,46 @@ export default function UserProfilePage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!removeTarget}
+        onOpenChange={(open) => {
+          if (!open && !pdpActionId) setRemoveTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove failed PDP?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This removes the failed plan{" "}
+              <span className="font-medium text-foreground break-all">
+                {removeTarget?.fileName}
+              </span>{" "}
+              from the list. This can&apos;t be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRemoveTarget(null)}
+                disabled={!!pdpActionId}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={confirmRemovePdp}
+                disabled={!!pdpActionId}
+              >
+                {pdpActionId ? "Removing…" : "Remove"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -45,6 +45,8 @@ export default function GeneratePdpForUserPage() {
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [customTopics, setCustomTopics] = useState<string[]>([]);
+  const [customInput, setCustomInput] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +108,36 @@ export default function GeneratePdpForUserPage() {
       return next;
     });
   }
+  function addCustomTopics(raw: string) {
+    const parts = raw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    setCustomTopics((prev) => {
+      const next = [...prev];
+      const seen = new Set(prev.map((t) => t.toLowerCase()));
+      for (const p of parts) {
+        if (!seen.has(p.toLowerCase())) {
+          seen.add(p.toLowerCase());
+          next.push(p);
+        }
+      }
+      return next;
+    });
+    setCustomInput("");
+  }
+  function removeCustomTopic(title: string) {
+    setCustomTopics((prev) => prev.filter((t) => t !== title));
+  }
+  function handleCustomKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addCustomTopics(customInput);
+    } else if (e.key === "Backspace" && customInput === "" && customTopics.length) {
+      removeCustomTopic(customTopics[customTopics.length - 1]);
+    }
+  }
   function toggleCollapse(id: string) {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -117,11 +149,24 @@ export default function GeneratePdpForUserPage() {
   async function handleGenerate() {
     setError(null);
     setGenerating(true);
+    // Flush any half-typed custom technology still sitting in the input.
+    const pending = customInput
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const seen = new Set(customTopics.map((t) => t.toLowerCase()));
+    const allCustom = [...customTopics];
+    for (const p of pending) {
+      if (!seen.has(p.toLowerCase())) {
+        seen.add(p.toLowerCase());
+        allCustom.push(p);
+      }
+    }
     try {
       const res = await fetch(`/api/users/${userId}/generate-pdp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicIds: Array.from(selected) }),
+        body: JSON.stringify({ topicIds: Array.from(selected), customTopics: allCustom }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -235,8 +280,58 @@ export default function GeneratePdpForUserPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Custom technologies{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional — always included as priority)
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Add technologies you want in this PDP even if they aren't in the matrix.
+            The AI must include each one as its own topic. Press Enter or comma to add.
+          </p>
+          <div className="flex flex-wrap items-center gap-1.5 rounded-md border px-2 py-1.5">
+            {customTopics.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs"
+              >
+                {t}
+                <button
+                  type="button"
+                  onClick={() => removeCustomTopic(t)}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove ${t}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <input
+              type="text"
+              value={customInput}
+              onChange={(e) => setCustomInput(e.target.value)}
+              onKeyDown={handleCustomKeyDown}
+              onBlur={() => addCustomTopics(customInput)}
+              placeholder={customTopics.length ? "" : "e.g. Kafka, gRPC, Terraform"}
+              className="min-w-[8rem] flex-1 bg-transparent text-sm outline-none"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex items-center gap-3">
-        <Button onClick={handleGenerate} disabled={generating || selected.size === 0}>
+        <Button
+          onClick={handleGenerate}
+          disabled={
+            generating ||
+            (selected.size === 0 && customTopics.length === 0 && customInput.trim() === "")
+          }
+        >
           {generating ? "Generating..." : "Generate PDP"}
         </Button>
         <Button variant="outline" onClick={() => router.push("/users")}>
