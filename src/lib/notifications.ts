@@ -7,6 +7,7 @@ import {
   addMembers,
   postMessage,
   mention,
+  ensureGoogleIds,
 } from "@/lib/google-chat";
 import { gradeLabel } from "@/lib/grades";
 import type { NotificationType } from "@prisma/client";
@@ -127,12 +128,15 @@ async function chatOpenRequestThread(params: {
       where: { id: requestId },
       data: { chatSpaceName: space },
     });
+    // Resolve any admins missing a googleId via the directory so everyone gets
+    // a real @mention, not just those who have signed in.
+    const ids = await ensureGoogleIds(requesterId, admins);
     await addMembers(
       requesterId,
       space,
-      admins.map((a) => a.googleId)
+      admins.map((a) => ids.get(a.id))
     );
-    const tags = admins.map((a) => mention(a.googleId, a.name)).join(", ");
+    const tags = admins.map((a) => mention(ids.get(a.id), a.name)).join(", ");
     await postMessage(
       requesterId,
       space,
@@ -222,16 +226,17 @@ async function chatNotifyAssessorsAssigned(
   assessmentId: string
 ): Promise<void> {
   try {
-    // `assessors` carries no googleId; look them up so we can add + mention them.
+    // `assessors` carries no googleId; look them up (and resolve any missing id
+    // via the directory) so we can add + mention them even if they never signed in.
     const rows = await prisma.user.findMany({
       where: { id: { in: assessors.map((a) => a.id) } },
-      select: { id: true, name: true, googleId: true },
+      select: { id: true, email: true, googleId: true },
     });
-    const googleIdById = new Map(rows.map((r) => [r.id, r.googleId]));
+    const googleIdById = await ensureGoogleIds(actingUserId, rows);
     await addMembers(
       actingUserId,
       space,
-      rows.map((r) => r.googleId)
+      rows.map((r) => googleIdById.get(r.id))
     );
     const tags = assessors
       .map((a) => mention(googleIdById.get(a.id), a.name))
@@ -281,7 +286,8 @@ export async function notifyAdminsReviewSubmitted(params: {
 
   if (space && chatEnabled()) {
     try {
-      const tags = admins.map((a) => mention(a.googleId, a.name)).join(", ");
+      const ids = await ensureGoogleIds(actingUserId, admins);
+      const tags = admins.map((a) => mention(ids.get(a.id), a.name)).join(", ");
       await postMessage(
         actingUserId,
         space,
