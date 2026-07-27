@@ -832,8 +832,8 @@ export default function AssessmentDetailPage() {
         </Card>
       )}
 
-      {/* Feedback — general flow only. Text can be authored manually or via AI. */}
-      {assessment.status === "COMPLETED" && isAssessor && !isPdpCheck && (
+      {/* Feedback — general + PDP review flow. Text can be authored manually or via AI. */}
+      {assessment.status === "COMPLETED" && isAssessor && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
