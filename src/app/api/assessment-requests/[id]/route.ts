@@ -155,3 +155,30 @@ export async function PATCH(
 
   return NextResponse.json(updated);
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAdmin();
+  if (auth.error) return auth.error;
+
+  const { id } = await params;
+
+  const request = await prisma.assessmentRequest.findUnique({
+    where: { id },
+    select: { id: true, status: true },
+  });
+  if (!request) return notFound("Request not found");
+
+  // Only rejected requests can be discarded. Pending ones still need a
+  // decision, and approved ones own an assessment we must not orphan.
+  if (request.status !== "REJECTED") {
+    return badRequest("Only rejected requests can be deleted");
+  }
+
+  // AssessmentRequestAssessor rows cascade on delete (see schema).
+  await prisma.assessmentRequest.delete({ where: { id } });
+
+  return NextResponse.json({ success: true });
+}
