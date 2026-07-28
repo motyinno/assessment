@@ -21,6 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useConfirm } from "@/components/confirm-dialog";
+import { Trash2 } from "lucide-react";
 import { gradeLabel, baseGrade } from "@/lib/grades";
 
 interface RequestUser {
@@ -62,6 +64,7 @@ export default function RequestsPage() {
   const router = useRouter();
   const [requests, setRequests] = useState<AssessmentRequest[]>([]);
   const [assessors, setAssessors] = useState<Assessor[]>([]);
+  const { confirm, confirmDialog } = useConfirm();
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<AssessmentRequest | null>(null);
   const [selectedAssessorIds, setSelectedAssessorIds] = useState<string[]>([]);
@@ -194,6 +197,23 @@ export default function RequestsPage() {
     }
   }
 
+  async function handleDelete(req: AssessmentRequest) {
+    const ok = await confirm({
+      title: "Delete request?",
+      description: `This permanently removes ${req.user.name}'s rejected request. This action cannot be undone.`,
+      confirmLabel: "Delete request",
+      destructive: true,
+    });
+    if (!ok) return;
+
+    const res = await fetch(`/api/assessment-requests/${req.id}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setRequests((prev) => prev.filter((r) => r.id !== req.id));
+    }
+  }
+
   function renderStatusBadge(s: string) {
     switch (s) {
       case "PENDING":
@@ -244,11 +264,25 @@ export default function RequestsPage() {
                   </TableCell>
                   <TableCell>{renderStatusBadge(req.status)}</TableCell>
                   <TableCell>
-                    {req.status === "PENDING" && (
-                      <Button variant="outline" size="sm" onClick={() => openReview(req)}>
-                        Review
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {req.status === "PENDING" && (
+                        <Button variant="outline" size="sm" onClick={() => openReview(req)}>
+                          Review
+                        </Button>
+                      )}
+                      {req.status === "REJECTED" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-destructive"
+                          title="Delete request"
+                          aria-label="Delete request"
+                          onClick={() => handleDelete(req)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -462,6 +496,8 @@ export default function RequestsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {confirmDialog}
     </div>
   );
 }
