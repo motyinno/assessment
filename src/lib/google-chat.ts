@@ -22,6 +22,7 @@ const CHAT_API = "https://chat.googleapis.com/v1";
 const PEOPLE_API = "https://people.googleapis.com/v1";
 
 export function chatEnabled(): boolean {
+  console.log(process.env.ENABLE_GOOGLE_CHAT)
   return process.env.ENABLE_GOOGLE_CHAT === "true";
 }
 
