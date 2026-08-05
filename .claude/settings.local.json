@@ -50,7 +50,24 @@
       "Bash(grep -rn '\\\\b__TRACKED_VAR__\\\\b' src)",
       "Bash(grep -rn '\\\\b__TRACKED_VAR__\\\\b' . --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git)",
       "Bash(echo \"exit $?\")",
-      "Bash(node -e \"console.log\\('resend', require\\('resend/package.json'\\).version\\)\")"
+      "Bash(node -e \"console.log\\('resend', require\\('resend/package.json'\\).version\\)\")",
+      "Bash(cd /Users/user/Documents/projects/pdp-generator/pdp-generator-next; echo \"=== roadmap progress route ===\"; sed -n '1,40p' src/app/api/users/[id]/roadmap/progress/route.ts; echo \"=== certificates route \\(me\\) ===\"; sed -n '1,30p' src/app/api/users/me/certificates/route.ts; echo \"=== category-mapper ===\"; sed -n '1,40p' src/lib/category-mapper.ts)",
+      "Bash(node scratch_q.mjs)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts,null,2\\)\\)\")",
+      "Bash(lsof -ti:3000)",
+      "WebFetch(domain:developers.google.com)",
+      "Bash(echo \"tsc_exit=$?\")",
+      "Bash(npx eslint *)",
+      "Bash(echo \"lint_exit=$?\")",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git checkout *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git branch *)",
+      "Bash(curl -s -o /dev/null -w \"login=%{http_code}\\\\n\" http://localhost:3000/login)",
+      "Bash(gh pr *)"
     ]
   }
 }

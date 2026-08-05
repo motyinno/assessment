@@ -92,10 +92,12 @@ async function chatOpenRequestThread(params: {
   grade: string;
   admins: Admin[];
 }): Promise<void> {
+      console.log('FROM NOTIFICATIONS', chatEnabled())
   if (!chatEnabled()) return;
   const { requestId, requesterId, requesterName, grade, admins } = params;
   try {
     const space = await createSpace(requesterId, `Assessment: ${requesterName}`);
+    console.log('SPACE', space)
     if (!space) return;
     await prisma.assessmentRequest.update({
       where: { id: requestId },
