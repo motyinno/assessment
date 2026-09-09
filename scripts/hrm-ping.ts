@@ -69,7 +69,9 @@ async function main() {
   }
   console.log("config: OK");
 
-  // 1. token — two calls, expect one grant (cache hit on the second)
+  // 1. token — two calls, expect one grant (cache hit on the second).
+  // Never print the raw token here — this is stdout, and grep -c on the
+  // sentinel/eyJ check (Verification step 9) must find zero hits.
   await getHrmAccessToken();
   await getHrmAccessToken();
   const tokenStatsAfterTwoCalls = hrmTokenStats();

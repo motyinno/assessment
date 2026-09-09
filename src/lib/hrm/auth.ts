@@ -21,9 +21,6 @@ let inFlight: Promise<string> | null = null;
 
 const stats = { grants: 0, cacheHits: 0, refreshes: 0 };
 
-/** Refresh the token if it expires within this window of "now". */
-const REFRESH_WINDOW_MS = 60_000;
-
 /**
  * Decode a JWT's payload without verifying the signature. We're a holder of
  * the token, not its validator, and only need one claim out of it. Returns
@@ -51,7 +48,7 @@ export function decodeJwtPayload(token: string): Record<string, unknown> | null 
 /**
  * exp (seconds since epoch) -> expiry ms, with fallbacks the spec doesn't
  * mandate but that keep us from re-granting on every call when the payload
- * can't be read: exp -> expires_in -> a conservative 60s floor. Blindly
+ * can't be read: exp -> expires_in -> HRM_TOKEN_FALLBACK_TTL_MS. Blindly
  * treating an unreadable payload as "already expired" means one password
  * grant per call — 36 grants just to page through the roster, plus one per
  * photo batch, i.e. the standard way to trip the HRM rate limit or lock out
@@ -60,7 +57,8 @@ export function decodeJwtPayload(token: string): Record<string, unknown> | null 
 function computeExpiresAtMs(
   claims: Record<string, unknown> | null,
   tokenResponse: HrmTokenResponse,
-  grantedAtMs: number
+  grantedAtMs: number,
+  fallbackTtlMs: number
 ): number {
   const expClaim = claims?.exp;
   if (typeof expClaim === "number" && Number.isFinite(expClaim)) {
@@ -70,8 +68,8 @@ function computeExpiresAtMs(
     log.warn("hrm: token exp claim missing, using expires_in", {});
     return grantedAtMs + tokenResponse.expires_in * 1000;
   }
-  log.warn("hrm: token exp and expires_in both missing, using 60s fallback", {});
-  return grantedAtMs + 60_000;
+  log.warn("hrm: token exp and expires_in both missing, using fallback TTL", { fallbackTtlMs });
+  return grantedAtMs + fallbackTtlMs;
 }
 
 async function grantToken(): Promise<CachedToken> {
@@ -104,7 +102,7 @@ async function grantToken(): Promise<CachedToken> {
     }
     const grantedAtMs = Date.now();
     const claims = decodeJwtPayload(data.access_token) as HrmAccessTokenClaims | null;
-    const expiresAtMs = computeExpiresAtMs(claims, data, grantedAtMs);
+    const expiresAtMs = computeExpiresAtMs(claims, data, grantedAtMs, cfg.tokenFallbackTtlMs);
     stats.grants++;
     log.info("hrm: keycloak token issued", {
       expiresInSec: Math.round((expiresAtMs - grantedAtMs) / 1000),
@@ -129,7 +127,8 @@ async function grantToken(): Promise<CachedToken> {
  * against the technical user.
  */
 export async function getHrmAccessToken(): Promise<string> {
-  if (cached && cached.expiresAtMs - Date.now() > REFRESH_WINDOW_MS) {
+  const refreshWindowMs = hrmConfig().tokenRefreshWindowMs;
+  if (cached && cached.expiresAtMs - Date.now() > refreshWindowMs) {
     stats.cacheHits++;
     return cached.token;
   }

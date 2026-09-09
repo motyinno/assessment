@@ -2,32 +2,39 @@
  * HRM dictionary translations (professionalLevel, jobTitle, employeeStatus),
  * collapsed into `Map<valueId, translation>`.
  *
- * Dictionary names are known ahead of time and hardcoded — a separate
- * `GET /dictionaries` call to discover names isn't needed.
+ * Endpoint and shape confirmed against stage/swagger:
+ * `GET /api/dictionaries/api/v2/dictionaries` returns an ARRAY of
+ * dictionaries (one object per name), and each dictionary's values carry
+ * their translations NESTED at `values[].translations[]` — not the flat
+ * `{ [name]: HrmDictionaryEntry[] }` originally assumed from the integration
+ * doc before this was checked against a live response.
  *
- * RISK #1 (see S01 plan): `defaultLanguageOnly=false` returns one row per
- * `languageId` for every value, so collapsing naively into a Map is
- * last-write-wins over an unordered array — the same `valueId` can resolve
- * to "Middle" on one run and "Мидл" on the next. `buildDictionaryMaps` makes
- * that collapse deterministic: candidates for a `valueId` are ordered by
- * (match with the optional HRM_DICT_LANGUAGE_ID) -> orderValue -> array
- * index, and we take the first. Every `valueId` that produced more than one
- * DISTINCT translation is counted as a collision and surfaced in
+ * Dictionary names are known ahead of time and hardcoded — a separate call
+ * to discover names isn't needed; `filter` still narrows the response to
+ * just the three we use.
+ *
+ * RISK #1 (see S01 plan): `defaultLanguageOnly=false` returns one translation
+ * row per `languageId` for every value, so collapsing naively into a Map is
+ * last-write-wins over an unordered array — the same value can resolve to
+ * "Middle" on one run and "Мидл" on the next. `buildDictionaryMaps` makes
+ * that collapse deterministic: candidates for a value are ordered by (match
+ * with the optional HRM_DICT_LANGUAGE_ID) -> orderValue -> array index, and
+ * we take the first. Every value that produced more than one DISTINCT
+ * translation is counted as a collision and surfaced in
  * HrmDictionaryLoadInfo — printed by hrm-ping and `log.warn`'d when nonzero.
  *
  * No TTL cache here on purpose: S03 owns the cache-on-login-path decision
  * explicitly, and a second cache here would be a second invalidation story.
  */
 import { hrmFetch } from "@/lib/hrm/http";
-import { hrmConfig } from "@/lib/hrm/config";
 import { log } from "@/lib/logger";
 import {
   HRM_DICTIONARY_NAMES,
-  type HrmDictionaryEntry,
   type HrmDictionaryResponse,
+  type HrmDictionaryValueTranslation,
 } from "@/lib/hrm/types";
 
-const DICTIONARIES_PATH = "/api/employee-management/api/v1/dictionaries";
+const DICTIONARIES_PATH = "/api/dictionaries/api/v2/dictionaries";
 
 export interface HrmDictionaries {
   professionalLevel: Map<string, string>;
@@ -40,7 +47,7 @@ export interface HrmDictionaryLoadInfo {
   sizes: Record<string, number>;
 }
 
-/** Raw grouped response, unmodified. Needed by S04's exploration for fixtures. */
+/** Raw array response, unmodified. Needed by S04's exploration for fixtures. */
 export async function fetchDictionaryTranslations(): Promise<HrmDictionaryResponse> {
   const query = {
     filter: JSON.stringify({ name: [...HRM_DICTIONARY_NAMES] }),
@@ -50,30 +57,30 @@ export async function fetchDictionaryTranslations(): Promise<HrmDictionaryRespon
 }
 
 function pickBest(
-  entries: HrmDictionaryEntry[],
+  candidates: HrmDictionaryValueTranslation[],
   preferredLanguageId: string | undefined
 ): { translation: string; distinct: number } | null {
-  const withIndex = entries
-    .map((e, index) => ({ e, index }))
-    .filter(({ e }) => typeof e.translation === "string" && e.translation.length > 0);
+  const withIndex = candidates
+    .map((c, index) => ({ c, index }))
+    .filter(({ c }) => typeof c.translation === "string" && c.translation.length > 0);
   if (withIndex.length === 0) return null;
 
-  const distinctTranslations = new Set(withIndex.map(({ e }) => e.translation));
+  const distinctTranslations = new Set(withIndex.map(({ c }) => c.translation));
 
   withIndex.sort((a, b) => {
-    const aMatch = preferredLanguageId && a.e.languageId === preferredLanguageId ? 0 : 1;
-    const bMatch = preferredLanguageId && b.e.languageId === preferredLanguageId ? 0 : 1;
+    const aMatch = preferredLanguageId && a.c.languageId === preferredLanguageId ? 0 : 1;
+    const bMatch = preferredLanguageId && b.c.languageId === preferredLanguageId ? 0 : 1;
     if (aMatch !== bMatch) return aMatch - bMatch;
-    const aOrder = a.e.orderValue ?? Number.MAX_SAFE_INTEGER;
-    const bOrder = b.e.orderValue ?? Number.MAX_SAFE_INTEGER;
+    const aOrder = a.c.orderValue ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = b.c.orderValue ?? Number.MAX_SAFE_INTEGER;
     if (aOrder !== bOrder) return aOrder - bOrder;
     return a.index - b.index;
   });
 
-  return { translation: withIndex[0].e.translation as string, distinct: distinctTranslations.size };
+  return { translation: withIndex[0].c.translation as string, distinct: distinctTranslations.size };
 }
 
-/** Pure: grouped response -> Maps. Exported so S03 can test it against a fixture with no network. */
+/** Pure: raw dictionary array -> Maps. Exported so S03 can test it against a fixture with no network. */
 export function buildDictionaryMaps(
   raw: HrmDictionaryResponse,
   preferredLanguageId?: string
@@ -87,18 +94,13 @@ export function buildDictionaryMaps(
   let collisions = 0;
 
   for (const name of HRM_DICTIONARY_NAMES) {
-    const entries = raw[name] ?? [];
-    const byValueId = new Map<string, HrmDictionaryEntry[]>();
-    for (const entry of entries) {
-      if (!entry.valueId) continue;
-      const list = byValueId.get(entry.valueId) ?? [];
-      list.push(entry);
-      byValueId.set(entry.valueId, list);
-    }
-
+    const dict = raw.find((d) => d.name === name);
     const target = dictionaries[name];
-    for (const [valueId, candidates] of byValueId) {
-      const best = pickBest(candidates, preferredLanguageId);
+
+    for (const value of dict?.values ?? []) {
+      const valueId = value.id ?? value.translations?.find((t) => t.valueId)?.valueId;
+      if (!valueId) continue;
+      const best = pickBest(value.translations ?? [], preferredLanguageId);
       if (!best) continue;
       target.set(valueId, best.translation);
       if (best.distinct > 1) collisions++;

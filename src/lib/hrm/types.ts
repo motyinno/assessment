@@ -48,9 +48,22 @@ export interface HrmProject {
   name?: string | null;
 }
 
+/**
+ * `orgUnitTypeDto` on OrgUnitDto. Field names are as HRM actually sends them
+ * (confirmed against swagger + a live stage response) — NOT "name"/"id" as
+ * originally guessed before S01's stage run.
+ */
 export interface HrmOrgUnitTypeDto {
-  id?: string | null;
-  name?: string | null;
+  id?: number | null;
+  orgUnitTypeName?: string | null;
+  orgUnitTypeNameRu?: string | null;
+  orgUnitTypeNameEn?: string | null;
+  orgUnitTypeColor?: string | null;
+  orgUnitManagerialLevelId?: string | null;
+  lifecycleStatus?: string | null;
+  isReadOnly?: boolean | null;
+  isSinglePerson?: boolean | null;
+  isFilterable?: boolean | null;
 }
 
 export interface HrmEmployeeOrgUnit {
@@ -91,23 +104,91 @@ export interface HrmEmployee {
   updatedAt?: string | null;
 }
 
+/**
+ * OrgUnitDto — confirmed against a live stage response (GET
+ * .../org-units). Ids are numbers (Java Long), not the strings originally
+ * guessed. `head`/`deputy`/`resourceManager`/`reportsTo` embed an
+ * EmployeeShortInfoDto-shaped object, deliberately left as `unknown` here —
+ * it's a different, richer shape than the employee-search DTO
+ * (HrmEmployee) and S01 doesn't need to model it.
+ */
 export interface HrmOrgUnit {
+  id?: number | null;
+  orgUnitName?: string | null;
+  orgUnitTypeId?: number | null;
+  reportsToOrgUnitTypeId?: number | null;
+  reportsToId?: number | null;
+  headId?: number | null;
+  deputyId?: number | null;
+  resourceManagerId?: number | null;
+  unitManagers?: unknown[] | null;
+  orgUnitTypeDto?: HrmOrgUnitTypeDto | null;
+  reportsToOrgUnit?: HrmOrgUnit | null;
+  reportsTo?: unknown;
+  head?: unknown;
+  deputy?: unknown;
+  resourceManager?: unknown;
+  production?: boolean | null;
+}
+
+/**
+ * Envelope of GET .../org-units (swagger: FieldsForUpdateWithDtoOrgUnitWithButtonsDto).
+ * A live stage response carried units only under `data.orgUnitDtoList`, with
+ * no `list` key present at all — but the swagger schema also allows a `list`
+ * array of the same OrgUnitWithButtonsDto shape, so org-units.ts reads both
+ * and merges by id rather than assuming only one is ever populated.
+ */
+export interface HrmOrgUnitWithButtonsDto {
+  orgUnitDtoList?: HrmOrgUnit[] | null;
+  canDelete?: boolean | null;
+  canEdit?: boolean | null;
+}
+
+export interface HrmOrgUnitsListEnvelope {
+  data?: HrmOrgUnitWithButtonsDto | null;
+  list?: HrmOrgUnitWithButtonsDto[] | null;
+  listFieldsForRead?: string[] | null;
+  listFieldsForEdit?: string[] | null;
+}
+
+/**
+ * `GET /api/dictionaries/api/v2/dictionaries` — confirmed against swagger.
+ * Real shape is an array of dictionaries (one per name, e.g.
+ * "professionalLevel"), each carrying its own `values[]`, and the per-language
+ * translation lives NESTED under `values[].translations[]` — not flat, as
+ * originally assumed from the integration doc before the stage run.
+ */
+export interface HrmDictionaryValueTranslation {
+  id?: string | null;
+  languageId?: string | null;
+  translation?: string | null;
+  valueId?: string | null;
+  parentId?: string | null;
+  value?: string | null;
+  orderValue?: number | null;
+  lifecycleStatus?: string | null;
+}
+
+export interface HrmDictionaryValue {
+  id?: string | null;
+  value?: string | null;
+  dictionaryId?: string | null;
+  parentId?: string | null;
+  orderValue?: number | null;
+  translations?: HrmDictionaryValueTranslation[] | null;
+  lifecycleStatus?: string | null;
+}
+
+export interface HrmDictionaryDto {
   id?: string | null;
   name?: string | null;
-  orgUnitType?: HrmOrgUnitTypeDto | null;
-  reportsToOrgUnit?: HrmOrgUnit | null;
-  headEmployeeId?: string | null;
+  values?: HrmDictionaryValue[] | null;
+  /** Translations of the dictionary's own display name, not of its values. */
+  translations?: HrmDictionaryValueTranslation[] | null;
+  canBeDynamicallyUpdated?: boolean | null;
 }
 
-export interface HrmDictionaryEntry {
-  valueId?: string | null;
-  translation?: string | null;
-  languageId?: string | null;
-  orderValue?: number | null;
-  [key: string]: unknown;
-}
-
-export type HrmDictionaryResponse = Record<string, HrmDictionaryEntry[] | undefined>;
+export type HrmDictionaryResponse = HrmDictionaryDto[];
 
 /** Spring `Page<T>` envelope, as seen on some HRM list endpoints. */
 export interface HrmSpringPage<T> {

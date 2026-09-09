@@ -14,19 +14,30 @@
  * The parsed result is range-sanitized: a nonsense value far in the future is
  * worse than an unparseable one — it pins a dead token in the cache forever,
  * and every avatar on every page then 401s until the process restarts.
+ *
+ * The fallback TTL, the plausibility ceiling, and the "refresh a bit early"
+ * window are all env-configurable (HRM_FILE_TOKEN_FALLBACK_TTL_MS /
+ * HRM_FILE_TOKEN_MAX_TTL_MS / HRM_TOKEN_REFRESH_WINDOW_MS, see config.ts) —
+ * HRM can change how long this token actually lives without a redeploy.
  */
 import { hrmFetch } from "@/lib/hrm/http";
+import { hrmConfig } from "@/lib/hrm/config";
 import { log } from "@/lib/logger";
 import type { HrmFileTokenResponse } from "@/lib/hrm/types";
 
-const FILE_TOKEN_PATH = "/api/employee-management/api/v1/files/token";
-const PHOTO_BASE_URL_PATH = "/api/employee-management/api/v1/files/pre-signed-link";
+// Paths confirmed against stage/swagger — not employee-management, but the
+// separate file-management service.
+const FILE_TOKEN_PATH = "/api/file-management/api/v1/employee-photos/file-token";
+const PHOTO_BASE_URL_PATH = "/api/file-management/api/v1/employee-photos/pre-signed-link";
 
-/** 4 min, deliberately shorter than the documented ~5 min. */
-const FILE_TOKEN_FALLBACK_TTL_MS = 240_000;
-/** Anything longer than this for this token is implausible. */
-const FILE_TOKEN_MAX_TTL_MS = 3_600_000;
-const REFRESH_WINDOW_MS = 60_000;
+/**
+ * Defaults for `isExpiryPlausible`'s optional third argument only — actual
+ * runtime values come from HrmConfig (HRM_FILE_TOKEN_MAX_TTL_MS /
+ * HRM_TOKEN_FALLBACK_TTL_MS / HRM_TOKEN_REFRESH_WINDOW_MS), since these can
+ * change on the HRM side and shouldn't need a redeploy. Kept here only so
+ * `isExpiryPlausible` stays callable without env setup in tests.
+ */
+const DEFAULT_FILE_TOKEN_MAX_TTL_MS = 3_600_000;
 
 interface CachedFileToken {
   token: string;
@@ -83,37 +94,47 @@ function extractExpiryClaim(claims: Record<string, unknown> | null): unknown {
  * future is worse than an unparseable one — it pins a dead token in the
  * cache forever. Exported for tests.
  */
-export function isExpiryPlausible(parsedMs: number | null, nowMs: number): boolean {
+export function isExpiryPlausible(
+  parsedMs: number | null,
+  nowMs: number,
+  maxTtlMs: number = DEFAULT_FILE_TOKEN_MAX_TTL_MS
+): boolean {
   if (parsedMs === null) return false;
   if (parsedMs <= nowMs) return false;
-  if (parsedMs - nowMs > FILE_TOKEN_MAX_TTL_MS) return false;
+  if (parsedMs - nowMs > maxTtlMs) return false;
   return true;
 }
 
-function resolveExpiresAtMs(token: string): { expiresAtMs: number; usedFallback: boolean } {
+function resolveExpiresAtMs(
+  token: string,
+  fallbackTtlMs: number,
+  maxTtlMs: number
+): { expiresAtMs: number; usedFallback: boolean } {
   const claims = decodeJwtPayload(token);
   const raw = extractExpiryClaim(claims);
   const parsed = parseExpirationDate(raw);
   const now = Date.now();
 
-  if (!isExpiryPlausible(parsed, now)) {
+  if (!isExpiryPlausible(parsed, now, maxTtlMs)) {
     log.warn("hrm: file token expiry unparseable or out of range, using fallback TTL", {
       claimNames: claims ? Object.keys(claims) : [],
+      fallbackTtlMs,
     });
     stats.fallbackTtlUsed++;
-    return { expiresAtMs: now + FILE_TOKEN_FALLBACK_TTL_MS, usedFallback: true };
+    return { expiresAtMs: now + fallbackTtlMs, usedFallback: true };
   }
   return { expiresAtMs: parsed as number, usedFallback: false };
 }
 
 async function fetchFileToken(): Promise<CachedFileToken> {
+  const cfg = hrmConfig();
   const body = await hrmFetch<HrmFileTokenResponse>(FILE_TOKEN_PATH, { method: "GET" });
   const token = body.fileToken ?? body.token;
   if (!token) {
     throw new Error("hrm: file token response missing fileToken");
   }
   stats.fetches++;
-  const { expiresAtMs } = resolveExpiresAtMs(token);
+  const { expiresAtMs } = resolveExpiresAtMs(token, cfg.fileTokenFallbackTtlMs, cfg.fileTokenMaxTtlMs);
   return { token, expiresAtMs };
 }
 
@@ -123,7 +144,8 @@ async function fetchFileToken(): Promise<CachedFileToken> {
  * insists on taking one fileToken per batch, not per employee.
  */
 export async function getFileToken(): Promise<string> {
-  if (cached && cached.expiresAtMs - Date.now() > REFRESH_WINDOW_MS) {
+  const refreshWindowMs = hrmConfig().tokenRefreshWindowMs;
+  if (cached && cached.expiresAtMs - Date.now() > refreshWindowMs) {
     stats.cacheHits++;
     return cached.token;
   }

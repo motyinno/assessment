@@ -28,6 +28,18 @@ export interface HrmConfig {
   timeoutMs: number;
   /** Total attempts (>= 1) on a retryable error, from HRM_HTTP_RETRIES. */
   attempts: number;
+  /**
+   * How long before expiry (ms) the access token cache is treated as stale
+   * and refreshed. Same knob is used for the file token in photos.ts — both
+   * are "refresh a bit early" windows, not TTLs.
+   */
+  tokenRefreshWindowMs: number;
+  /** Access token TTL assumed when neither `exp` nor `expires_in` is readable. */
+  tokenFallbackTtlMs: number;
+  /** File token TTL assumed when its `expirationDate`-family claim is unreadable or implausible. */
+  fileTokenFallbackTtlMs: number;
+  /** A parsed file-token expiry further than this from "now" is treated as implausible (see photos.ts). */
+  fileTokenMaxTtlMs: number;
 }
 
 export class HrmConfigError extends Error {
@@ -130,5 +142,9 @@ export function hrmConfig(): HrmConfig {
     pageSize: intEnv("HRM_SYNC_PAGE_SIZE", 100, 1, 1000),
     timeoutMs: intEnv("HRM_HTTP_TIMEOUT_MS", 20_000, 1_000, 120_000),
     attempts: intEnv("HRM_HTTP_RETRIES", 3, 1, 10),
+    tokenRefreshWindowMs: intEnv("HRM_TOKEN_REFRESH_WINDOW_MS", 60_000, 1_000, 600_000),
+    tokenFallbackTtlMs: intEnv("HRM_TOKEN_FALLBACK_TTL_MS", 60_000, 1_000, 3_600_000),
+    fileTokenFallbackTtlMs: intEnv("HRM_FILE_TOKEN_FALLBACK_TTL_MS", 240_000, 1_000, 3_600_000),
+    fileTokenMaxTtlMs: intEnv("HRM_FILE_TOKEN_MAX_TTL_MS", 3_600_000, 60_000, 86_400_000),
   };
 }

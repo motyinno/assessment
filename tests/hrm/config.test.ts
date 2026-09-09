@@ -13,6 +13,10 @@ const ENV_KEYS = [
   "HRM_SYNC_PAGE_SIZE",
   "HRM_HTTP_TIMEOUT_MS",
   "HRM_HTTP_RETRIES",
+  "HRM_TOKEN_REFRESH_WINDOW_MS",
+  "HRM_TOKEN_FALLBACK_TTL_MS",
+  "HRM_FILE_TOKEN_FALLBACK_TTL_MS",
+  "HRM_FILE_TOKEN_MAX_TTL_MS",
 ] as const;
 
 let savedEnv: Record<string, string | undefined>;
@@ -124,5 +128,36 @@ describe("intEnv (via hrmConfig)", () => {
     process.env.HRM_SYNC_PAGE_SIZE = "50";
     const cfg = hrmConfig();
     expect(cfg.pageSize).toBe(50);
+  });
+});
+
+describe("token TTL knobs (env-configurable since HRM can change them without a redeploy)", () => {
+  it("default to their documented values", () => {
+    setValidEnv();
+    const cfg = hrmConfig();
+    expect(cfg.tokenRefreshWindowMs).toBe(60_000);
+    expect(cfg.tokenFallbackTtlMs).toBe(60_000);
+    expect(cfg.fileTokenFallbackTtlMs).toBe(240_000);
+    expect(cfg.fileTokenMaxTtlMs).toBe(3_600_000);
+  });
+
+  it("accept overrides", () => {
+    setValidEnv();
+    process.env.HRM_TOKEN_REFRESH_WINDOW_MS = "90000";
+    process.env.HRM_TOKEN_FALLBACK_TTL_MS = "45000";
+    process.env.HRM_FILE_TOKEN_FALLBACK_TTL_MS = "300000";
+    process.env.HRM_FILE_TOKEN_MAX_TTL_MS = "7200000";
+    const cfg = hrmConfig();
+    expect(cfg.tokenRefreshWindowMs).toBe(90_000);
+    expect(cfg.tokenFallbackTtlMs).toBe(45_000);
+    expect(cfg.fileTokenFallbackTtlMs).toBe(300_000);
+    expect(cfg.fileTokenMaxTtlMs).toBe(7_200_000);
+  });
+
+  it("fall back to the default on garbage", () => {
+    setValidEnv();
+    process.env.HRM_FILE_TOKEN_MAX_TTL_MS = "not-a-number";
+    const cfg = hrmConfig();
+    expect(cfg.fileTokenMaxTtlMs).toBe(3_600_000);
   });
 });
