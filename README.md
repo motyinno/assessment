@@ -45,9 +45,20 @@ AUTH_GOOGLE_SECRET=ваш-client-secret
 
 # Разрешённые домены электронной почты (через запятую). По умолчанию: innowise.com
 ALLOWED_EMAIL_DOMAIN=innowise.com
+
+# HRM (справочник сотрудников). Выключено по умолчанию — при пустом блоке
+# приложение работает как раньше. Чтобы включить, заполните все ключи и
+# поставьте HRM_SYNC_ENABLED=true.
+HRM_KEYCLOAK_URL=https://hrm-stage.inno.ws
+HRM_API_URL=https://hrm-stage.inno.ws
+HRM_USERNAME=ваш-техюзер
+HRM_PASSWORD=ваш-пароль
+HRM_SYNC_ENABLED=false
 ```
 
 > Для `AUTH_SECRET` используйте любую случайную строку (`openssl rand -base64 32`). В продакшене замените на надёжный ключ.
+
+> Проверить, что техюзер HRM реально отдаёт все шесть эндпоинтов, можно командой `npm run hrm:ping` — это **только локальный** диагностический скрипт (прод-образ не содержит `src/` и `tsconfig.json`); в проде для той же цели служит `POST /api/hrm/sync?dryRun=1`.
 >
 > В Google Cloud Console в настройках OAuth-клиента добавьте разрешённый redirect URI: `http://localhost:3000/api/auth/callback/google` (и соответствующий URL продакшена).
 
