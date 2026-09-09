@@ -1,0 +1,677 @@
+[
+  {
+    "id": 5,
+    "firstNameRu": "Morgan",
+    "lastNameRu": "Ivanov",
+    "firstNameEn": "Morgan",
+    "lastNameEn": "Ivanov",
+    "hireDate": "2022-02-21",
+    "registrationDate": "2022-02-21",
+    "professionalLevelId": "8afeea5d-7ef1-4bce-8325-ea2eb864564e",
+    "genderId": "cacdafa7-22a1-4a22-b387-decb949ca593",
+    "email": "morgan.ivanov.5@example.test",
+    "formatOfWork": "e4113d70-108f-4f31-a662-89991a123ca5",
+    "employeeStatus": "52ff28a8-f569-49b0-9d97-cfa7e11cf077",
+    "isArchived": true,
+    "lifecycleStatus": "DELETED",
+    "isSubscribedBirthday": false,
+    "manager": {
+      "id": 382,
+      "firstNameRu": "Riley",
+      "lastNameRu": "Volkov",
+      "firstNameEn": "Riley",
+      "lastNameEn": "Volkov",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "officeManager": {
+      "id": 1910,
+      "firstNameRu": "Татьяна",
+      "lastNameRu": "Якубович",
+      "firstNameEn": "Tanya",
+      "lastNameEn": "Yakubovich",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "employeeManagers": [
+      {
+        "manager": {
+          "id": 158,
+          "email": "riley.novak.158@example.test",
+          "firstNameRu": "Riley",
+          "lastNameRu": "Novak",
+          "firstNameEn": "Riley",
+          "lastNameEn": "Novak",
+          "linkProfilePicture": "",
+          "linkProfilePictureMini": ""
+        },
+        "managerType": {
+          "type": "PRIMARY_RM",
+          "typeValueId": "f7a87193-d08b-47fa-803d-6fe72ca413ec"
+        }
+      },
+      {
+        "manager": {
+          "id": 2185,
+          "email": "sam.petrov.2185@example.test",
+          "firstNameRu": "Sam",
+          "lastNameRu": "Petrov",
+          "firstNameEn": "Sam",
+          "lastNameEn": "Petrov",
+          "linkProfilePicture": "",
+          "linkProfilePictureMini": ""
+        },
+        "managerType": {
+          "type": "STRATEGIC_HR",
+          "typeValueId": "ac12c02c-60eb-4c94-b0a5-c9929139a6eb"
+        }
+      }
+    ],
+    "head": {
+      "id": 1047,
+      "firstNameRu": "Jamie",
+      "lastNameRu": "Smirnov",
+      "firstNameEn": "Jamie",
+      "lastNameEn": "Smirnov",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM1": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM2": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM3": {
+      "id": 382,
+      "firstNameRu": "Riley",
+      "lastNameRu": "Volkov",
+      "firstNameEn": "Riley",
+      "lastNameEn": "Volkov",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM4": {
+      "id": 1047,
+      "firstNameRu": "Jamie",
+      "lastNameRu": "Smirnov",
+      "firstNameEn": "Jamie",
+      "lastNameEn": "Smirnov",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM5": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "recruiter": {
+      "id": 2370,
+      "firstNameRu": "Александр",
+      "lastNameRu": "Markevich",
+      "firstNameEn": "Alexander Mark",
+      "lastNameEn": "Markevich",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "mentor": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "headOfBench": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "orgUnits": [
+      {
+        "id": 30,
+        "orgUnitName": "Java",
+        "orgUnitTypeId": 4,
+        "reportsToOrgUnitTypeId": 6,
+        "reportsToId": 5,
+        "headId": 279,
+        "deputyId": 169
+      },
+      {
+        "id": 361,
+        "orgUnitName": "Java Bench",
+        "orgUnitTypeId": 1,
+        "reportsToOrgUnitTypeId": 4,
+        "reportsToId": 30,
+        "headId": 382,
+        "deputyId": 382
+      },
+      {
+        "id": 5,
+        "orgUnitName": "Global Development",
+        "orgUnitTypeId": 6,
+        "reportsToOrgUnitTypeId": 5,
+        "reportsToId": 528,
+        "headId": 2014,
+        "deputyId": 455
+      }
+    ],
+    "jobTitleId": "bba43f3d-74ed-40e1-93c5-01012ca3057f",
+    "linkProfilePicture": "",
+    "linkProfilePictureMini": "",
+    "isMentor": false,
+    "isDeliveryCoordinator": false,
+    "createdDate": "2022-03-09T16:01:14.363804",
+    "lastModifiedDate": "2026-07-14T12:49:20.517547"
+  },
+  {
+    "id": 2,
+    "firstNameRu": "Jordan",
+    "lastNameRu": "Ivanov",
+    "firstNameEn": "Jordan",
+    "lastNameEn": "Ivanov",
+    "hireDate": "2020-09-21",
+    "registrationDate": "2020-09-21",
+    "birthDateFields": {
+      "day": 18,
+      "month": 12
+    },
+    "professionalLevelId": "756fd545-f7cd-4f02-856b-2762481d27f8",
+    "genderId": "d30d4b2d-34bc-46af-be87-bad85808263a",
+    "email": "jordan.ivanov.2@example.test",
+    "formatOfWork": "e4113d70-108f-4f31-a662-89991a123ca5",
+    "employeeStatus": "2455b251-cc09-4a91-bcb9-911c88c6696e",
+    "isArchived": true,
+    "lifecycleStatus": "DELETED",
+    "isSubscribedBirthday": false,
+    "manager": {
+      "id": 3560,
+      "firstNameRu": "Alex",
+      "lastNameRu": "Popov",
+      "firstNameEn": "Alex",
+      "lastNameEn": "Popov",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "officeManager": {
+      "id": 450,
+      "firstNameRu": "Лада",
+      "lastNameRu": "Маханькова",
+      "firstNameEn": "Lada",
+      "lastNameEn": "Mahankova",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "employeeManagers": [
+      {
+        "manager": {
+          "id": 450,
+          "email": "jordan.ivanov.450@example.test",
+          "firstNameRu": "Jordan",
+          "lastNameRu": "Ivanov",
+          "firstNameEn": "Jordan",
+          "lastNameEn": "Ivanov",
+          "linkProfilePicture": "",
+          "linkProfilePictureMini": ""
+        },
+        "managerType": {
+          "type": "PRIMARY_RM",
+          "typeValueId": "f7a87193-d08b-47fa-803d-6fe72ca413ec"
+        }
+      },
+      {
+        "manager": {
+          "id": 658,
+          "email": "jordan.smirnov.658@example.test",
+          "firstNameRu": "Jordan",
+          "lastNameRu": "Smirnov",
+          "firstNameEn": "Jordan",
+          "lastNameEn": "Smirnov",
+          "linkProfilePicture": "",
+          "linkProfilePictureMini": ""
+        },
+        "managerType": {
+          "type": "STRATEGIC_HR",
+          "typeValueId": "ac12c02c-60eb-4c94-b0a5-c9929139a6eb"
+        }
+      },
+      {
+        "manager": {
+          "id": 549,
+          "email": "morgan.kowalski.549@example.test",
+          "firstNameRu": "Morgan",
+          "lastNameRu": "Kowalski",
+          "firstNameEn": "Morgan",
+          "lastNameEn": "Kowalski",
+          "linkProfilePicture": "",
+          "linkProfilePictureMini": ""
+        },
+        "managerType": {
+          "type": "ADDITIONAL_RM",
+          "typeValueId": "aeb693ff-f8b5-41da-b7af-d2d660333e28"
+        }
+      }
+    ],
+    "head": {
+      "id": 301,
+      "firstNameRu": "Morgan",
+      "lastNameRu": "Popov",
+      "firstNameEn": "Morgan",
+      "lastNameEn": "Popov",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM1": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM2": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM3": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM4": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "managerM5": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "recruiter": {
+      "id": 131,
+      "firstNameRu": "Павел",
+      "lastNameRu": "Ганжин",
+      "firstNameEn": "Pavel",
+      "lastNameEn": "Ganzhin",
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "mentor": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "headOfBench": {
+      "companyExperience": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "internshipPeriod": {
+        "years": 0,
+        "months": 0,
+        "days": 0
+      },
+      "hardSkillsMap": {},
+      "softSkillsMap": {},
+      "domainDirectionMap": {},
+      "toolsTechnologiesMap": {},
+      "linkProfilePicture": "",
+      "linkProfilePictureMini": "",
+      "isMentor": false,
+      "isDeliveryCoordinator": false
+    },
+    "orgUnits": [
+      {
+        "id": 187,
+        "orgUnitName": "EU+US",
+        "orgUnitTypeId": 4,
+        "reportsToOrgUnitTypeId": 6,
+        "reportsToId": 3,
+        "headId": 301,
+        "deputyId": 301
+      },
+      {
+        "id": 3,
+        "orgUnitName": "Business Development",
+        "orgUnitTypeId": 6,
+        "reportsToOrgUnitTypeId": 5,
+        "reportsToId": 528,
+        "headId": 523,
+        "deputyId": 523
+      }
+    ],
+    "jobTitleId": "16810ee4-be3d-4f2d-ae73-261c641cf375",
+    "linkProfilePicture": "",
+    "linkProfilePictureMini": "",
+    "isMentor": false,
+    "isDeliveryCoordinator": false,
+    "createdDate": "2022-03-09T16:01:13.753795",
+    "lastModifiedDate": "2026-07-14T12:49:20.517547"
+  }
+]

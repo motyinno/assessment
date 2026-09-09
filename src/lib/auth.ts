@@ -3,6 +3,8 @@ import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import prisma from "./prisma";
 import { isEmailAllowed } from "./allowed-domains";
+import { refreshEmployeeByEmail } from "@/lib/hrm/refresh-user";
+import { log } from "@/lib/logger";
 
 type Provider = NonNullable<NextAuthConfig["providers"]>[number];
 
@@ -110,9 +112,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       await prisma.user.upsert({
         where: { email },
-        update: { name, ...tokenData },
+        // `name` is deliberately not in `update`: after the HRM integration,
+        // `name` is an HRM-owned field (see hrm/apply-user.ts) — a Google
+        // login must not overwrite it with whatever the person's Google
+        // account happens to display.
+        update: { ...tokenData },
         create: { email, name, role: "USER", ...tokenData },
       });
+
+      // Best-effort refresh from HRM so a new hire who signs in before the
+      // first nightly sync still gets their grade/department/job title.
+      // Never blocks sign-in: refreshEmployeeByEmail() already swallows its
+      // own errors, this is defense in depth.
+      try {
+        await refreshEmployeeByEmail(email);
+      } catch (e) {
+        log.warn("hrm: refreshEmployeeByEmail threw unexpectedly", {
+          email,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
 
       return true;
     },

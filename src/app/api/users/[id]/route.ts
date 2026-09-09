@@ -88,7 +88,7 @@ export async function PATCH(
 
   const current = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, role: true, managerId: true },
+    select: { id: true, role: true, managerId: true, hrmEmployeeId: true },
   });
   if (!current) return notFound("User not found");
 
@@ -99,7 +99,18 @@ export async function PATCH(
 
   const parsed = await parseJsonBody(req, patchUserSchema);
   if (parsed.error) return parsed.error;
-  const { name, grade, project, managerId, role } = parsed.data;
+  const { name, grade, project, projects, managerId, role } = parsed.data;
+
+  // Once HRM owns a user (hrmEmployeeId set), name/project(s)/managerId come
+  // from the sync (see hrm/apply-user.ts's field policy) and manual edits
+  // would just get overwritten by the next sync anyway. `grade` and `role`
+  // stay editable — the sync never writes over a non-empty grade, and role
+  // is a product decision HRM doesn't make (S05).
+  if (current.hrmEmployeeId !== null) {
+    if (name !== undefined || project !== undefined || projects !== undefined || managerId !== undefined) {
+      return conflict("Managed by HRM: name, project(s) and manager can't be edited manually");
+    }
+  }
 
   const data: Record<string, unknown> = {};
 
@@ -107,6 +118,7 @@ export async function PATCH(
   if (project !== undefined) {
     data.project = project && project.trim().length > 0 ? project.trim() : null;
   }
+  if (projects !== undefined) data.projects = projects;
 
   if (managerId !== undefined) {
     const normalized = managerId === null || managerId === "" ? null : managerId;

@@ -26,6 +26,8 @@ export interface HrmConfig {
   password: string;
   pageSize: number;
   timeoutMs: number;
+  /** Shorter timeout for the login-time refresh path (refresh-user.ts) — `timeoutMs` (20s default) would turn an unreachable HRM into a 20s-slow login. */
+  loginTimeoutMs: number;
   /** Total attempts (>= 1) on a retryable error, from HRM_HTTP_RETRIES. */
   attempts: number;
   /**
@@ -141,6 +143,7 @@ export function hrmConfig(): HrmConfig {
     password: password!,
     pageSize: intEnv("HRM_SYNC_PAGE_SIZE", 100, 1, 1000),
     timeoutMs: intEnv("HRM_HTTP_TIMEOUT_MS", 20_000, 1_000, 120_000),
+    loginTimeoutMs: intEnv("HRM_LOGIN_TIMEOUT_MS", 5_000, 1_000, 30_000),
     attempts: intEnv("HRM_HTTP_RETRIES", 3, 1, 10),
     tokenRefreshWindowMs: intEnv("HRM_TOKEN_REFRESH_WINDOW_MS", 60_000, 1_000, 600_000),
     tokenFallbackTtlMs: intEnv("HRM_TOKEN_FALLBACK_TTL_MS", 60_000, 1_000, 3_600_000),

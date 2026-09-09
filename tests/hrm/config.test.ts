@@ -12,6 +12,7 @@ const ENV_KEYS = [
   "HRM_PASSWORD",
   "HRM_SYNC_PAGE_SIZE",
   "HRM_HTTP_TIMEOUT_MS",
+  "HRM_LOGIN_TIMEOUT_MS",
   "HRM_HTTP_RETRIES",
   "HRM_TOKEN_REFRESH_WINDOW_MS",
   "HRM_TOKEN_FALLBACK_TTL_MS",
@@ -121,6 +122,13 @@ describe("intEnv (via hrmConfig)", () => {
     process.env.HRM_HTTP_RETRIES = "999";
     const cfg = hrmConfig();
     expect(cfg.attempts).toBe(3);
+  });
+
+  it("defaults loginTimeoutMs to 5s, shorter than the main HTTP timeout", () => {
+    setValidEnv();
+    const cfg = hrmConfig();
+    expect(cfg.loginTimeoutMs).toBe(5_000);
+    expect(cfg.loginTimeoutMs).toBeLessThan(cfg.timeoutMs);
   });
 
   it("accepts a valid override", () => {

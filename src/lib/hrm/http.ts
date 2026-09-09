@@ -86,6 +86,8 @@ export interface HrmRequestOptions {
   query?: Record<string, string | number | boolean | null | undefined>;
   /** Whitelisted safe fields for logs (e.g. page, size, sort, dismissalStatus) — never a raw query dump. */
   logMeta?: Record<string, unknown>;
+  /** Overrides `hrmConfig().timeoutMs` for this call only — used by the login-time refresh path (see hrmConfig().loginTimeoutMs). */
+  timeoutMs?: number;
 }
 
 export interface HrmResponseEnvelope<T> {
@@ -193,6 +195,7 @@ export async function hrmRequest<T>(
 ): Promise<HrmResponseEnvelope<T>> {
   const cfg = hrmConfig();
   const method = o?.method ?? "GET";
+  const timeoutMs = o?.timeoutMs ?? cfg.timeoutMs;
   const { url, pathname } = buildUrl(cfg.apiUrl, path, o?.query);
 
   let attemptsMade = 0;
@@ -214,7 +217,7 @@ export async function hrmRequest<T>(
         method,
         headers,
         body: o?.body !== undefined ? JSON.stringify(o.body) : undefined,
-        signal: AbortSignal.timeout(cfg.timeoutMs),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (e) {
       const isTimeout = e instanceof Error && e.name === "TimeoutError";

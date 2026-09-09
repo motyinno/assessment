@@ -35,6 +35,8 @@ export interface SearchEmployeesArgs {
   email?: string;
   /** Default "id,asc" — do not change without a strong reason, see file comment. */
   sort?: string;
+  /** Overrides hrmConfig().timeoutMs for this call — refresh-user.ts passes hrmConfig().loginTimeoutMs. */
+  timeoutMs?: number;
 }
 
 export type EmployeePageTotalSource = "body" | "x-total-count" | "content-range" | "inferred";
@@ -142,6 +144,7 @@ export async function searchEmployees(args?: SearchEmployeesArgs): Promise<Emplo
     body,
     query: { page, size, sort },
     logMeta: { page, size, sort, dismissalStatus: args?.dismissalStatus },
+    timeoutMs: args?.timeoutMs,
   });
 
   return normalizeEmployeePage(data, headers, page, size);

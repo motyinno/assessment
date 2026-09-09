@@ -4,29 +4,36 @@
  * as `string`. The `employees/v2/search` response schema in the HRM doc
  * (HRM-Integration-nodeassm.md §1.1) is assembled from fields mentioned along
  * the way, not from one full 200 response — the doc says so explicitly.
- * `dismissalStatus: "ACTUAL" | "DELETED"` would mean a seventh value HRM adds
- * later breaks `npm run build`; known values live as constants
- * (HRM_DISMISSAL_ACTUAL, HRM_LIFECYCLE_DELETED) while the field type stays
- * `string | null`.
  *
- * Growth rule: fields get added as S04's exploratory run finds them. None of
- * them become required.
+ * `HrmEmployee` below was rewritten in S03 against a LIVE stage run (2026-09-09,
+ * `temp/hrm-payloads/employees-search.schema.md`), not against the doc/swagger
+ * that the original S01 version was written from — the two barely overlap.
+ * Known values live as constants (HRM_LIFECYCLE_ACTUAL, HRM_LIFECYCLE_DELETED)
+ * while the field type stays `string | null`, so a value HRM adds later never
+ * breaks `npm run build`.
+ *
+ * Growth rule: fields get added as later exploration finds them. None of them
+ * become required.
  *
  * No index signature (`[key: string]: unknown`) on HrmEmployee — tempting
  * given the known-incomplete schema, but it turns a typo like
  * `emp.firtNameEn` from a compile error into `unknown`, which then survives
  * typecheck and shows up silently as an empty field after `?? ""`. That's
- * exactly the class of bug that's most expensive here. S04's exploration,
- * which needs the unmodeled remainder, can take the raw body as `unknown` in
- * one place instead.
+ * exactly the class of bug that's most expensive here. Exploration that needs
+ * the unmodeled remainder can take the raw body as `unknown` in one place
+ * instead.
  *
- * Dates are `string | null` (ISO), never `Date` — this is raw JSON.
+ * Dates are `string | null` (ISO or `YYYY-MM-DD`), never `Date` — this is raw
+ * JSON.
  *
- * Zero imports, so both S03's tests and any future client component can pull
- * these in freely (same approach as src/lib/roadmap-types.ts).
+ * Zero imports, so both tests and any future client component can pull these
+ * in freely (same approach as src/lib/roadmap-types.ts).
  */
 
+/** Request-filter value for `employees/v2/search`'s `dismissalStatus` body param — NOT a field on the response (see HRM_LIFECYCLE_ACTUAL for that). */
 export const HRM_DISMISSAL_ACTUAL = "ACTUAL";
+/** Response field value: `employee.lifecycleStatus === "ACTUAL"`. */
+export const HRM_LIFECYCLE_ACTUAL = "ACTUAL";
 export const HRM_LIFECYCLE_DELETED = "DELETED";
 
 export interface HrmTokenResponse {
@@ -72,42 +79,107 @@ export interface HrmOrgUnitTypeDto {
   isFilterable?: boolean | null;
 }
 
-export interface HrmEmployeeOrgUnit {
-  id?: string | null;
-  name?: string | null;
-  orgUnitType?: HrmOrgUnitTypeDto | null;
+/**
+ * The org-unit reference embedded in `employee.orgUnits[]` — a TRUNCATED
+ * `OrgUnitDto` (confirmed live: no `orgUnitTypeDto`/`unitManagers`/
+ * `reportsToOrgUnit`, just enough to resolve membership by id). Not to be
+ * confused with `HrmOrgUnit` (the full shape from `GET /org-units`).
+ */
+export interface HrmEmployeeOrgUnitRef {
+  id?: number | null;
+  orgUnitName?: string | null;
+  orgUnitTypeId?: number | null;
+  reportsToOrgUnitTypeId?: number | null;
+  reportsToId?: number | null;
+  headId?: number | null;
+  deputyId?: number | null;
 }
 
-export interface HrmEmployeeManagerRef {
-  id?: string | null;
-  email?: string | null;
-  firstNameEn?: string | null;
-  lastNameEn?: string | null;
-}
-
-export interface HrmEmployeeAdditionalInfo {
-  professionalLevelId?: string | null;
-  jobTitleId?: string | null;
-  [key: string]: unknown;
-}
-
-export interface HrmEmployee {
-  id?: string | null;
+/**
+ * `EmployeeShortInfoDto`, as embedded in `manager`/`managerM1..M5`/`head`/
+ * `employeeManagers[].manager`/etc. Deliberately partial — the real DTO also
+ * carries skills maps, experience counters and profile-picture links that
+ * nothing here reads.
+ *
+ * `email` is present on `employeeManagers[].manager` but ABSENT on the
+ * top-level `manager`/`managerM1..M5`/`head` in a live sample — kept optional
+ * rather than split into two types, since nothing here requires it.
+ */
+export interface HrmEmployeeShortInfo {
+  id?: number | null;
   email?: string | null;
   firstNameEn?: string | null;
   lastNameEn?: string | null;
   firstNameRu?: string | null;
   lastNameRu?: string | null;
-  dismissalStatus?: string | null;
+}
+
+/**
+ * `managerType.type` on `employeeManagers[]`. Values confirmed live:
+ * `STRATEGIC_HR`, `PRIMARY_RM`, `LOCAL_HR` (plus `ADDITIONAL_RM` on
+ * org-units). Kept as `string` per the file's enum-widening rule.
+ */
+export interface HrmEmployeeManagerTypeRef {
+  type?: string | null;
+  typeValueId?: string | null;
+}
+
+export interface HrmEmployeeManagerEntry {
+  manager?: HrmEmployeeShortInfo | null;
+  managerType?: HrmEmployeeManagerTypeRef | null;
+}
+
+/**
+ * Employee record from `employees/v2/search`. Rewritten in S03 against a live
+ * stage run — see file header. Notably absent relative to the pre-S03 shape:
+ * no `additionalInfo` (its two fields live top-level), no `dismissalStatus`/
+ * `dismissalDate` (use `lifecycleStatus`/`isArchived`), no `orgUnit` singular
+ * (only `orgUnits[]`, confirmed many-to-many), no `photoFileName` (HRM sends
+ * a ready, short-lived signed link instead — `linkProfilePicture`).
+ *
+ * `projects` is kept here (for forward compatibility) even though it did not
+ * appear on any of the 70 employees checked live — S03's `buildUserWrite()`
+ * deliberately does not read it. See employees-search.schema.md.
+ */
+export interface HrmEmployee {
+  id?: number | null;
+  email?: string | null;
+  firstNameEn?: string | null;
+  lastNameEn?: string | null;
+  firstNameRu?: string | null;
+  lastNameRu?: string | null;
+  patronymicRu?: string | null;
+
   lifecycleStatus?: string | null;
-  photoFileName?: string | null;
-  orgUnit?: HrmEmployeeOrgUnit | null;
-  manager?: HrmEmployeeManagerRef | null;
-  projects?: HrmProject[] | null;
-  additionalInfo?: HrmEmployeeAdditionalInfo | null;
+  isArchived?: boolean | null;
+
+  jobTitleId?: string | null;
+  professionalLevelId?: string | null;
+  managerialLevelId?: string | null;
+  employeeStatus?: string | null;
+  formatOfWork?: string | null;
+
   hireDate?: string | null;
-  dismissalDate?: string | null;
-  updatedAt?: string | null;
+  registrationDate?: string | null;
+  createdDate?: string | null;
+  lastModifiedDate?: string | null;
+
+  orgUnits?: HrmEmployeeOrgUnitRef[] | null;
+
+  manager?: HrmEmployeeShortInfo | null;
+  managerM1?: HrmEmployeeShortInfo | null;
+  managerM2?: HrmEmployeeShortInfo | null;
+  managerM3?: HrmEmployeeShortInfo | null;
+  managerM4?: HrmEmployeeShortInfo | null;
+  managerM5?: HrmEmployeeShortInfo | null;
+  employeeManagers?: HrmEmployeeManagerEntry[] | null;
+  head?: HrmEmployeeShortInfo | null;
+
+  linkProfilePicture?: string | null;
+  linkProfilePictureMini?: string | null;
+
+  /** Unconfirmed — see file header. Not read by buildUserWrite() in S03. */
+  projects?: HrmProject[] | null;
 }
 
 /**
@@ -170,6 +242,11 @@ export interface HrmOrgUnitsListEnvelope {
  * "professionalLevel"), each carrying its own `values[]`, and the per-language
  * translation lives NESTED under `values[].translations[]` — not flat, as
  * originally assumed from the integration doc before the stage run.
+ *
+ * `values[].value` is the value's stable CODE (e.g. `"JUNIOR_MINUS"`), as
+ * opposed to `values[].translations[].translation`, which is locale text
+ * (e.g. `"Junior -"`) — confirmed live against `dictionaries.raw.json`. S03's
+ * grade mapping keys off `value`, not `translation`.
  */
 export interface HrmDictionaryValueTranslation {
   id?: string | null;
