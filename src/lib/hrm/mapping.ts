@@ -33,6 +33,34 @@ export interface MappedEmployee {
   hrmDismissed: boolean;
   /** Raw `orgUnits[].id`s — resolved to local `Department` rows by a second pass (S04). */
   orgUnitIds: number[];
+  /** Parsed from `employee.linkProfilePicture` — see extractPhotoFileName(). Always `photos/<file>` or `null`. */
+  photoFileName: string | null;
+}
+
+// Two shapes seen for the path inside `linkProfilePicture`: a plain URL path
+// (`.../photos/<uuid>.jpeg?...`, every sample checked so far) and a
+// `%2F`-encoded one (never observed on live data, but `buildPhotoUrl` in
+// photos.ts produces exactly this encoding for the reverse direction, so
+// parsing it symmetrically is cheaper than fixing it later as an incident).
+const PHOTO_PATH_RE = /\/photos%2F([^&?]+)|\/photos\/([^?]+)/;
+
+/**
+ * `employee.linkProfilePicture` -> `photos/<file>`, or `null` when there's no
+ * photo or the link doesn't match the expected shape. Never throws — a photo
+ * that fails to parse must degrade to initials (S12), not take down the sync.
+ */
+export function extractPhotoFileName(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const trimmed = link.trim();
+  if (trimmed === "") return null;
+  const m = PHOTO_PATH_RE.exec(trimmed);
+  if (!m) return null;
+  const raw = m[1] ?? m[2];
+  try {
+    return `photos/${decodeURIComponent(raw)}`;
+  } catch {
+    return null; // malformed %-escape — don't fail mapEmployee over one bad field
+  }
 }
 
 function trimOrEmpty(s: string | null | undefined): string {
@@ -156,6 +184,7 @@ export function mapEmployee(
       // one field this file treats as authoritative — see plan §"Политика полей".
       hrmDismissed: isArchived,
       orgUnitIds,
+      photoFileName: extractPhotoFileName(employee.linkProfilePicture),
     },
     issues,
   };

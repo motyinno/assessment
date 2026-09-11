@@ -158,6 +158,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             project: true,
             managerId: true,
             isArchived: true,
+            photoFileName: true,
           },
         });
         if (dbUser) {
@@ -168,6 +169,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.project = dbUser.project ?? null;
           token.managerId = dbUser.managerId ?? null;
           token.isArchived = dbUser.isArchived;
+          token.photoFileName = dbUser.photoFileName ?? null;
         }
         token.checkedAt = Date.now();
       }
@@ -182,6 +184,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           project: string | null;
           managerId: string | null;
           isArchived: boolean;
+          photoFileName: string | null;
         };
         u.id = token.id as string;
         u.role = token.role as string;
@@ -189,6 +192,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         u.project = (token.project ?? null) as string | null;
         u.managerId = (token.managerId ?? null) as string | null;
         u.isArchived = (token.isArchived ?? false) as boolean;
+        u.photoFileName = (token.photoFileName ?? null) as string | null;
       }
       return session;
     },

@@ -31,6 +31,7 @@ function employee(id: number): MappedEmployee {
     isArchived: false,
     hrmDismissed: false,
     orgUnitIds: [],
+    photoFileName: null,
   };
 }
 

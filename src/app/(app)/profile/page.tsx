@@ -19,6 +19,7 @@ import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { ApiTokensCard } from "@/components/api-tokens-card";
 import { CertificatesCard } from "@/components/certificates-card";
+import { UserAvatar } from "@/components/user-avatar";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
@@ -26,16 +27,6 @@ const ROLE_LABEL: Record<string, string> = {
   ASSESSOR: "Assessor",
   USER: "User",
 };
-
-function initialsOf(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 interface UserRecord {
   id: string;
@@ -46,6 +37,7 @@ interface UserRecord {
   project?: string | null;
   managerId?: string | null;
   isArchived: boolean;
+  photoFileName?: string | null;
 }
 
 type UserOption = Pick<UserRecord, "id" | "name" | "email" | "role" | "isArchived">;
@@ -64,6 +56,7 @@ export default function ProfilePage() {
     managerId: null,
   });
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [photoFileName, setPhotoFileName] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -91,6 +84,7 @@ export default function ProfilePage() {
             project: me.project || "",
             managerId: me.managerId ?? null,
           });
+          setPhotoFileName(me.photoFileName ?? null);
         }
         setLoading(false);
       });
@@ -135,7 +129,6 @@ export default function ProfilePage() {
 
   const email = session?.user?.email ?? "";
   const role = (session?.user as { role?: string } | undefined)?.role ?? "USER";
-  const initials = initialsOf(form.name || "?");
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -149,9 +142,10 @@ export default function ProfilePage() {
       {/* Identity banner */}
       <Card>
         <CardContent className="pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/5 text-primary flex items-center justify-center text-lg font-semibold ring-1 ring-primary/20 shrink-0">
-            {initials}
-          </div>
+          <UserAvatar
+            user={{ id: session?.user?.id ?? "", name: form.name || "?", photoFileName }}
+            size="lg"
+          />
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-foreground truncate">
               {form.name || "—"}

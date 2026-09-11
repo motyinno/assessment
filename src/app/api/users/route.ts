@@ -20,6 +20,7 @@ const STAFF_USER_SELECT = {
   project: true,
   managerId: true,
   manager: { select: { id: true, name: true, email: true } },
+  photoFileName: true,
   createdAt: true,
   isArchived: true,
 } as const;
@@ -30,6 +31,7 @@ const SLIM_USER_SELECT = {
   email: true,
   role: true,
   isArchived: true,
+  photoFileName: true,
 } as const;
 
 /**

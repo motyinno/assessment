@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface Option {
   id: string;
   name: string;
   email: string;
   role: string;
+  photoFileName?: string | null;
 }
 
 const roleLabels: Record<string, string> = {
@@ -129,10 +131,13 @@ export function AssessorCombobox({
                   onClick={() => choose(o.id)}
                   className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{o.name}</span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {o.email}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <UserAvatar user={o} size="sm" />
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{o.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {o.email}
+                      </span>
                     </span>
                   </span>
                   <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">

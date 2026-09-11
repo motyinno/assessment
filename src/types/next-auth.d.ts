@@ -15,6 +15,7 @@ declare module "next-auth" {
       project: string | null;
       managerId: string | null;
       isArchived: boolean;
+      photoFileName: string | null;
     };
   }
 }
@@ -28,5 +29,6 @@ declare module "next-auth/jwt" {
     managerId?: string | null;
     isArchived?: boolean;
     checkedAt?: number;
+    photoFileName?: string | null;
   }
 }

@@ -30,6 +30,7 @@ export async function GET(
               managerId: true,
               manager: { select: { id: true, name: true, email: true } },
               isArchived: true,
+              photoFileName: true,
             },
           },
         },

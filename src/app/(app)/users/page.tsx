@@ -34,6 +34,7 @@ import {
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { canManagePeople } from "@/lib/roles";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface ManagerRef {
   id: string;
@@ -50,6 +51,7 @@ interface User {
   project: string | null;
   managerId: string | null;
   manager: ManagerRef | null;
+  photoFileName: string | null;
   createdAt: string;
   isArchived: boolean;
 }
@@ -63,16 +65,6 @@ const ROLE_META: Record<
   ASSESSOR: { label: "Assessor", tone: "default", accent: "from-primary/25 to-primary/5 text-primary" },
   USER: { label: "User", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
 };
-
-function userInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export default function UsersPage() {
   const { data: session, status } = useSession();
@@ -376,11 +368,7 @@ export default function UsersPage() {
                       >
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div
-                              className={`w-8 h-8 shrink-0 rounded-full bg-gradient-to-br ${meta.accent} flex items-center justify-center text-[11px] font-semibold ring-1 ring-border/50`}
-                            >
-                              {userInitials(user.name)}
-                            </div>
+                            <UserAvatar user={user} size="sm" />
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
                                 {user.name}

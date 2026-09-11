@@ -7,6 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface SidebarProps {
   user: {
@@ -14,6 +15,7 @@ interface SidebarProps {
     name: string;
     email: string;
     role: string;
+    photoFileName?: string | null;
   };
 }
 
@@ -163,13 +165,6 @@ export function AppSidebar({ user }: SidebarProps) {
     if (href === "/") return pathname === "/";
     return exact ? pathname === href : pathname.startsWith(href);
   };
-
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
@@ -364,9 +359,7 @@ export function AppSidebar({ user }: SidebarProps) {
       {/* User section */}
       <div className="border-t border-sidebar-border p-3 space-y-1">
         <Link href="/profile" className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-primary flex items-center justify-center text-xs font-semibold shrink-0 ring-1 ring-primary/15">
-            {initials}
-          </div>
+          <UserAvatar user={user} size="md" />
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-medium truncate text-sidebar-foreground">{user.name}</p>
             <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>

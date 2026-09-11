@@ -131,6 +131,32 @@ describe("mapEmployee — against real (anonymized) stage fixtures", () => {
   });
 });
 
+describe("extractPhotoFileName / mapEmployee photoFileName", () => {
+  const dicts: HrmDictionaries = dictionaries;
+
+  it("parses the path out of a live linkProfilePicture URL", () => {
+    const employee = {
+      ...actualEmployees[0],
+      linkProfilePicture:
+        "https://hrm-stage-employee-photo-bucket.s3.eu-north-1.amazonaws.com/photos/a3a701dc-7d9d-4995-9f7b-f0f2332cdc55.jpeg?X-Amz-Expires=300&X-Amz-Signature=abc",
+    };
+    const { employee: mapped } = mapEmployee(employee, dicts);
+    expect(mapped.photoFileName).toBe("photos/a3a701dc-7d9d-4995-9f7b-f0f2332cdc55.jpeg");
+  });
+
+  it("maps an empty linkProfilePicture to null, not a throw", () => {
+    const employee = { ...actualEmployees[0], linkProfilePicture: "" };
+    const { employee: mapped } = mapEmployee(employee, dicts);
+    expect(mapped.photoFileName).toBeNull();
+  });
+
+  it("maps a missing linkProfilePicture to null", () => {
+    const { linkProfilePicture, ...rest } = actualEmployees[0];
+    const { employee: mapped } = mapEmployee(rest, dicts);
+    expect(mapped.photoFileName).toBeNull();
+  });
+});
+
 describe("mapOrgUnit", () => {
   it("orgUnitTypeDto.lifecycleStatus DELETED -> isActive: false", () => {
     const mapped = mapOrgUnit({ id: 1, orgUnitTypeDto: { lifecycleStatus: "DELETED" } });

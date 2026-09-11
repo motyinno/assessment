@@ -26,6 +26,7 @@ const USER_DETAIL_SELECT = {
   managerId: true,
   manager: { select: { id: true, name: true, email: true } },
   isArchived: true,
+  photoFileName: true,
 } as const;
 
 export async function GET(

@@ -15,6 +15,7 @@ function mapped(overrides: Partial<MappedEmployee> = {}): MappedEmployee {
     isArchived: false,
     hrmDismissed: false,
     orgUnitIds: [1, 2],
+    photoFileName: null,
     ...overrides,
   };
 }
@@ -40,10 +41,14 @@ describe("buildUserWrite — creation (existing: null)", () => {
     expect(create).not.toHaveProperty("role");
   });
 
-  it("does not include photoFileName or projects", () => {
+  it("does not include projects (not written in S03)", () => {
     const { create } = buildUserWrite(mapped(), null, NOW);
-    expect(create).not.toHaveProperty("photoFileName");
     expect(create).not.toHaveProperty("projects");
+  });
+
+  it("photoFileName from HRM lands in create", () => {
+    const { create } = buildUserWrite(mapped({ photoFileName: "photos/a.jpeg" }), null, NOW);
+    expect(create?.photoFileName).toBe("photos/a.jpeg");
   });
 
   it("does not include managerId (only the raw hrmManagerId)", () => {
@@ -89,10 +94,14 @@ describe("buildUserWrite — update (existing user)", () => {
     expect(update).not.toHaveProperty("email");
   });
 
-  it("photoFileName and projects never appear in update", () => {
+  it("projects never appears in update (not written in S03)", () => {
     const { update } = buildUserWrite(mapped(), { grade: "sen" }, NOW);
-    expect(update).not.toHaveProperty("photoFileName");
     expect(update).not.toHaveProperty("projects");
+  });
+
+  it("photoFileName from HRM always lands in update, like jobTitle", () => {
+    const { update } = buildUserWrite(mapped({ photoFileName: "photos/b.jpeg" }), { grade: "sen" }, NOW);
+    expect(update?.photoFileName).toBe("photos/b.jpeg");
   });
 
   it("managerId never appears in update, only the raw hrmManagerId", () => {
