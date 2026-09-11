@@ -26,11 +26,19 @@ import { searchEmployees } from "@/lib/hrm/employees";
 import { mapEmployee, mapOrgUnit, type MappedEmployee } from "@/lib/hrm/mapping";
 import { buildUserWrite } from "@/lib/hrm/apply-user";
 import { withHrmSyncLock } from "@/lib/hrm/lock";
-import { checkDictionaries, checkEmployees, checkMassDismissal, checkOrgUnits } from "@/lib/hrm/guards";
+import {
+  checkDictionaries,
+  checkEmployees,
+  checkMassAdminGrant,
+  checkMassDismissal,
+  checkOrgUnits,
+} from "@/lib/hrm/guards";
 import type { GuardResult } from "@/lib/hrm/guards";
+import { computeRoleGrants, roleAuditRow, type RoleGrant } from "@/lib/hrm/roles";
 import { rebuildDepartmentPaths } from "@/lib/hrm/tree";
-import { notifyAdminsOfHrmSyncFailure } from "@/lib/notifications";
+import { notifyAdminsOfHrmRoleGrants, notifyAdminsOfHrmSyncFailure } from "@/lib/notifications";
 import type { HrmOrgUnit } from "@/lib/hrm/types";
+import type { Role } from "@/lib/roles";
 
 export interface RunHrmSyncArgs {
   trigger: "CRON" | "MANUAL" | "LOGIN";
@@ -183,6 +191,8 @@ interface WritePassCounters {
   usersRestored: number;
   membershipsAdded: number;
   membershipsRemoved: number;
+  rolesGranted: number;
+  adminsGranted: number;
 }
 
 /**
@@ -227,8 +237,8 @@ async function upsertDepartments(orgUnits: HrmOrgUnit[]): Promise<Map<number, st
 /**
  * Pass 1b/1c: one transaction per page-sized chunk of the in-memory mapped
  * set — User upsert (via buildUserWrite, S03's field policy) + membership
- * diff. Role grants are S05's job (`// TODO(S05)` below); this function
- * doesn't touch `role`.
+ * diff + role grants (S05), keyed off the same `userId`/`emp` in the same
+ * per-employee transaction.
  *
  * Returns a hrmEmployeeId -> local user id map, used by pass 2 to resolve
  * `hrmManagerId` without re-querying.
@@ -236,7 +246,9 @@ async function upsertDepartments(orgUnits: HrmOrgUnit[]): Promise<Map<number, st
 async function writeUsersAndMemberships(
   mapped: MappedEmployee[],
   deptByHrmId: Map<number, string>,
-  pageSize: number
+  pageSize: number,
+  grants: Map<number, RoleGrant>,
+  runId: string
 ): Promise<{ userIdByHrmEmployeeId: Map<number, string>; counters: WritePassCounters }> {
   const userIdByHrmEmployeeId = new Map<number, string>();
   const counters: WritePassCounters = {
@@ -245,6 +257,8 @@ async function writeUsersAndMemberships(
     usersRestored: 0,
     membershipsAdded: 0,
     membershipsRemoved: 0,
+    rolesGranted: 0,
+    adminsGranted: 0,
   };
 
   for (let i = 0; i < mapped.length; i += pageSize) {
@@ -258,14 +272,21 @@ async function writeUsersAndMemberships(
         });
 
         const write = buildUserWrite(emp, existing ? { grade: existing.grade } : null);
+        const grant = grants.get(emp.hrmEmployeeId);
 
         let userId: string;
         if (write.create) {
-          const created = await tx.user.create({ data: write.create, select: { id: true } });
+          const created = await tx.user.create({
+            data: grant ? { ...write.create, role: grant.to as Role } : write.create,
+            select: { id: true },
+          });
           userId = created.id;
           counters.usersCreated++;
         } else if (write.update && existing) {
-          await tx.user.update({ where: { id: existing.id }, data: write.update });
+          await tx.user.update({
+            where: { id: existing.id },
+            data: grant ? { ...write.update, role: grant.to as Role } : write.update,
+          });
           userId = existing.id;
           counters.usersUpdated++;
           if (existing.isArchived && !emp.isArchived) counters.usersRestored++;
@@ -275,8 +296,13 @@ async function writeUsersAndMemberships(
 
         userIdByHrmEmployeeId.set(emp.hrmEmployeeId, userId);
 
-        // Membership diff — TODO(S05): role grants happen in this same
-        // transaction, keyed off the same `userId`/`emp`, once merged.
+        if (grant) {
+          await tx.roleAuditLog.create({ data: roleAuditRow(grant, userId, runId) });
+          counters.rolesGranted++;
+          if (grant.to === "ADMIN") counters.adminsGranted++;
+        }
+
+        // Membership diff.
         const targetDeptIds = new Set(
           emp.orgUnitIds.map((id) => deptByHrmId.get(id)).filter((id): id is string => !!id)
         );
@@ -417,7 +443,8 @@ function buildDryRunReport(
   dicts: HrmDictionaries,
   orgUnits: HrmOrgUnit[],
   mapped: MappedEmployee[],
-  issues: SyncIssue[]
+  issues: SyncIssue[],
+  roleGrants: RoleGrant[]
 ) {
   const issuesByKind: Record<string, number> = {};
   for (const issue of issues) issuesByKind[issue.kind] = (issuesByKind[issue.kind] ?? 0) + 1;
@@ -432,6 +459,9 @@ function buildDryRunReport(
     employees: mapped.length,
     dismissed: mapped.filter((e) => e.isArchived).length,
     issuesByKind,
+    // Computed, NOT applied — dry runs never write.
+    rolesGranted: roleGrants.length,
+    adminsGranted: roleGrants.filter((g) => g.to === "ADMIN").length,
   };
 }
 
@@ -472,15 +502,39 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
     });
     if (!massDismissalGuard.ok) return await abortGuard(runId, massDismissalGuard);
 
-    // TODO(S05): role auto-grant + MASS_ADMIN_GRANT guard belong here, once
-    // S05 lands `newAdminCount` computed from the same in-memory `mapped`
-    // set. `HRM_SYNC_MAX_ADMIN_GRANTS` (default 3) is read but unused until
-    // then. `checkMassAdminGrant` in guards.ts is ready and tested.
-    void intEnv("HRM_SYNC_MAX_ADMIN_GRANTS", 3);
+    // 6b. role auto-grant (S05): compute against the current DB role of every
+    // employee in this run's set, then guard on the number of NEW admins
+    // before any write happens.
+    const existingRoleRows = await prisma.user.findMany({
+      where: { OR: [{ hrmEmployeeId: { in: [...seenHrmEmployeeIds] } }, { email: { in: mapped.map((e) => e.email) } }] },
+      select: { hrmEmployeeId: true, email: true, role: true },
+    });
+    const existingRoleByHrmEmployeeId = new Map<number, Role>();
+    const existingRoleByEmail = new Map<string, Role>();
+    for (const row of existingRoleRows) {
+      if (row.hrmEmployeeId !== null) existingRoleByHrmEmployeeId.set(row.hrmEmployeeId, row.role);
+      existingRoleByEmail.set(row.email, row.role);
+    }
+    // Mirror writeUsersAndMemberships's own match priority (hrmEmployeeId OR
+    // email) so a not-yet-linked existing user's role is still the "current"
+    // role the grant floor is compared against, not a false "USER".
+    for (const emp of mapped) {
+      if (!existingRoleByHrmEmployeeId.has(emp.hrmEmployeeId) && existingRoleByEmail.has(emp.email)) {
+        existingRoleByHrmEmployeeId.set(emp.hrmEmployeeId, existingRoleByEmail.get(emp.email)!);
+      }
+    }
+
+    const roleGrants = computeRoleGrants(mapped, orgUnits, existingRoleByHrmEmployeeId);
+    const newAdminCount = roleGrants.filter((g) => g.to === "ADMIN").length;
+    const massAdminGrantGuard = checkMassAdminGrant({
+      newAdminCount,
+      maxGrants: intEnv("HRM_SYNC_MAX_ADMIN_GRANTS", 3),
+    });
+    if (!massAdminGrantGuard.ok) return await abortGuard(runId, massAdminGrantGuard);
 
     // 7. dry run — report only, no writes
     if (args.dryRun) {
-      const report = buildDryRunReport(dicts, orgUnits, mapped, issues);
+      const report = buildDryRunReport(dicts, orgUnits, mapped, issues, roleGrants);
       await prisma.hrmSyncRun.update({
         where: { id: runId },
         data: {
@@ -497,11 +551,15 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
     // 8a. Department upsert (single pass, all units)
     const deptByHrmId = await upsertDepartments(orgUnits);
 
-    // 8b/8c/8d. User + membership writes, one transaction per page-sized chunk
+    // 8b/8c/8d. User + membership + role-grant writes, one transaction per
+    // page-sized chunk
+    const grantsByHrmEmployeeId = new Map(roleGrants.map((g) => [g.hrmEmployeeId, g]));
     const { userIdByHrmEmployeeId, counters } = await writeUsersAndMemberships(
       mapped,
       deptByHrmId,
-      hrmConfig().pageSize
+      hrmConfig().pageSize,
+      grantsByHrmEmployeeId,
+      runId
     );
 
     // 9a/9b. Department parent/head/deputy links
@@ -539,8 +597,8 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
         departmentsUpserted: orgUnits.length,
         membershipsAdded: counters.membershipsAdded,
         membershipsRemoved: counters.membershipsRemoved,
-        rolesGranted: 0, // TODO(S05)
-        adminsGranted: 0, // TODO(S05)
+        rolesGranted: counters.rolesGranted,
+        adminsGranted: counters.adminsGranted,
         managersResolved,
       },
     });
@@ -555,6 +613,15 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
           message: issue.message,
         })),
       });
+    }
+
+    if (counters.adminsGranted > 0) {
+      await notifyAdminsOfHrmRoleGrants({ runId, adminsGranted: counters.adminsGranted }).catch((e) =>
+        log.error("hrm sync: failed to notify admins about role grants", {
+          runId,
+          error: e instanceof Error ? e.message : String(e),
+        })
+      );
     }
 
     return { runId, status };

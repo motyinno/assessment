@@ -29,6 +29,10 @@ export interface MappedEmployee {
   grade: Grade | null;
   /** Raw HRM id of the direct manager (`employee.manager?.id`), unresolved — see mapping.ts's MANAGER_FIELD note. */
   hrmManagerId: number | null;
+  /** Raw HRM id of the M3 manager (`employee.managerM3?.id`), unresolved. See roles.ts (S05) — feeds the ADMIN auto-grant. */
+  hrmM3ManagerId: number | null;
+  /** Raw HRM id of the M4 manager (`employee.managerM4?.id`), unresolved. See roles.ts (S05) — feeds the ADMIN auto-grant. */
+  hrmM4ManagerId: number | null;
   isArchived: boolean;
   hrmDismissed: boolean;
   /** Raw `orgUnits[].id`s — resolved to local `Department` rows by a second pass (S04). */
@@ -92,9 +96,13 @@ export function displayName(
  * `employeeManagers[].managerType.type === "PRIMARY_RM"` is a plausible
  * alternative for the product-facing "manager" (S05's auto-role grant).
  * Changing the decision costs exactly this one line.
+ *
+ * Generalized (S05) to accept any `{ id }`-shaped short-info ref, so the same
+ * helper reads `employee.manager?.id`, `employee.managerM3?.id` and
+ * `employee.managerM4?.id` alike.
  */
-export function rawManagerId(employee: Pick<HrmEmployee, "manager">): number | null {
-  const id = employee.manager?.id;
+export function rawManagerId(ref: { id?: number | null } | null | undefined): number | null {
+  const id = ref?.id;
   return typeof id === "number" ? id : null;
 }
 
@@ -177,7 +185,9 @@ export function mapEmployee(
       name: displayName(employee),
       jobTitle: employee.jobTitleId ? (dicts.jobTitle.get(employee.jobTitleId) ?? null) : null,
       grade,
-      hrmManagerId: rawManagerId(employee),
+      hrmManagerId: rawManagerId(employee.manager),
+      hrmM3ManagerId: rawManagerId(employee.managerM3),
+      hrmM4ManagerId: rawManagerId(employee.managerM4),
       isArchived,
       // Same condition as isArchived: agrees with the ready-made
       // employee.isArchived HRM sends, but derived from lifecycleStatus, the

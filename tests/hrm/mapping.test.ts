@@ -44,16 +44,17 @@ describe("displayName", () => {
 });
 
 describe("rawManagerId", () => {
-  it("reads manager.id when present", () => {
-    expect(rawManagerId({ manager: { id: 42 } })).toBe(42);
+  it("reads id when present", () => {
+    expect(rawManagerId({ id: 42 })).toBe(42);
   });
 
-  it("returns null when manager has no id (empty object)", () => {
-    expect(rawManagerId({ manager: {} })).toBeNull();
+  it("returns null when the ref has no id (empty object)", () => {
+    expect(rawManagerId({})).toBeNull();
   });
 
-  it("returns null when manager is entirely absent", () => {
-    expect(rawManagerId({ manager: undefined })).toBeNull();
+  it("returns null when the ref is entirely absent", () => {
+    expect(rawManagerId(undefined)).toBeNull();
+    expect(rawManagerId(null)).toBeNull();
   });
 });
 
@@ -98,6 +99,30 @@ describe("mapEmployee — synthetic edge cases", () => {
   it("manager without an id (empty object) -> hrmManagerId: null", () => {
     const { employee } = mapEmployee({ id: 1, email: "a@b.com", manager: {} }, dicts);
     expect(employee.hrmManagerId).toBeNull();
+  });
+
+  it("managerM3/managerM4 present -> hrmM3ManagerId/hrmM4ManagerId extracted", () => {
+    const { employee } = mapEmployee(
+      { id: 1, email: "a@b.com", managerM3: { id: 30 }, managerM4: { id: 40 } },
+      dicts
+    );
+    expect(employee.hrmM3ManagerId).toBe(30);
+    expect(employee.hrmM4ManagerId).toBe(40);
+  });
+
+  it("managerM3/managerM4 absent -> both null", () => {
+    const { employee } = mapEmployee({ id: 1, email: "a@b.com" }, dicts);
+    expect(employee.hrmM3ManagerId).toBeNull();
+    expect(employee.hrmM4ManagerId).toBeNull();
+  });
+
+  it("managerM3/managerM4 present but without an id (empty object) -> both null", () => {
+    const { employee } = mapEmployee(
+      { id: 1, email: "a@b.com", managerM3: {}, managerM4: {} },
+      dicts
+    );
+    expect(employee.hrmM3ManagerId).toBeNull();
+    expect(employee.hrmM4ManagerId).toBeNull();
   });
 
   it("throws when id is missing — not this function's job to guess an idempotency key", () => {

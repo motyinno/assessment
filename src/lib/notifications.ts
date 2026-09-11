@@ -303,3 +303,31 @@ export async function notifyAdminsOfHrmSyncFailure(run: HrmSyncRun): Promise<voi
     )
   );
 }
+
+/**
+ * Nightly HRM sync (S05) auto-granted ADMIN to one or more people -> notify
+ * every admin. Same pattern as `notifyAdminsOfHrmSyncFailure` — best-effort,
+ * no Chat counterpart (the sync has no acting human).
+ */
+export async function notifyAdminsOfHrmRoleGrants(params: {
+  runId: string;
+  adminsGranted: number;
+}): Promise<void> {
+  const { runId, adminsGranted } = params;
+  const admins = await getAdmins();
+  const body =
+    adminsGranted === 1
+      ? `HRM sync auto-granted ADMIN to 1 person (run ${runId}). Review the sync run log for details.`
+      : `HRM sync auto-granted ADMIN to ${adminsGranted} people (run ${runId}). Review the sync run log for details.`;
+  await Promise.all(
+    admins.map((admin) =>
+      notify({
+        recipient: admin,
+        type: "HRM_ROLE_GRANTED",
+        title: "HRM sync granted ADMIN access",
+        body,
+        link: "/admin/hrm-sync",
+      })
+    )
+  );
+}

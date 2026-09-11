@@ -28,6 +28,8 @@ function employee(id: number): MappedEmployee {
     jobTitle: null,
     grade: null,
     hrmManagerId: null,
+    hrmM3ManagerId: null,
+    hrmM4ManagerId: null,
     isArchived: false,
     hrmDismissed: false,
     orgUnitIds: [],

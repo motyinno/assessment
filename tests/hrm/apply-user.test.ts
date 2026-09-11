@@ -12,6 +12,8 @@ function mapped(overrides: Partial<MappedEmployee> = {}): MappedEmployee {
     jobTitle: "Engineer",
     grade: "mid",
     hrmManagerId: 99,
+    hrmM3ManagerId: null,
+    hrmM4ManagerId: null,
     isArchived: false,
     hrmDismissed: false,
     orgUnitIds: [1, 2],

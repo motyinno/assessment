@@ -166,17 +166,33 @@ export async function PATCH(
   }
 
   let demotingFromManager = false;
+  let previousRole: UserRole | null = null;
   if (role !== undefined) {
     if (!isAdminCaller) return forbidden("Only administrators can change role");
     if (!VALID_ROLES.has(role)) return badRequest("Invalid role");
     if (isSelf && role !== "ADMIN") {
       return conflict("Can't change your own role away from administrator");
     }
+    previousRole = current.role;
     data.role = role as UserRole;
     if (!canManagePeople(role) && canManagePeople(current.role)) {
       demotingFromManager = true;
     }
   }
+
+  // A role change is audited (source: MANUAL) alongside the update, in the
+  // same transaction so the log can't be lost to a failure between the two
+  // writes — see RoleAuditLog (S05).
+  const roleAuditData =
+    previousRole !== null
+      ? {
+          userId: id,
+          previousRole,
+          newRole: data.role as UserRole,
+          source: "MANUAL" as const,
+          actorId: me.id,
+        }
+      : null;
 
   let user;
   if (demotingFromManager) {
@@ -190,6 +206,17 @@ export async function PATCH(
         data,
         select: USER_DETAIL_SELECT,
       }),
+      ...(roleAuditData ? [prisma.roleAuditLog.create({ data: roleAuditData })] : []),
+    ]);
+    user = updated;
+  } else if (roleAuditData) {
+    const [updated] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id },
+        data,
+        select: USER_DETAIL_SELECT,
+      }),
+      prisma.roleAuditLog.create({ data: roleAuditData }),
     ]);
     user = updated;
   } else {

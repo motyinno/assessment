@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 import { isEmailAllowed, allowedEmailDomains } from "@/lib/allowed-domains";
-import { canManagePeople, isStaff, ROLES } from "@/lib/roles";
+import { canManagePeople, isAdmin, isStaff, ROLES } from "@/lib/roles";
 import { createUserSchema } from "@/lib/schemas";
 import {
   badRequest,
@@ -47,6 +47,27 @@ const SLIM_USER_SELECT = {
     },
   },
 } as const;
+
+type CallerForGradeRedaction = { role: string | null; id: string };
+
+/**
+ * Grade is company-wide sensitive info (S05): after the auto-grant expands
+ * who holds MANAGER, only ADMIN and the row's own direct manager should see
+ * it. Post-processes the query result rather than the `select` — Prisma has
+ * no per-row conditional select, and `STAFF_USER_SELECT` is one static
+ * object shared by every row of one query (see S05 plan). No-op for rows
+ * without a `grade` key (the SLIM_USER_SELECT shape).
+ */
+function redactGradeForCaller<T extends { id: string; managerId?: string | null }>(
+  items: T[],
+  me: CallerForGradeRedaction
+): T[] {
+  if (isAdmin(me.role)) return items;
+  if (!("grade" in (items[0] ?? {}))) return items;
+  return items.map((u) =>
+    canManagePeople(me.role) && u.managerId === me.id ? u : { ...u, grade: null }
+  );
+}
 
 const DEFAULT_PAGE_SIZE = 25;
 const MAX_PAGE_SIZE = 100;
@@ -122,7 +143,7 @@ export async function GET(req: NextRequest) {
         })
       : [];
     return NextResponse.json({
-      items,
+      items: redactGradeForCaller(items, me),
       total: items.length,
       page: 1,
       pageSize: Math.max(items.length, 1),
@@ -183,7 +204,7 @@ export async function GET(req: NextRequest) {
       select,
       orderBy: { name: "asc" },
     });
-    return NextResponse.json(items, {
+    return NextResponse.json(redactGradeForCaller(items, me), {
       headers: { Deprecation: "true" },
     });
   }
@@ -208,7 +229,7 @@ export async function GET(req: NextRequest) {
     prisma.user.count({ where }),
   ]);
 
-  return NextResponse.json({ items, total, page, pageSize });
+  return NextResponse.json({ items: redactGradeForCaller(items, me), total, page, pageSize });
 }
 
 export async function POST(req: NextRequest) {
