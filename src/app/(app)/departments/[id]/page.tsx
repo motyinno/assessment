@@ -96,6 +96,14 @@ export default async function DepartmentCardPage({
           <h1 className="page-title flex items-center gap-2">
             {department.name}
             {department.typeName && <Badge variant="outline">{department.typeName}</Badge>}
+            {department.isSinglePerson && (
+              <Badge
+                variant="secondary"
+                title="Single-seat position, not a department — kept here to keep the reporting chain intact"
+              >
+                Position
+              </Badge>
+            )}
           </h1>
           <p className="page-subtitle mt-1">
             {department.memberCount} in unit · {department.memberCountWithDescendants} including sub-units
@@ -153,6 +161,11 @@ export default async function DepartmentCardPage({
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="truncate font-medium text-foreground">{c.name}</span>
                       {c.typeName && <Badge variant="outline">{c.typeName}</Badge>}
+                      {c.isSinglePerson && (
+                        <Badge variant="secondary" title="Single-seat position, not a department">
+                          Position
+                        </Badge>
+                      )}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                       {c.memberCount} / {c.memberCountWithDescendants}

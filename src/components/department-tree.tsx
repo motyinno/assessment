@@ -105,6 +105,15 @@ function TreeNode({
             {node.typeName}
           </Badge>
         )}
+        {node.isSinglePerson && (
+          <Badge
+            variant="secondary"
+            className="shrink-0"
+            title="Single-seat position, not a department — kept here to keep the reporting chain intact"
+          >
+            Position
+          </Badge>
+        )}
 
         <span
           className="text-xs text-muted-foreground shrink-0 tabular-nums"
