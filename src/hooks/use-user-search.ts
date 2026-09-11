@@ -13,6 +13,14 @@ export interface UserSearchItem {
   role: string;
   isArchived: boolean;
   photoFileName?: string | null;
+  jobTitle?: string | null;
+  // Raw Prisma join shape from GET /api/users.
+  departments?: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
+}
+
+/** First filterable unit's name, for a compact "position · unit" combobox row. */
+export function firstDepartmentName(item: UserSearchItem): string | null {
+  return item.departments?.find((d) => d.department.isFilterable)?.department.name ?? null;
 }
 
 interface UsersEnvelope {

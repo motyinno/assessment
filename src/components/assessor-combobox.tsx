@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/user-avatar";
-import { useUserSearch, type UserSearchItem } from "@/hooks/use-user-search";
+import { useUserSearch, firstDepartmentName, type UserSearchItem } from "@/hooks/use-user-search";
 
 const roleLabels: Record<string, string> = {
   ASSESSOR: "Assessor",
@@ -119,27 +119,35 @@ export function AssessorCombobox({
                 {query ? "No matches" : "No eligible assessors"}
               </p>
             ) : (
-              filtered.map((o) => (
-                <button
-                  key={o.id}
-                  type="button"
-                  onClick={() => choose(o)}
-                  className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <UserAvatar user={o} size="sm" />
-                    <span className="min-w-0">
-                      <span className="block truncate font-medium">{o.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {o.email}
+              filtered.map((o) => {
+                // Position + first unit, not just email: at 3600 people two
+                // "Ivan Ivanov" are indistinguishable without it (S09).
+                const context = [o.jobTitle, firstDepartmentName(o)]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => choose(o)}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
+                      <UserAvatar user={o} size="sm" />
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{o.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {o.email}
+                          {context && ` · ${context}`}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    {roleLabels[o.role] ?? o.role}
-                  </span>
-                </button>
-              ))
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {roleLabels[o.role] ?? o.role}
+                    </span>
+                  </button>
+                );
+              })
             )}
           </div>
         </div>

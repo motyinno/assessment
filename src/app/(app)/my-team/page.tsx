@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -46,9 +46,16 @@ export default async function MyTeamPage({
         email: true,
         grade: true,
         project: true,
+        projects: true,
+        jobTitle: true,
         role: true,
         isArchived: true,
         photoFileName: true,
+        departments: {
+          select: {
+            department: { select: { id: true, name: true, isFilterable: true } },
+          },
+        },
       },
       orderBy: { name: "asc" },
       skip: (page - 1) * PAGE_SIZE,
@@ -56,6 +63,34 @@ export default async function MyTeamPage({
     }),
     prisma.user.count({ where }),
   ]);
+
+  // Group by department (S09): a person in several units appears in each of
+  // their groups — the same multi-membership fact as S13, called out below so
+  // "more people than direct reports" doesn't read as a bug.
+  type Report = (typeof reports)[number];
+  const groups = new Map<string, { name: string; members: Report[] }>();
+  const UNASSIGNED = "__unassigned__";
+  for (const report of reports) {
+    const filterable = report.departments
+      .map((d) => d.department)
+      .filter((d) => d.isFilterable);
+    if (filterable.length === 0) {
+      const g = groups.get(UNASSIGNED) ?? { name: "No department", members: [] };
+      g.members.push(report);
+      groups.set(UNASSIGNED, g);
+      continue;
+    }
+    for (const dept of filterable) {
+      const g = groups.get(dept.id) ?? { name: dept.name, members: [] };
+      g.members.push(report);
+      groups.set(dept.id, g);
+    }
+  }
+  const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => {
+    if (a === UNASSIGNED) return 1;
+    if (b === UNASSIGNED) return -1;
+    return groups.get(a)!.name.localeCompare(groups.get(b)!.name);
+  });
 
   const archivedToggleHref = showArchived
     ? "/my-team"
@@ -112,66 +147,106 @@ export default async function MyTeamPage({
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead className="text-right">Roadmap</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reports.map((report) => (
-                  <TableRow
-                    key={report.id}
-                    className={"cursor-pointer" + (report.isArchived ? " opacity-60" : "")}
-                  >
-                    <TableCell>
-                      <Link
-                        href={`/users/${report.id}`}
-                        className="flex items-center gap-3 group"
-                      >
-                        <UserAvatar user={report} size="sm" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
-                            {report.name}
-                            {report.isArchived && (
-                              <Badge variant="outline">Архив</Badge>
+        <div className="space-y-5">
+          {sortedGroups.length > 1 && (
+            <p className="text-xs text-muted-foreground">
+              Grouped by department — сотрудники в нескольких юнитах учитываются в каждом.
+            </p>
+          )}
+          {sortedGroups.map(([key, group]) => (
+            <Card key={key}>
+              <CardHeader className="flex-row items-center justify-between gap-3 py-3">
+                <CardTitle className="text-sm">{group.name}</CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {group.members.length}{" "}
+                  {group.members.length === 1 ? "person" : "people"}
+                </span>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Position</TableHead>
+                      <TableHead>Departments</TableHead>
+                      <TableHead>Projects</TableHead>
+                      <TableHead>Grade</TableHead>
+                      <TableHead className="text-right">Roadmap</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {group.members.map((report) => {
+                      const departmentNames = report.departments
+                        .map((d) => d.department)
+                        .filter((d) => d.isFilterable)
+                        .map((d) => d.name);
+                      return (
+                        <TableRow
+                          key={report.id}
+                          className={"cursor-pointer" + (report.isArchived ? " opacity-60" : "")}
+                        >
+                          <TableCell>
+                            <Link
+                              href={`/users/${report.id}`}
+                              className="flex items-center gap-3 group"
+                            >
+                              <UserAvatar user={report} size="sm" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                  {report.name}
+                                  {report.isArchived && (
+                                    <Badge variant="outline">Архив</Badge>
+                                  )}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {report.email}
+                                </p>
+                              </div>
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {report.jobTitle || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <span
+                              className="block max-w-[180px] truncate"
+                              title={departmentNames.join(", ")}
+                            >
+                              {departmentNames.join(", ") || "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            <span
+                              className="block max-w-[180px] truncate"
+                              title={report.projects.join(", ")}
+                            >
+                              {report.projects.join(", ") || "—"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {report.grade ? (
+                              <Badge variant="outline">{gradeLabel(report.grade)}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
                             )}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {report.email}
-                          </p>
-                        </div>
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {report.grade ? (
-                        <Badge variant="outline">{gradeLabel(report.grade)}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {report.project || "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Link
-                        href={`/users/${report.id}/roadmap`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        View
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link
+                              href={`/users/${report.id}/roadmap`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              View
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
       {total > PAGE_SIZE && (

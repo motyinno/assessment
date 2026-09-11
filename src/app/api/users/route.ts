@@ -25,6 +25,7 @@ const STAFF_USER_SELECT = {
   photoFileName: true,
   createdAt: true,
   isArchived: true,
+  hrmEmployeeId: true,
   departments: {
     select: {
       department: { select: { id: true, name: true, isFilterable: true } },
@@ -40,6 +41,11 @@ const SLIM_USER_SELECT = {
   isArchived: true,
   photoFileName: true,
   jobTitle: true,
+  departments: {
+    select: {
+      department: { select: { id: true, name: true, isFilterable: true } },
+    },
+  },
 } as const;
 
 const DEFAULT_PAGE_SIZE = 25;

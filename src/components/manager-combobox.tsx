@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
-import { useUserSearch, useUsersByIds, type UserSearchItem } from "@/hooks/use-user-search";
+import { useUserSearch, useUsersByIds, firstDepartmentName, type UserSearchItem } from "@/hooks/use-user-search";
 
 export type ManagerOption = UserSearchItem;
 
@@ -133,6 +133,11 @@ export function ManagerCombobox({
               ) : (
                 matches.map((opt, idx) => {
                   const active = idx === highlighted;
+                  // Position + first unit, not just email: at 3600 people two
+                  // "Ivan Ivanov" are indistinguishable without it (S09).
+                  const context = [opt.jobTitle, firstDepartmentName(opt)]
+                    .filter(Boolean)
+                    .join(" · ");
                   return (
                     <li
                       key={opt.id}
@@ -156,6 +161,7 @@ export function ManagerCombobox({
                           <div className="font-medium truncate">{opt.name}</div>
                           <div className="text-[11px] text-muted-foreground truncate">
                             {opt.email} · {opt.role === "ADMIN" ? "Admin" : "Manager"}
+                            {context && ` · ${context}`}
                           </div>
                         </div>
                       </div>

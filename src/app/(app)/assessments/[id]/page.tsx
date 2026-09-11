@@ -136,6 +136,7 @@ interface Assessment {
       email: string;
       managerId?: string | null;
       isArchived?: boolean;
+      jobTitle?: string | null;
     };
   }>;
   results: Array<{
@@ -537,6 +538,11 @@ export default function AssessmentDetailPage() {
                     {p.user.isArchived && (
                       <Badge variant="outline">Архив</Badge>
                     )}
+                    {p.user.jobTitle && (
+                      <span className="text-xs text-muted-foreground">
+                        {p.user.jobTitle}
+                      </span>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {p.user.email}
                     </span>
@@ -568,6 +574,11 @@ export default function AssessmentDetailPage() {
                     )}
                     {p.user.isArchived && (
                       <Badge variant="outline">Архив</Badge>
+                    )}
+                    {p.user.jobTitle && (
+                      <span className="text-xs text-muted-foreground">
+                        {p.user.jobTitle}
+                      </span>
                     )}
                     {p.assignedSections && (
                       <span className="text-xs text-muted-foreground">

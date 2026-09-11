@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
+import type { HrmUserFields } from "@/lib/types";
 
 interface Assessment {
   id: string;
@@ -80,7 +81,7 @@ interface ManagerRef {
   email: string;
 }
 
-interface ProfileData {
+interface ProfileData extends Omit<HrmUserFields, "departments"> {
   id: string;
   name: string;
   email: string;
@@ -89,10 +90,11 @@ interface ProfileData {
   project: string | null;
   managerId: string | null;
   manager: ManagerRef | null;
-  photoFileName: string | null;
   participations: Participation[];
   pdps: Pdp[];
-  isArchived: boolean;
+  // Raw Prisma join shape — flattened before rendering (isFilterable:false
+  // units, i.e. single-seat positions, dropped per 08 §9).
+  departments: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
 }
 
 const statusLabels: Record<string, string> = {
@@ -123,14 +125,37 @@ const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
 };
 
-function MetaItem({ label, value }: { label: string; value: string | null }) {
+function MetaItem({
+  label,
+  value,
+  children,
+}: {
+  label: string;
+  value?: string | null;
+  children?: React.ReactNode;
+}) {
   return (
     <div className="min-w-0">
       <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
         {label}
       </p>
-      <p className="text-foreground truncate mt-0.5">{value || "—"}</p>
+      {children ?? <p className="text-foreground truncate mt-0.5">{value || "—"}</p>}
     </div>
+  );
+}
+
+// Shown under a field HRM sync owns (name/project/manager here — jobTitle and
+// departments have no edit UI at all yet). Guarded server-side too (S03:
+// 409 "Managed by HRM"); this is purely so the reason doesn't surface as a
+// save error the first time someone tries to edit it.
+function ManagedByHrmNote() {
+  return (
+    <p className="text-[11px] text-muted-foreground">
+      Managed by HRM ·{" "}
+      <Link href="/admin/hrm-sync" className="text-primary hover:underline">
+        why
+      </Link>
+    </p>
   );
 }
 
@@ -230,24 +255,21 @@ export default function UserProfilePage() {
     setEditError("");
     setEditLoading(true);
     try {
+      // HRM-managed name/project/manager are disabled in the form above and
+      // must be left out of the body entirely — the API 409s on their mere
+      // presence, changed or not (S03's field-policy guard).
+      const body: Record<string, unknown> = { grade: editForm.grade || null };
+      if (!isHrmManaged) {
+        body.name = editForm.name;
+        body.project = editForm.project;
+        if (isAdmin) body.managerId = editForm.managerId;
+      }
+      if (isAdmin) body.role = editForm.role;
+
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isAdmin
-            ? {
-                name: editForm.name,
-                role: editForm.role,
-                grade: editForm.grade || null,
-                project: editForm.project,
-                managerId: editForm.managerId,
-              }
-            : {
-                name: editForm.name,
-                grade: editForm.grade || null,
-                project: editForm.project,
-              }
-        ),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -359,6 +381,11 @@ export default function UserProfilePage() {
   if (!profile) return <p className="text-destructive">User not found</p>;
 
   const roleMeta = ROLE_META[profile.role] ?? ROLE_META.USER;
+  // Single-seat positions (CEO/CTO) don't count as departments (08 §9).
+  const departmentRefs = profile.departments
+    .filter((d) => d.department.isFilterable)
+    .map((d) => d.department);
+  const isHrmManaged = profile.hrmEmployeeId !== null;
   const completedAssessments = profile.participations.filter(
     (p) => p.assessment.status === "COMPLETED"
   ).length;
@@ -403,8 +430,39 @@ export default function UserProfilePage() {
                 <p className="text-sm text-muted-foreground mt-0.5 truncate">
                   {profile.email}
                 </p>
+                {profile.jobTitle && (
+                  <p className="text-sm text-muted-foreground mt-0.5 truncate">
+                    {profile.jobTitle}
+                  </p>
+                )}
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                  <MetaItem label="Project" value={profile.project} />
+                  <MetaItem label="Departments">
+                    {departmentRefs.length === 0 ? (
+                      <p className="text-foreground mt-0.5">—</p>
+                    ) : (
+                      <ul className="mt-0.5 space-y-0.5">
+                        {departmentRefs.map((d) => (
+                          <li key={d.id}>
+                            <Link
+                              href={`/departments/${d.id}`}
+                              className="text-foreground hover:text-primary hover:underline truncate block"
+                            >
+                              {d.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </MetaItem>
+                  <MetaItem label="Projects">
+                    {profile.projects.length === 0 ? (
+                      <p className="text-foreground mt-0.5">—</p>
+                    ) : (
+                      <p className="text-foreground mt-0.5" title={profile.projects.join(", ")}>
+                        {profile.projects.join(", ")}
+                      </p>
+                    )}
+                  </MetaItem>
                   <MetaItem label="Manager" value={profile.manager?.name ?? null} />
                   <MetaItem
                     label="Assessments"
@@ -805,8 +863,10 @@ export default function UserProfilePage() {
                 <Input
                   value={editForm.name}
                   onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  disabled={isHrmManaged}
                   required
                 />
+                {isHrmManaged && <ManagedByHrmNote />}
               </div>
               {isAdmin && (
                 <div className="space-y-1.5">
@@ -868,20 +928,30 @@ export default function UserProfilePage() {
                   <Input
                     value={editForm.project}
                     onChange={(e) => setEditForm({ ...editForm, project: e.target.value })}
+                    disabled={isHrmManaged}
                   />
+                  {isHrmManaged && <ManagedByHrmNote />}
                 </div>
               </div>
               {isAdmin && (
                 <div className="space-y-1.5">
                   <Label>Manager</Label>
-                  <ManagerCombobox
-                    value={editForm.managerId}
-                    onChange={(id) => setEditForm({ ...editForm, managerId: id })}
-                    excludeId={profile.id}
-                  />
-                  <p className="text-[11px] text-muted-foreground">
-                    Only Manager / Admin users can be picked.
-                  </p>
+                  {isHrmManaged ? (
+                    <Input value={profile.manager?.name ?? "—"} disabled readOnly />
+                  ) : (
+                    <ManagerCombobox
+                      value={editForm.managerId}
+                      onChange={(id) => setEditForm({ ...editForm, managerId: id })}
+                      excludeId={profile.id}
+                    />
+                  )}
+                  {isHrmManaged ? (
+                    <ManagedByHrmNote />
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">
+                      Only Manager / Admin users can be picked.
+                    </p>
+                  )}
                 </div>
               )}
               {editError && <p className="text-sm text-destructive">{editError}</p>}

@@ -23,10 +23,18 @@ const USER_DETAIL_SELECT = {
   role: true,
   grade: true,
   project: true,
+  projects: true,
+  jobTitle: true,
   managerId: true,
   manager: { select: { id: true, name: true, email: true } },
   isArchived: true,
   photoFileName: true,
+  hrmEmployeeId: true,
+  departments: {
+    select: {
+      department: { select: { id: true, name: true, isFilterable: true } },
+    },
+  },
 } as const;
 
 export async function GET(

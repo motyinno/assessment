@@ -31,6 +31,7 @@ export async function GET(
               manager: { select: { id: true, name: true, email: true } },
               isArchived: true,
               photoFileName: true,
+              jobTitle: true,
             },
           },
         },

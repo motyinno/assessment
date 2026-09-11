@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -37,6 +38,9 @@ interface MeRecord {
   project: string | null;
   managerId: string | null;
   photoFileName: string | null;
+  jobTitle: string | null;
+  projects: string[];
+  departments: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
 }
 
 export default function ProfilePage() {
@@ -53,6 +57,9 @@ export default function ProfilePage() {
     managerId: null,
   });
   const [photoFileName, setPhotoFileName] = useState<string | null>(null);
+  const [jobTitle, setJobTitle] = useState<string | null>(null);
+  const [projects, setProjects] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -73,6 +80,14 @@ export default function ProfilePage() {
             managerId: me.managerId ?? null,
           });
           setPhotoFileName(me.photoFileName ?? null);
+          setJobTitle(me.jobTitle ?? null);
+          setProjects(me.projects ?? []);
+          // Single-seat positions (CEO/CTO) aren't shown as departments (08 §9).
+          setDepartments(
+            (me.departments ?? [])
+              .map((d) => d.department)
+              .filter((d) => d.isFilterable)
+          );
         }
         setLoading(false);
       });
@@ -139,6 +154,9 @@ export default function ProfilePage() {
               {form.name || "—"}
             </h2>
             <p className="text-sm text-muted-foreground truncate">{email}</p>
+            {jobTitle && (
+              <p className="text-sm text-muted-foreground truncate">{jobTitle}</p>
+            )}
             <div className="flex flex-wrap gap-2 mt-2">
               <Badge
                 variant={
@@ -160,6 +178,39 @@ export default function ProfilePage() {
                 <Badge variant="secondary">{form.project}</Badge>
               )}
             </div>
+            {(departments.length > 0 || projects.length > 0) && (
+              <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs max-w-sm">
+                <div>
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                    Departments
+                  </p>
+                  {departments.length === 0 ? (
+                    <p className="text-foreground mt-0.5">—</p>
+                  ) : (
+                    <ul className="mt-0.5 space-y-0.5">
+                      {departments.map((d) => (
+                        <li key={d.id}>
+                          <Link
+                            href={`/departments/${d.id}`}
+                            className="text-foreground hover:text-primary hover:underline truncate block"
+                          >
+                            {d.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                    Projects
+                  </p>
+                  <p className="text-foreground mt-0.5" title={projects.join(", ")}>
+                    {projects.join(", ") || "—"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

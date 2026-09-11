@@ -33,16 +33,12 @@ import {
 } from "@/components/ui/select";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
+import { DepartmentCombobox } from "@/components/department-combobox";
 import { canManagePeople } from "@/lib/roles";
 import { UserAvatar } from "@/components/user-avatar";
+import type { ManagerRef, HrmUserFields } from "@/lib/types";
 
-interface ManagerRef {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface User {
+interface User extends Omit<HrmUserFields, "departments"> {
   id: string;
   name: string;
   email: string;
@@ -51,9 +47,21 @@ interface User {
   project: string | null;
   managerId: string | null;
   manager: ManagerRef | null;
-  photoFileName: string | null;
   createdAt: string;
-  isArchived: boolean;
+  // Raw Prisma join shape from GET /api/users — flattened to `DepartmentRef[]`
+  // (and isFilterable:false units dropped, 08 §9) before rendering, not here.
+  departments: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
+}
+
+/** Joins a list with ", ", truncating with an ellipsis + full value on hover. */
+function TruncatedList({ values, empty = "—" }: { values: string[]; empty?: string }) {
+  if (values.length === 0) return <span className="text-muted-foreground">{empty}</span>;
+  const joined = values.join(", ");
+  return (
+    <span className="block max-w-[200px] truncate" title={joined}>
+      {joined}
+    </span>
+  );
 }
 
 const ROLE_META: Record<
@@ -97,6 +105,9 @@ export default function UsersPage() {
   });
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [departmentId, setDepartmentId] = useState<string | null>(null);
+  // "Only this unit" — unchecked (default) includes descendants (S08 §"Новый контракт").
+  const [onlyThisUnit, setOnlyThisUnit] = useState(false);
 
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = role === "ADMIN";
@@ -114,7 +125,7 @@ export default function UsersPage() {
   // Any filter change starts back at page 1.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, roleFilter, showArchived]);
+  }, [debouncedSearch, roleFilter, showArchived, departmentId, onlyThisUnit]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -126,13 +137,17 @@ export default function UsersPage() {
     fetchUsers(controller.signal);
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, canViewUsers, router, showArchived, roleFilter, debouncedSearch, page]);
+  }, [status, canViewUsers, router, showArchived, roleFilter, debouncedSearch, departmentId, onlyThisUnit, page]);
 
   async function fetchUsers(signal?: AbortSignal) {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
     if (roleFilter !== "ALL") params.set("role", roleFilter);
     if (showArchived && canToggleArchived) params.set("archived", "include");
+    if (departmentId) {
+      params.set("department", departmentId);
+      params.set("includeDescendants", onlyThisUnit ? "0" : "1");
+    }
     params.set("page", String(page));
     params.set("pageSize", String(PAGE_SIZE));
 
@@ -308,6 +323,23 @@ export default function UsersPage() {
             </button>
           );
         })}
+        <div className="w-full sm:w-56">
+          <DepartmentCombobox
+            value={departmentId}
+            onChange={(id) => setDepartmentId(id)}
+          />
+        </div>
+        {departmentId && (
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={onlyThisUnit}
+              onChange={(e) => setOnlyThisUnit(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-input"
+            />
+            Только этот юнит
+          </label>
+        )}
         <div className="ml-auto w-full sm:w-64">
           <div className="relative">
             <svg
@@ -359,15 +391,22 @@ export default function UsersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Departments</TableHead>
+                    <TableHead>Projects</TableHead>
                     <TableHead>Grade</TableHead>
-                    <TableHead>Project</TableHead>
+                    <TableHead>Role</TableHead>
                     <TableHead>Manager</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => {
                     const meta = ROLE_META[user.role] ?? ROLE_META.USER;
+                    // Single-seat positions (CEO/CTO, isFilterable:false) don't
+                    // count as departments here (08 §9 / S10 §"Правила отображения").
+                    const departmentNames = user.departments
+                      .filter((d) => d.department.isFilterable)
+                      .map((d) => d.department.name);
                     return (
                       <TableRow
                         key={user.id}
@@ -388,8 +427,14 @@ export default function UsersPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant={meta.tone}>{meta.label}</Badge>
+                        <TableCell className="text-muted-foreground">
+                          {user.jobTitle || "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <TruncatedList values={departmentNames} />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <TruncatedList values={user.projects} />
                         </TableCell>
                         <TableCell>
                           {user.grade ? (
@@ -398,8 +443,8 @@ export default function UsersPage() {
                             <span className="text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {user.project || "—"}
+                        <TableCell>
+                          <Badge variant={meta.tone}>{meta.label}</Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {user.manager?.name || "—"}
