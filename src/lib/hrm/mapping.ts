@@ -226,7 +226,10 @@ export function mapOrgUnit(unit: HrmOrgUnit): MappedOrgUnit {
     hrmId: unit.id,
     name: unit.orgUnitName ?? "",
     orgUnitTypeId: unit.orgUnitTypeId ?? null,
-    typeName: type?.orgUnitTypeName ?? null,
+    // HRM sends the type name in three variants; take the English one so we
+    // don't need to translate "Отдел"/"Группа"/etc. on our side — fall back
+    // to the generic (localized) field only if HRM omits orgUnitTypeNameEn.
+    typeName: type?.orgUnitTypeNameEn ?? type?.orgUnitTypeName ?? null,
     isFilterable: type?.isFilterable ?? true,
     isSinglePerson: type?.isSinglePerson ?? false,
     // `unit.reportsToId ?? null`, deliberately not `"reportsToId" in unit` —

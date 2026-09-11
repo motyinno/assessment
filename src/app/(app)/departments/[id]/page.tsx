@@ -6,7 +6,7 @@ import { getDepartmentCard } from "@/lib/departments";
 import { MULTI_MEMBERSHIP_NOTE } from "@/lib/departments-copy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import {
   Table,
   TableBody,
