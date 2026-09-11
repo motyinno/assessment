@@ -36,7 +36,10 @@ export function DepartmentCombobox({ value, onChange, placeholder = "Filter by d
       const controller = new AbortController();
       abortRef.current = controller;
       setLoading(true);
-      const params = new URLSearchParams({ filterable: "1" });
+      // `tree=0` matters: /api/departments defaults to the nested tree shape
+      // since S10 (department-tree.tsx needs it), but this picker still wants
+      // the flat `items[]` of directly-matching units it always did.
+      const params = new URLSearchParams({ filterable: "1", tree: "0" });
       if (query.trim()) params.set("q", query.trim());
       fetch(`/api/departments?${params.toString()}`, { signal: controller.signal })
         .then((r) => (r.ok ? r.json() : null))
