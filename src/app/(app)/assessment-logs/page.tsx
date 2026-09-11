@@ -56,7 +56,7 @@ interface SessionRow {
 interface ParticipantRow {
   id: string;
   participantRole: string;
-  user: { id: string; name: string; email: string };
+  user: { id: string; name: string; email: string; isArchived?: boolean };
 }
 
 interface AssessmentLog {
@@ -277,13 +277,17 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                 <span>
                   <span className="text-foreground/60">Subject:</span>{" "}
                   <span className="text-foreground/90">
-                    {subjects.map((s) => s.user.name).join(", ") || "—"}
+                    {subjects
+                      .map((s) => s.user.name + (s.user.isArchived ? " (Архив)" : ""))
+                      .join(", ") || "—"}
                   </span>
                 </span>
                 <span>
                   <span className="text-foreground/60">Assessors:</span>{" "}
                   <span className="text-foreground/90">
-                    {assessors.map((a) => a.user.name).join(", ") || "—"}
+                    {assessors
+                      .map((a) => a.user.name + (a.user.isArchived ? " (Архив)" : ""))
+                      .join(", ") || "—"}
                   </span>
                 </span>
                 <span>

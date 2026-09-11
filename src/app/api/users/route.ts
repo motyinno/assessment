@@ -21,6 +21,7 @@ const STAFF_USER_SELECT = {
   managerId: true,
   manager: { select: { id: true, name: true, email: true } },
   createdAt: true,
+  isArchived: true,
 } as const;
 
 const SLIM_USER_SELECT = {
@@ -28,6 +29,7 @@ const SLIM_USER_SELECT = {
   name: true,
   email: true,
   role: true,
+  isArchived: true,
 } as const;
 
 /**
@@ -52,9 +54,16 @@ export async function GET(req: NextRequest) {
         .filter((r): r is UserRole => (ROLES as readonly string[]).includes(r))
     : null;
 
-  const where: { role?: { in: UserRole[] } } = {};
+  const where: { role?: { in: UserRole[] }; isArchived?: boolean } = {
+    isArchived: false,
+  };
   if (roleFilter && roleFilter.length > 0) {
     where.role = { in: roleFilter };
+  }
+
+  const archivedParam = req.nextUrl.searchParams.get("archived");
+  if (archivedParam === "include" && isStaff(me.role) && canManagePeople(me.role)) {
+    delete where.isArchived;
   }
 
   const select = isStaff(me.role) ? STAFF_USER_SELECT : SLIM_USER_SELECT;

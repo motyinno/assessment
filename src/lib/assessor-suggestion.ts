@@ -34,6 +34,7 @@ export async function suggestAssessors(opts: {
     where: {
       role: { in: ["ASSESSOR", "MANAGER", "ADMIN"] },
       id: { not: subjectId },
+      isArchived: false,
     },
     select: { id: true, name: true, email: true, grade: true },
   });

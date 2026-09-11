@@ -130,7 +130,13 @@ interface Assessment {
     id: string;
     participantRole: string;
     assignedSections: string | null;
-    user: { id: string; name: string; email: string; managerId?: string | null };
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      managerId?: string | null;
+      isArchived?: boolean;
+    };
   }>;
   results: Array<{
     id: string;
@@ -548,6 +554,9 @@ export default function AssessmentDetailPage() {
                     ) : (
                       <span className="text-sm">{p.user.name}</span>
                     )}
+                    {p.user.isArchived && (
+                      <Badge variant="outline">Архив</Badge>
+                    )}
                     <span className="text-xs text-muted-foreground">
                       {p.user.email}
                     </span>
@@ -576,6 +585,9 @@ export default function AssessmentDetailPage() {
                       </Link>
                     ) : (
                       <span className="text-sm">{p.user.name}</span>
+                    )}
+                    {p.user.isArchived && (
+                      <Badge variant="outline">Архив</Badge>
                     )}
                     {p.assignedSections && (
                       <span className="text-xs text-muted-foreground">

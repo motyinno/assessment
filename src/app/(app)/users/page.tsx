@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
+import { canManagePeople } from "@/lib/roles";
 
 interface ManagerRef {
   id: string;
@@ -50,6 +51,7 @@ interface User {
   managerId: string | null;
   manager: ManagerRef | null;
   createdAt: string;
+  isArchived: boolean;
 }
 
 const ROLE_META: Record<
@@ -97,10 +99,12 @@ export default function UsersPage() {
     managerId: null,
   });
   const [error, setError] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
 
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = role === "ADMIN";
   const canViewUsers = isAdmin || role === "MANAGER";
+  const canToggleArchived = canManagePeople(role ?? "");
 
   useEffect(() => {
     if (status === "loading") return;
@@ -109,10 +113,13 @@ export default function UsersPage() {
       return;
     }
     fetchUsers();
-  }, [status, canViewUsers, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, canViewUsers, router, showArchived]);
 
   async function fetchUsers() {
-    const res = await fetch("/api/users");
+    const res = await fetch(
+      showArchived && canToggleArchived ? "/api/users?archived=include" : "/api/users"
+    );
     if (res.ok) setUsers(await res.json());
   }
 
@@ -145,6 +152,17 @@ export default function UsersPage() {
             Total: <span className="font-medium text-foreground">{users.length}</span>
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {canToggleArchived && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowArchived((v) => !v)}
+            >
+              {showArchived ? "Скрыть архив" : "Показать архив"}
+            </Button>
+          )}
         {isAdmin && (
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button size="lg" />}>
@@ -230,6 +248,7 @@ export default function UsersPage() {
                     name: u.name,
                     email: u.email,
                     role: u.role,
+                    isArchived: u.isArchived,
                   }))}
                 />
                 <p className="text-[11px] text-muted-foreground">
@@ -244,6 +263,7 @@ export default function UsersPage() {
           </DialogContent>
         </Dialog>
         )}
+        </div>
       </div>
 
       {/* Role filter chips with counts */}
@@ -351,7 +371,7 @@ export default function UsersPage() {
                     return (
                       <TableRow
                         key={user.id}
-                        className="cursor-pointer"
+                        className={"cursor-pointer" + (user.isArchived ? " opacity-60" : "")}
                         onClick={() => router.push(`/users/${user.id}`)}
                       >
                         <TableCell>
@@ -362,7 +382,12 @@ export default function UsersPage() {
                               {userInitials(user.name)}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
+                              <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
+                                {user.name}
+                                {user.isArchived && (
+                                  <Badge variant="outline">Архив</Badge>
+                                )}
+                              </p>
                               <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                             </div>
                           </div>

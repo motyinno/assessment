@@ -37,9 +37,12 @@ export async function POST(
 
   const candidate = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, role: true },
+    select: { id: true, role: true, isArchived: true },
   });
   if (!candidate) return notFound("User not found");
+  if (candidate.isArchived) {
+    return badRequest("Can't add an archived user to an assessment");
+  }
 
   // Assessors must be assessors or managers, and a subject's own manager can't
   // assess them. Mirrors the client-side picker filter so a direct API call

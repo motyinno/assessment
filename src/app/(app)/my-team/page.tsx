@@ -24,14 +24,23 @@ function userInitials(name: string) {
     .toUpperCase();
 }
 
-export default async function MyTeamPage() {
+export default async function MyTeamPage({
+  searchParams,
+}: {
+  searchParams?: { archived?: string };
+}) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   // My Team is now MANAGER-only — admins manage the directory through /users.
   if (session.user.role !== "MANAGER") redirect("/dashboard");
 
+  const showArchived = searchParams?.archived === "include";
+
   const reports = await prisma.user.findMany({
-    where: { managerId: session.user.id },
+    where: {
+      managerId: session.user.id,
+      isArchived: showArchived ? undefined : false,
+    },
     select: {
       id: true,
       name: true,
@@ -39,6 +48,7 @@ export default async function MyTeamPage() {
       grade: true,
       project: true,
       role: true,
+      isArchived: true,
     },
     orderBy: { name: "asc" },
   });
@@ -53,6 +63,12 @@ export default async function MyTeamPage() {
             <span className="font-medium text-foreground">{reports.length}</span>
           </p>
         </div>
+        <Link
+          href={showArchived ? "/my-team" : "/my-team?archived=include"}
+          className="text-sm text-primary hover:underline"
+        >
+          {showArchived ? "Скрыть архив" : "Показать архив"}
+        </Link>
       </div>
 
       {reports.length === 0 ? (
@@ -94,7 +110,10 @@ export default async function MyTeamPage() {
               </TableHeader>
               <TableBody>
                 {reports.map((report) => (
-                  <TableRow key={report.id} className="cursor-pointer">
+                  <TableRow
+                    key={report.id}
+                    className={"cursor-pointer" + (report.isArchived ? " opacity-60" : "")}
+                  >
                     <TableCell>
                       <Link
                         href={`/users/${report.id}`}
@@ -104,8 +123,11 @@ export default async function MyTeamPage() {
                           {userInitials(report.name)}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
                             {report.name}
+                            {report.isArchived && (
+                              <Badge variant="outline">Архив</Badge>
+                            )}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
                             {report.email}

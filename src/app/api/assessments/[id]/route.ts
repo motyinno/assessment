@@ -29,6 +29,7 @@ export async function GET(
               project: true,
               managerId: true,
               manager: { select: { id: true, name: true, email: true } },
+              isArchived: true,
             },
           },
         },

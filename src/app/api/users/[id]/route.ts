@@ -25,6 +25,7 @@ const USER_DETAIL_SELECT = {
   project: true,
   managerId: true,
   manager: { select: { id: true, name: true, email: true } },
+  isArchived: true,
 } as const;
 
 export async function GET(
@@ -208,10 +209,15 @@ export async function DELETE(
     where: { id },
     select: {
       id: true,
+      hrmEmployeeId: true,
       _count: { select: { participations: true, pdps: true } },
     },
   });
   if (!target) return notFound("User not found");
+
+  if (target.hrmEmployeeId !== null) {
+    return conflict("Archive instead of deleting an HRM-managed user");
+  }
 
   if (target._count.participations > 0 || target._count.pdps > 0) {
     return conflict(

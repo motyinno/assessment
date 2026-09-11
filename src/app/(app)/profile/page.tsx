@@ -45,9 +45,10 @@ interface UserRecord {
   grade?: string | null;
   project?: string | null;
   managerId?: string | null;
+  isArchived: boolean;
 }
 
-type UserOption = Pick<UserRecord, "id" | "name" | "email" | "role">;
+type UserOption = Pick<UserRecord, "id" | "name" | "email" | "role" | "isArchived">;
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -74,7 +75,13 @@ export default function ProfilePage() {
       .then((r) => r.json())
       .then((all: UserRecord[]) => {
         setUsers(
-          all.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role }))
+          all.map((u) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            isArchived: u.isArchived,
+          }))
         );
         const me = all.find((u) => u.id === session.user.id);
         if (me) {

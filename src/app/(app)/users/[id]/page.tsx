@@ -90,6 +90,7 @@ interface ProfileData {
   manager: ManagerRef | null;
   participations: Participation[];
   pdps: Pdp[];
+  isArchived: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -174,7 +175,7 @@ export default function UserProfilePage() {
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [managerOptions, setManagerOptions] = useState<
-    Array<{ id: string; name: string; email: string; role: string }>
+    Array<{ id: string; name: string; email: string; role: string; isArchived: boolean }>
   >([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -235,10 +236,25 @@ export default function UserProfilePage() {
     if (managerOptions.length === 0) {
       fetch("/api/users")
         .then((r) => (r.ok ? r.json() : []))
-        .then((d: Array<{ id: string; name: string; email: string; role: string }>) =>
-          setManagerOptions(
-            d.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role }))
-          )
+        .then(
+          (
+            d: Array<{
+              id: string;
+              name: string;
+              email: string;
+              role: string;
+              isArchived: boolean;
+            }>
+          ) =>
+            setManagerOptions(
+              d.map((u) => ({
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                role: u.role,
+                isArchived: u.isArchived,
+              }))
+            )
         )
         .catch(() => {});
     }
@@ -420,6 +436,9 @@ export default function UserProfilePage() {
                   {profile.grade && (
                     <Badge variant="outline">{gradeLabel(profile.grade)}</Badge>
                   )}
+                  {profile.isArchived && (
+                    <Badge variant="outline">Архив</Badge>
+                  )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5 truncate">
                   {profile.email}
@@ -437,7 +456,7 @@ export default function UserProfilePage() {
             </div>
 
             <div className="flex flex-wrap gap-1.5 lg:flex-col lg:items-stretch lg:w-56 lg:shrink-0">
-              {profile.grade ? (
+              {!profile.isArchived && profile.grade ? (
                 <Link
                   href={`/users/${profile.id}/generate-pdp`}
                   className={cn(buttonVariants({ size: "sm" }), "justify-start")}
@@ -445,12 +464,12 @@ export default function UserProfilePage() {
                   <FileText />
                   Generate PDP
                 </Link>
-              ) : (
+              ) : !profile.isArchived ? (
                 <p className="px-1 py-1 text-[11px] text-muted-foreground">
                   No grade — PDP generation unavailable
                 </p>
-              )}
-              {latestCompletedAssessment && (
+              ) : null}
+              {!profile.isArchived && latestCompletedAssessment && (
                 <Link
                   href={`/assessments/${latestCompletedAssessment.id}/generate`}
                   className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start")}
