@@ -6,4 +6,4 @@
 
 /** The "membership counted more than once" caveat (S10 F2). */
 export const MULTI_MEMBERSHIP_NOTE =
-  "Сотрудники, состоящие в нескольких юнитах, учитываются в каждом — сумма по дереву может превышать штат компании.";
+  "Employees who belong to several units are counted in each one — the sum across the tree can exceed total headcount.";
