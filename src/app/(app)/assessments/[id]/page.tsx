@@ -156,13 +156,6 @@ interface Assessment {
   viewerCanManageRoster?: boolean;
 }
 
-interface UserItem {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
 export default function AssessmentDetailPage() {
   const { data: session } = useSession();
   const params = useParams();
@@ -175,7 +168,6 @@ export default function AssessmentDetailPage() {
   const [savingFeedback, setSavingFeedback] = useState(false);
   const [feedbackSavedAt, setFeedbackSavedAt] = useState<number | null>(null);
   const [matrixOpen, setMatrixOpen] = useState(false);
-  const [users, setUsers] = useState<UserItem[]>([]);
   const [rosterLoading, setRosterLoading] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
@@ -192,14 +184,6 @@ export default function AssessmentDetailPage() {
   useEffect(() => {
     fetchAssessment();
   }, [id]);
-
-  useEffect(() => {
-    if (!canManageRoster) return;
-    fetch("/api/users?role=ASSESSOR,MANAGER")
-      .then((r) => (r.ok ? r.json() : []))
-      .then(setUsers)
-      .catch(() => setUsers([]));
-  }, [canManageRoster]);
 
   async function fetchAssessment() {
     const res = await fetch(`/api/assessments/${id}`);
@@ -382,12 +366,8 @@ export default function AssessmentDetailPage() {
       .map((p) => p.user.managerId)
       .filter((x): x is string => !!x)
   );
-  const eligibleAssessors = users.filter(
-    (u) =>
-      (u.role === "ASSESSOR" || u.role === "MANAGER") &&
-      !participantUserIds.has(u.id) &&
-      !subjectManagerIds.has(u.id)
-  );
+  // Union of ids the AssessorCombobox's own search must not offer.
+  const excludedAssessorIds = new Set([...participantUserIds, ...subjectManagerIds]);
 
   const isSubject = subjects.some((p) => p.user.id === session?.user?.id);
 
@@ -609,8 +589,9 @@ export default function AssessmentDetailPage() {
                 {canManageRoster && (
                   <div className="mt-3">
                     <AssessorCombobox
-                      options={eligibleAssessors}
-                      onSelect={addAssessor}
+                      role="ASSESSOR,MANAGER"
+                      excludeIds={excludedAssessorIds}
+                      onSelect={(u) => addAssessor(u.id)}
                       disabled={rosterLoading}
                     />
                     <p className="mt-1.5 text-[11px] text-muted-foreground">

@@ -166,9 +166,6 @@ export default function UserProfilePage() {
   });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
-  const [managerOptions, setManagerOptions] = useState<
-    Array<{ id: string; name: string; email: string; role: string; isArchived: boolean }>
-  >([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   // Per-row retry/remove on a FAILED pdp: which row is busy + any row-level error.
@@ -225,31 +222,6 @@ export default function UserProfilePage() {
     });
     setEditError("");
     setEditOpen(true);
-    if (managerOptions.length === 0) {
-      fetch("/api/users")
-        .then((r) => (r.ok ? r.json() : []))
-        .then(
-          (
-            d: Array<{
-              id: string;
-              name: string;
-              email: string;
-              role: string;
-              isArchived: boolean;
-            }>
-          ) =>
-            setManagerOptions(
-              d.map((u) => ({
-                id: u.id,
-                name: u.name,
-                email: u.email,
-                role: u.role,
-                isArchived: u.isArchived,
-              }))
-            )
-        )
-        .catch(() => {});
-    }
   }
 
   async function submitEdit(e: React.FormEvent) {
@@ -905,7 +877,6 @@ export default function UserProfilePage() {
                   <ManagerCombobox
                     value={editForm.managerId}
                     onChange={(id) => setEditForm({ ...editForm, managerId: id })}
-                    options={managerOptions}
                     excludeId={profile.id}
                   />
                   <p className="text-[11px] text-muted-foreground">

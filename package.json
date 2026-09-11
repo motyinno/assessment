@@ -14,6 +14,7 @@
     "seed": "tsx prisma/seed.ts",
     "seed:matrix": "tsx scripts/seed-tech-matrix.ts",
     "seed:sessions": "tsx scripts/seed-session-templates.ts",
+    "seed:bulk-users": "tsx scripts/seed-bulk-users.ts",
     "hrm:ping": "tsx scripts/hrm-ping.ts",
     "hrm:discover": "tsx scripts/hrm-discovery.ts",
     "test": "vitest run",

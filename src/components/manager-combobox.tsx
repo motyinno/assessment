@@ -4,65 +4,46 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/user-avatar";
+import { useUserSearch, useUsersByIds, type UserSearchItem } from "@/hooks/use-user-search";
 
-export interface ManagerOption {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  isArchived: boolean;
-  photoFileName?: string | null;
-}
+export type ManagerOption = UserSearchItem;
 
 interface Props {
   value: string | null;
   onChange: (id: string | null) => void;
-  options: ManagerOption[];
   excludeId?: string;
   placeholder?: string;
 }
 
-const MANAGER_ROLES = new Set(["MANAGER", "ADMIN"]);
-
+/**
+ * Manager picker. Options come from a server-side search (S08) instead of a
+ * pre-loaded `options` prop — the directory can be thousands of rows, so we
+ * ask `/api/users?role=MANAGER,ADMIN&q=...` per keystroke instead of holding
+ * everything in memory and slicing it client-side.
+ */
 export function ManagerCombobox({
   value,
   onChange,
-  options,
   excludeId,
   placeholder = "Start typing a name or email",
 }: Props) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
-  const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const eligible = useMemo(
-    () =>
-      options.filter(
-        (u) => MANAGER_ROLES.has(u.role) && u.id !== excludeId && !u.isArchived
-      ),
-    [options, excludeId]
-  );
+  const { items, loading, query, setQuery } = useUserSearch({
+    role: "MANAGER,ADMIN",
+    minQueryLength: 0,
+  });
+  const byId = useUsersByIds([value]);
+  const selected = value ? byId[value] ?? null : null;
 
-  const selected = useMemo(
-    () => (value ? options.find((u) => u.id === value) ?? null : null),
-    [options, value]
+  const matches = useMemo(
+    () => items.filter((u) => u.id !== excludeId && !u.isArchived),
+    [items, excludeId]
   );
 
   const inputValue = open ? query : selected?.name ?? "";
-
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return eligible
-      .filter((u) => {
-        if (!q) return true;
-        return (
-          u.name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q)
-        );
-      })
-      .slice(0, 8);
-  }, [eligible, query]);
 
   useEffect(() => {
     if (!open) return;
@@ -74,7 +55,7 @@ export function ManagerCombobox({
     }
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
+  }, [open, setQuery]);
 
   function selectOption(opt: ManagerOption) {
     onChange(opt.id);
@@ -143,7 +124,9 @@ export function ManagerCombobox({
               className="absolute left-0 right-0 top-full mt-1 z-50 max-h-60 overflow-auto rounded-md border border-border bg-popover shadow-md ring-1 ring-foreground/5"
               role="listbox"
             >
-              {matches.length === 0 ? (
+              {loading ? (
+                <li className="px-3 py-2 text-xs text-muted-foreground">Searching…</li>
+              ) : matches.length === 0 ? (
                 <li className="px-3 py-2 text-xs text-muted-foreground">
                   No managers match.
                 </li>

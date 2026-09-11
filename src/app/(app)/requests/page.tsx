@@ -96,10 +96,13 @@ export default function RequestsPage() {
 
   async function fetchAssessors() {
     // Filter server-side instead of pulling the whole directory and trimming
-    // it in the browser.
-    const res = await fetch("/api/users?role=ASSESSOR,ADMIN,MANAGER");
+    // it in the browser. pageSize is set high because this list is staff-only
+    // (small even at 3600 total users) and the UI renders it as one checklist,
+    // not a picker — but it still opts into the paginated envelope response.
+    const res = await fetch("/api/users?role=ASSESSOR,ADMIN,MANAGER&pageSize=100");
     if (res.ok) {
-      setAssessors(await res.json());
+      const data = await res.json();
+      setAssessors(data.items ?? data);
     }
   }
 

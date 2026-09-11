@@ -28,19 +28,16 @@ const ROLE_LABEL: Record<string, string> = {
   USER: "User",
 };
 
-interface UserRecord {
+interface MeRecord {
   id: string;
   name: string;
   email: string;
   role: string;
-  grade?: string | null;
-  project?: string | null;
-  managerId?: string | null;
-  isArchived: boolean;
-  photoFileName?: string | null;
+  grade: string | null;
+  project: string | null;
+  managerId: string | null;
+  photoFileName: string | null;
 }
-
-type UserOption = Pick<UserRecord, "id" | "name" | "email" | "role" | "isArchived">;
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -55,7 +52,6 @@ export default function ProfilePage() {
     project: "",
     managerId: null,
   });
-  const [users, setUsers] = useState<UserOption[]>([]);
   const [photoFileName, setPhotoFileName] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -64,19 +60,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    fetch(`/api/users`)
-      .then((r) => r.json())
-      .then((all: UserRecord[]) => {
-        setUsers(
-          all.map((u) => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            role: u.role,
-            isArchived: u.isArchived,
-          }))
-        );
-        const me = all.find((u) => u.id === session.user.id);
+    // Own profile — via /api/users/me, not by pulling the whole directory
+    // and finding ourselves in it (S08).
+    fetch(`/api/users/me`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me: MeRecord | null) => {
         if (me) {
           setForm({
             name: me.name || "",
@@ -258,7 +246,6 @@ export default function ProfilePage() {
                 <ManagerCombobox
                   value={form.managerId}
                   onChange={(id) => setForm({ ...form, managerId: id })}
-                  options={users}
                   excludeId={session?.user?.id}
                 />
                 <p className="text-[11px] text-muted-foreground">

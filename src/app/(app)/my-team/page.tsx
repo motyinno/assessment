@@ -15,10 +15,12 @@ import {
 import { gradeLabel } from "@/lib/grades";
 import { UserAvatar } from "@/components/user-avatar";
 
+const PAGE_SIZE = 25;
+
 export default async function MyTeamPage({
   searchParams,
 }: {
-  searchParams?: { archived?: string };
+  searchParams?: { archived?: string; page?: string };
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -26,24 +28,45 @@ export default async function MyTeamPage({
   if (session.user.role !== "MANAGER") redirect("/dashboard");
 
   const showArchived = searchParams?.archived === "include";
+  const page = Math.max(1, parseInt(searchParams?.page ?? "1", 10) || 1);
 
-  const reports = await prisma.user.findMany({
-    where: {
-      managerId: session.user.id,
-      isArchived: showArchived ? undefined : false,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      grade: true,
-      project: true,
-      role: true,
-      isArchived: true,
-      photoFileName: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  const where = {
+    managerId: session.user.id,
+    isArchived: showArchived ? undefined : false,
+  };
+
+  // Paginated (S08): a manager's headcount is unbounded post-HRM-sync, so this
+  // no longer loads every direct report into one unpaginated page.
+  const [reports, total] = await prisma.$transaction([
+    prisma.user.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        grade: true,
+        project: true,
+        role: true,
+        isArchived: true,
+        photoFileName: true,
+      },
+      orderBy: { name: "asc" },
+      skip: (page - 1) * PAGE_SIZE,
+      take: PAGE_SIZE,
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  const archivedToggleHref = showArchived
+    ? "/my-team"
+    : "/my-team?archived=include";
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (showArchived) params.set("archived", "include");
+    if (p > 1) params.set("page", String(p));
+    const qs = params.toString();
+    return qs ? `/my-team?${qs}` : "/my-team";
+  };
 
   return (
     <div className="space-y-6">
@@ -52,11 +75,11 @@ export default async function MyTeamPage({
           <h1 className="page-title">My Team</h1>
           <p className="page-subtitle mt-1">
             Direct reports:{" "}
-            <span className="font-medium text-foreground">{reports.length}</span>
+            <span className="font-medium text-foreground">{total}</span>
           </p>
         </div>
         <Link
-          href={showArchived ? "/my-team" : "/my-team?archived=include"}
+          href={archivedToggleHref}
           className="text-sm text-primary hover:underline"
         >
           {showArchived ? "Скрыть архив" : "Показать архив"}
@@ -149,6 +172,43 @@ export default async function MyTeamPage({
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {total > PAGE_SIZE && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+          </p>
+          <div className="flex items-center gap-2">
+            <Link
+              href={pageHref(Math.max(1, page - 1))}
+              aria-disabled={page <= 1}
+              className={
+                "text-sm rounded-md border px-3 py-1.5 " +
+                (page <= 1
+                  ? "pointer-events-none opacity-50 text-muted-foreground"
+                  : "text-foreground hover:bg-muted/50")
+              }
+            >
+              Previous
+            </Link>
+            <span className="text-xs text-muted-foreground">
+              Page {page} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+            </span>
+            <Link
+              href={pageHref(page + 1)}
+              aria-disabled={page * PAGE_SIZE >= total}
+              className={
+                "text-sm rounded-md border px-3 py-1.5 " +
+                (page * PAGE_SIZE >= total
+                  ? "pointer-events-none opacity-50 text-muted-foreground"
+                  : "text-foreground hover:bg-muted/50")
+              }
+            >
+              Next
+            </Link>
+          </div>
+        </div>
       )}
     </div>
   );

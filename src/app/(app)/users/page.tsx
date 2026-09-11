@@ -66,10 +66,15 @@ const ROLE_META: Record<
   USER: { label: "User", tone: "secondary", accent: "from-muted to-muted text-muted-foreground" },
 };
 
+const PAGE_SIZE = 25;
+
 export default function UsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [fetching, setFetching] = useState(false);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<
@@ -98,21 +103,52 @@ export default function UsersPage() {
   const canViewUsers = isAdmin || role === "MANAGER";
   const canToggleArchived = canManagePeople(role ?? "");
 
+  // Debounced server-side search (S08): the directory can be thousands of
+  // rows, so filtering happens on the server instead of in the browser.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  // Any filter change starts back at page 1.
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, roleFilter, showArchived]);
+
   useEffect(() => {
     if (status === "loading") return;
     if (!canViewUsers) {
       router.push("/dashboard");
       return;
     }
-    fetchUsers();
+    const controller = new AbortController();
+    fetchUsers(controller.signal);
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, canViewUsers, router, showArchived]);
+  }, [status, canViewUsers, router, showArchived, roleFilter, debouncedSearch, page]);
 
-  async function fetchUsers() {
-    const res = await fetch(
-      showArchived && canToggleArchived ? "/api/users?archived=include" : "/api/users"
-    );
-    if (res.ok) setUsers(await res.json());
+  async function fetchUsers(signal?: AbortSignal) {
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set("q", debouncedSearch);
+    if (roleFilter !== "ALL") params.set("role", roleFilter);
+    if (showArchived && canToggleArchived) params.set("archived", "include");
+    params.set("page", String(page));
+    params.set("pageSize", String(PAGE_SIZE));
+
+    setFetching(true);
+    try {
+      const res = await fetch(`/api/users?${params.toString()}`, { signal });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.items);
+        setTotal(data.total);
+      }
+    } catch (e) {
+      if (!(e instanceof DOMException && e.name === "AbortError")) throw e;
+    } finally {
+      setFetching(false);
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -141,7 +177,7 @@ export default function UsersPage() {
         <div>
           <h1 className="page-title">Users</h1>
           <p className="page-subtitle mt-1">
-            Total: <span className="font-medium text-foreground">{users.length}</span>
+            Total: <span className="font-medium text-foreground">{total}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -235,13 +271,6 @@ export default function UsersPage() {
                 <ManagerCombobox
                   value={form.managerId}
                   onChange={(id) => setForm({ ...form, managerId: id })}
-                  options={users.map((u) => ({
-                    id: u.id,
-                    name: u.name,
-                    email: u.email,
-                    role: u.role,
-                    isArchived: u.isArchived,
-                  }))}
                 />
                 <p className="text-[11px] text-muted-foreground">
                   Only Manager / Admin users can be picked.
@@ -258,14 +287,12 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* Role filter chips with counts */}
+      {/* Role filter chips (S08: server-side, no per-chip counts — that would
+          mean a separate query per role on every keystroke). */}
       <div className="flex flex-wrap items-center gap-2">
         {(["ALL", "ADMIN", "MANAGER", "ASSESSOR", "USER"] as const).map((r) => {
-          const count =
-            r === "ALL" ? users.length : users.filter((u) => u.role === r).length;
           const active = roleFilter === r;
-          const label =
-            r === "ALL" ? "All" : ROLE_META[r]?.label ?? r;
+          const label = r === "ALL" ? "All" : ROLE_META[r]?.label ?? r;
           return (
             <button
               key={r}
@@ -278,14 +305,6 @@ export default function UsersPage() {
               }
             >
               {label}
-              <span
-                className={
-                  "inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] font-semibold " +
-                  (active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground")
-                }
-              >
-                {count}
-              </span>
             </button>
           );
         })}
@@ -314,38 +333,27 @@ export default function UsersPage() {
         </div>
       </div>
 
-      {/* User table */}
-      {(() => {
-        const filtered = users.filter((u) => {
-          if (roleFilter !== "ALL" && u.role !== roleFilter) return false;
-          if (!search) return true;
-          const q = search.toLowerCase();
-          return (
-            u.name.toLowerCase().includes(q) ||
-            u.email.toLowerCase().includes(q) ||
-            (u.project ?? "").toLowerCase().includes(q)
-          );
-        });
-
-        if (filtered.length === 0) {
-          return (
-            <Card>
-              <CardContent className="py-14 flex flex-col items-center gap-2 text-center">
-                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                  <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                  </svg>
-                </div>
-                <p className="text-sm font-medium">No users found</p>
-                <p className="text-xs text-muted-foreground">Try adjusting the filter or search.</p>
-              </CardContent>
-            </Card>
-          );
-        }
-
-        return (
-          <Card>
+      {/* User table — server-paginated (S08): `users` is already just this page. */}
+      {users.length === 0 ? (
+        <Card>
+          <CardContent className="py-14 flex flex-col items-center gap-2 text-center">
+            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+              <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium">
+              {fetching ? "Loading…" : "No users found"}
+            </p>
+            {!fetching && (
+              <p className="text-xs text-muted-foreground">Try adjusting the filter or search.</p>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card className={fetching ? "opacity-60 transition-opacity" : "transition-opacity"}>
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
@@ -358,7 +366,7 @@ export default function UsersPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((user) => {
+                  {users.map((user) => {
                     const meta = ROLE_META[user.role] ?? ROLE_META.USER;
                     return (
                       <TableRow
@@ -403,8 +411,37 @@ export default function UsersPage() {
               </Table>
             </CardContent>
           </Card>
-        );
-      })()}
+
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || fetching}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Page {page} of {Math.max(1, Math.ceil(total / PAGE_SIZE))}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page * PAGE_SIZE >= total || fetching}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

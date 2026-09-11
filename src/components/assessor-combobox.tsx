@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { UserAvatar } from "@/components/user-avatar";
-
-interface Option {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  photoFileName?: string | null;
-}
+import { useUserSearch, type UserSearchItem } from "@/hooks/use-user-search";
 
 const roleLabels: Record<string, string> = {
   ASSESSOR: "Assessor",
@@ -20,24 +13,33 @@ const roleLabels: Record<string, string> = {
 
 /**
  * Searchable single-select for adding an assessor. Selecting a person fires
- * onSelect immediately (no separate "Add" click). Built in-house because the
- * project has no combobox primitive and the directory can be hundreds of rows.
+ * onSelect immediately (no separate "Add" click). Options come from a
+ * server-side search (S08) — the directory can be thousands of rows — filtered
+ * by `role` and, client-side, by `excludeIds` (people already on the roster,
+ * or the subject's own manager: filters that need the caller's own state and
+ * so can't be pushed onto the server query).
  */
 export function AssessorCombobox({
-  options,
+  role = "ASSESSOR,MANAGER,ADMIN",
+  excludeIds,
   onSelect,
   disabled,
   placeholder = "Search assessors or managers…",
+  triggerLabel = "Add an assessor",
 }: {
-  options: Option[];
-  onSelect: (userId: string) => void;
+  role?: string;
+  excludeIds?: Set<string>;
+  onSelect: (user: UserSearchItem) => void;
   disabled?: boolean;
   placeholder?: string;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const { items, loading, query, setQuery } = useUserSearch({ role, minQueryLength: 0 });
+  const filtered = excludeIds ? items.filter((o) => !excludeIds.has(o.id)) : items;
 
   useEffect(() => {
     if (!open) return;
@@ -61,17 +63,8 @@ export function AssessorCombobox({
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter(
-      (o) =>
-        o.name.toLowerCase().includes(q) || o.email.toLowerCase().includes(q)
-    );
-  }, [options, query]);
-
-  function choose(id: string) {
-    onSelect(id);
+  function choose(user: UserSearchItem) {
+    onSelect(user);
     setQuery("");
     setOpen(false);
   }
@@ -89,7 +82,7 @@ export function AssessorCombobox({
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Add an assessor
+          {triggerLabel}
         </span>
         <svg
           className="w-4 h-4 transition-transform"
@@ -117,18 +110,20 @@ export function AssessorCombobox({
             />
           </div>
           <div className="max-h-64 overflow-y-auto py-1">
-            {filtered.length === 0 ? (
+            {loading ? (
               <p className="px-3 py-4 text-center text-xs text-muted-foreground">
-                {options.length === 0
-                  ? "No eligible assessors"
-                  : "No matches"}
+                Searching…
+              </p>
+            ) : filtered.length === 0 ? (
+              <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                {query ? "No matches" : "No eligible assessors"}
               </p>
             ) : (
               filtered.map((o) => (
                 <button
                   key={o.id}
                   type="button"
-                  onClick={() => choose(o.id)}
+                  onClick={() => choose(o)}
                   className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
                   <span className="flex min-w-0 items-center gap-2">
