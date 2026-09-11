@@ -70,6 +70,7 @@ if (devLoginEnabled) {
         if (password !== devPassword) return null;
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) return null;
+        if (user.isArchived) return null;
         return { id: user.id, email: user.email, name: user.name };
       },
     })
@@ -110,7 +111,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      await prisma.user.upsert({
+      const dbUser = await prisma.user.upsert({
         where: { email },
         // `name` is deliberately not in `update`: after the HRM integration,
         // `name` is an HRM-owned field (see hrm/apply-user.ts) — a Google
@@ -133,6 +134,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
       }
 
+      if (dbUser.isArchived) return false;
+
       return true;
     },
     async jwt({ token, user, trigger }) {
@@ -140,7 +143,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Refresh denormalized profile fields on sign-in OR when the client
       // calls `update()` (e.g., after editing the profile).
       const shouldRefresh =
-        trigger === "signIn" || trigger === "update" || !token.id;
+        trigger === "signIn" ||
+        trigger === "update" ||
+        !token.id ||
+        Date.now() - ((token.checkedAt as number) ?? 0) > 10 * 60 * 1000;
       if (email && shouldRefresh) {
         const dbUser = await prisma.user.findUnique({
           where: { email },
@@ -151,6 +157,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             grade: true,
             project: true,
             managerId: true,
+            isArchived: true,
           },
         });
         if (dbUser) {
@@ -160,7 +167,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.grade = dbUser.grade ?? null;
           token.project = dbUser.project ?? null;
           token.managerId = dbUser.managerId ?? null;
+          token.isArchived = dbUser.isArchived;
         }
+        token.checkedAt = Date.now();
       }
       return token;
     },
@@ -172,12 +181,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           grade: string | null;
           project: string | null;
           managerId: string | null;
+          isArchived: boolean;
         };
         u.id = token.id as string;
         u.role = token.role as string;
         u.grade = (token.grade ?? null) as string | null;
         u.project = (token.project ?? null) as string | null;
         u.managerId = (token.managerId ?? null) as string | null;
+        u.isArchived = (token.isArchived ?? false) as boolean;
       }
       return session;
     },

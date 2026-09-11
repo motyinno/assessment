@@ -35,6 +35,12 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
+  if (req.auth.user?.isArchived) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("error", "AccessDenied");
+    return NextResponse.redirect(loginUrl);
+  }
+
   return NextResponse.next();
 });
 
