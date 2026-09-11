@@ -100,12 +100,15 @@ export function HrmSyncRuns() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [disabledNotice, setDisabledNotice] = useState(false);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
 
   const load = useCallback(async (p: number) => {
     const res = await fetch(`/api/hrm/sync/runs?page=${p}&pageSize=${PAGE_SIZE}`, {
       cache: "no-store",
     });
-    if (!res.ok) return;
+    // A redirect to /login (expired session) is followed transparently by
+    // fetch and comes back as 200 with an HTML body, not JSON.
+    if (!res.ok || !res.headers.get("content-type")?.includes("application/json")) return;
     const data = await res.json();
     setRuns(data.items ?? []);
     setTotal(data.total ?? 0);
@@ -129,10 +132,24 @@ export function HrmSyncRuns() {
   async function trigger(dryRun: boolean) {
     setBusy(true);
     setDisabledNotice(false);
+    setTriggerError(null);
     try {
       const res = await fetch(`/api/hrm/sync${dryRun ? "?dryRun=1" : ""}`, {
         method: "POST",
       });
+      // A redirect to /login (expired session) is followed transparently by
+      // fetch and comes back as 200 with an HTML body, not JSON — guard both
+      // on content-type and res.ok so that case surfaces as a message instead
+      // of an unhandled JSON.parse crash.
+      const isJson = res.headers.get("content-type")?.includes("application/json");
+      if (!res.ok || !isJson) {
+        setTriggerError(
+          res.status === 401 || res.redirected
+            ? "Your session has expired — please sign in again."
+            : `Failed to start sync (HTTP ${res.status}).`
+        );
+        return;
+      }
       const data = await res.json();
       if (data && "skipped" in data) {
         setDisabledNotice(true);
@@ -140,6 +157,8 @@ export function HrmSyncRuns() {
       }
       setPage(1);
       await load(1);
+    } catch {
+      setTriggerError("Failed to start sync — unexpected response from server.");
     } finally {
       setBusy(false);
     }
@@ -162,6 +181,9 @@ export function HrmSyncRuns() {
           <span className="text-sm text-muted-foreground">
             HRM sync is disabled (HRM_SYNC_ENABLED=false)
           </span>
+        )}
+        {triggerError && (
+          <span className="text-sm text-destructive">{triggerError}</span>
         )}
       </div>
 
