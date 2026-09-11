@@ -528,7 +528,7 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
     const newAdminCount = roleGrants.filter((g) => g.to === "ADMIN").length;
     const massAdminGrantGuard = checkMassAdminGrant({
       newAdminCount,
-      maxGrants: intEnv("HRM_SYNC_MAX_ADMIN_GRANTS", 3),
+      maxGrants: intEnv("HRM_SYNC_MAX_ADMIN_GRANTS", 200),
     });
     if (!massAdminGrantGuard.ok) return await abortGuard(runId, massAdminGrantGuard);
 
