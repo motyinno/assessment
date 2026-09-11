@@ -49,6 +49,7 @@ const adminItems = [
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
   { href: "/pdp-review", label: "PDP Review", icon: "file-text" },
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
+  { href: "/admin/hrm-sync", label: "HRM Sync", icon: "refresh" },
 ];
 
 // Admin configuration — how the app generates work, not a review action.
@@ -142,6 +143,13 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
         <line x1="1" y1="14" x2="7" y2="14" />
         <line x1="9" y1="8" x2="15" y2="8" />
         <line x1="17" y1="16" x2="23" y2="16" />
+      </svg>
+    ),
+    refresh: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10" />
+        <polyline points="1 20 1 14 7 14" />
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
       </svg>
     ),
   };
