@@ -167,6 +167,150 @@ export function toDepartmentItem(d: DepartmentRow, data: DepartmentData): Depart
   };
 }
 
-/** Shared copy for the "membership counted more than once" caveat (S10 F2). */
-export const MULTI_MEMBERSHIP_NOTE =
-  "Сотрудники, состоящие в нескольких юнитах, учитываются в каждом — сумма по дереву может превышать штат компании.";
+/**
+ * F2 "Правила отображения": drop units with 0 active memberships anywhere in
+ * their own subtree (noise), and optionally units not usable as a filter
+ * (`isSinglePerson` positions). Safe to prune wholesale — if a node's
+ * memberCountWithDescendants is 0 every descendant's is too (the sum only
+ * grows going down), so nothing downstream gets orphaned by removing it.
+ */
+export function pruneEmpty(
+  all: DepartmentRow[],
+  data: DepartmentData,
+  filterableOnly: boolean
+): DepartmentRow[] {
+  let survivors = all.filter((d) => (data.withDescendants.get(d.id) ?? 0) > 0);
+  if (filterableOnly) survivors = survivors.filter((d) => d.isFilterable);
+  return survivors;
+}
+
+export interface DepartmentTreeItem extends DepartmentItem {
+  children: DepartmentTreeItem[];
+}
+
+/** Nests `survivors` into root-level items with recursive `children`. */
+export function buildDepartmentTree(
+  survivors: DepartmentRow[],
+  data: DepartmentData
+): DepartmentTreeItem[] {
+  const survivorIds = new Set(survivors.map((d) => d.id));
+  const childrenOf = new Map<string, DepartmentRow[]>();
+  const roots: DepartmentRow[] = [];
+  for (const d of survivors) {
+    const parentKnown = d.parentId !== null && survivorIds.has(d.parentId);
+    if (parentKnown) {
+      const list = childrenOf.get(d.parentId as string) ?? [];
+      list.push(d);
+      childrenOf.set(d.parentId as string, list);
+    } else {
+      roots.push(d);
+    }
+  }
+
+  function build(node: DepartmentRow): DepartmentTreeItem {
+    const kids = childrenOf.get(node.id) ?? [];
+    return { ...toDepartmentItem(node, data), children: kids.map(build) };
+  }
+
+  return roots.map(build);
+}
+
+export interface DepartmentBreadcrumb {
+  id: string;
+  name: string;
+}
+
+export interface DepartmentMemberRef {
+  id: string;
+  name: string;
+  email: string;
+  jobTitle: string | null;
+  photoFileName: string | null;
+}
+
+export interface DepartmentCard {
+  department: DepartmentItem;
+  breadcrumbs: DepartmentBreadcrumb[];
+  head: DepartmentMemberRef | null;
+  deputy: DepartmentMemberRef | null;
+  children: DepartmentItem[];
+  members: {
+    items: DepartmentMemberRef[];
+    total: number;
+    page: number;
+    pageSize: number;
+  };
+}
+
+/**
+ * Everything `/departments/[id]` needs: the unit, its breadcrumb chain, head
+ * & deputy, direct children (with counts), and one page of members. Used
+ * directly by both the API route and the server-rendered card page — the
+ * page fetches this, not its own API route (no self-HTTP round trip).
+ * Returns `null` for a missing or archived-out (isActive:false) unit.
+ */
+export async function getDepartmentCard(
+  id: string,
+  opts: { includeArchived: boolean; page: number; pageSize: number }
+): Promise<DepartmentCard | null> {
+  const department = await prisma.department.findUnique({
+    where: { id },
+    select: { ...DEPARTMENT_SELECT, isActive: true },
+  });
+  if (!department || !department.isActive) return null;
+
+  const ancestorIds = department.path.split("/");
+  const ancestors = await prisma.department.findMany({
+    where: { id: { in: ancestorIds } },
+    select: { id: true, name: true },
+  });
+  const byId = new Map(ancestors.map((a) => [a.id, a]));
+  const breadcrumbs = ancestorIds
+    .map((aid) => byId.get(aid))
+    .filter((a): a is DepartmentBreadcrumb => !!a);
+
+  const [headUser, deputyUser] = await Promise.all([
+    department.headUserId
+      ? prisma.user.findUnique({ where: { id: department.headUserId }, select: DEPARTMENT_MEMBER_SLIM })
+      : Promise.resolve(null),
+    department.deputyUserId
+      ? prisma.user.findUnique({ where: { id: department.deputyUserId }, select: DEPARTMENT_MEMBER_SLIM })
+      : Promise.resolve(null),
+  ]);
+
+  // Shared with the tree route so child-unit counts on this card agree with
+  // what /departments shows for the same nodes.
+  const data = await loadDepartmentData(opts.includeArchived);
+  const children = data.all
+    .filter((d) => d.parentId === department.id)
+    .map((d) => toDepartmentItem(d, data));
+
+  const membershipWhere = {
+    departmentId: department.id,
+    ...(opts.includeArchived ? {} : { user: { isArchived: false } }),
+  };
+  const [memberRows, total] = await prisma.$transaction([
+    prisma.userDepartment.findMany({
+      where: membershipWhere,
+      select: { user: { select: DEPARTMENT_MEMBER_SLIM } },
+      orderBy: { user: { name: "asc" } },
+      skip: (opts.page - 1) * opts.pageSize,
+      take: opts.pageSize,
+    }),
+    prisma.userDepartment.count({ where: membershipWhere }),
+  ]);
+
+  return {
+    department: toDepartmentItem(department, data),
+    breadcrumbs,
+    head: headUser,
+    deputy: deputyUser,
+    children,
+    members: {
+      items: memberRows.map((r) => r.user),
+      total,
+      page: opts.page,
+      pageSize: opts.pageSize,
+    },
+  };
+}

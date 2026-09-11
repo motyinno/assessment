@@ -32,15 +32,16 @@ const assessorItems = [
   { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
 ];
 
-// People-section items. Each carries the roles allowed to see the link, so
-// "My Team" is MANAGER-only while the Users directory stays visible to
-// MANAGER + ADMIN.
-const managerItems: Array<{
+// People-section items. Each carries the roles allowed to see the link —
+// "Departments" is open to everyone (S10, F5), "My Team" is MANAGER-only,
+// and the Users directory stays visible to MANAGER + ADMIN.
+const peopleItems: Array<{
   href: string;
   label: string;
   icon: string;
-  roles: ReadonlyArray<"MANAGER" | "ADMIN">;
+  roles: ReadonlyArray<"USER" | "ASSESSOR" | "MANAGER" | "ADMIN">;
 }> = [
+  { href: "/departments", label: "Departments", icon: "sitemap", roles: ["USER", "ASSESSOR", "MANAGER", "ADMIN"] },
   { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
 ];
@@ -154,6 +155,15 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
       </svg>
     ),
+    // lucide "network" glyph — org-chart shape, used for Departments (S10).
+    sitemap: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="9" y="2" width="6" height="6" rx="1" />
+        <rect x="2" y="16" width="6" height="6" rx="1" />
+        <rect x="16" y="16" width="6" height="6" rx="1" />
+        <path d="M12 8v4M12 12H5v4M12 12h7v4" />
+      </svg>
+    ),
   };
   return <>{icons[name] || null}</>;
 }
@@ -248,8 +258,8 @@ export function AppSidebar({ user }: SidebarProps) {
         )}
 
         {(() => {
-          const visiblePeopleItems = managerItems.filter((it) =>
-            it.roles.includes(user.role as "MANAGER" | "ADMIN")
+          const visiblePeopleItems = peopleItems.filter((it) =>
+            it.roles.includes(user.role as "USER" | "ASSESSOR" | "MANAGER" | "ADMIN")
           );
           if (visiblePeopleItems.length === 0) return null;
           return (
