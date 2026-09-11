@@ -51,6 +51,8 @@ services:
       HRM_FILE_TOKEN_FALLBACK_TTL_MS: ${HRM_FILE_TOKEN_FALLBACK_TTL_MS:-}
       HRM_FILE_TOKEN_MAX_TTL_MS: ${HRM_FILE_TOKEN_MAX_TTL_MS:-}
       HRM_DICT_LANGUAGE_ID: ${HRM_DICT_LANGUAGE_ID:-}
+      HRM_SYNC_MAX_DISMISS_RATIO: ${HRM_SYNC_MAX_DISMISS_RATIO:-}
+      HRM_SYNC_MAX_ADMIN_GRANTS: ${HRM_SYNC_MAX_ADMIN_GRANTS:-}
     expose:
       - "3000"
     healthcheck:
@@ -71,12 +73,14 @@ services:
         condition: service_healthy
     environment:
       CRON_SECRET: ${CRON_SECRET}
+      TZ: ${TZ:-Europe/Warsaw}
     command:
       - sh
       - -c
       - |
         apk add --no-cache curl >/dev/null
         echo '5 0 * * * curl -fsS -H "Authorization: Bearer '"$$CRON_SECRET"'" http://app:3000/api/cron/daily-topic >/proc/1/fd/1 2>&1' > /etc/crontabs/root
+        echo '${HRM_SYNC_CRON:-0 3 * * *} curl -fsS -X POST -H "Authorization: Bearer '"$$CRON_SECRET"'" http://app:3000/api/cron/hrm-sync >/proc/1/fd/1 2>&1' >> /etc/crontabs/root
         crond -f -l 8
 
   caddy:

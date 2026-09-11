@@ -10,7 +10,7 @@ import {
   ensureGoogleIds,
 } from "@/lib/google-chat";
 import { gradeLabel } from "@/lib/grades";
-import type { NotificationType } from "@prisma/client";
+import type { HrmSyncRun, NotificationType } from "@prisma/client";
 
 /** Absolute link to an in-app path, for clickable Chat messages. */
 function chatLink(path: string): string {
@@ -92,12 +92,10 @@ async function chatOpenRequestThread(params: {
   grade: string;
   admins: Admin[];
 }): Promise<void> {
-      console.log('FROM NOTIFICATIONS', chatEnabled())
   if (!chatEnabled()) return;
   const { requestId, requesterId, requesterName, grade, admins } = params;
   try {
     const space = await createSpace(requesterId, `Assessment: ${requesterName}`);
-    console.log('SPACE', space)
     if (!space) return;
     await prisma.assessmentRequest.update({
       where: { id: requestId },
@@ -279,4 +277,29 @@ export async function notifyAdminsReviewSubmitted(params: {
       });
     }
   }
+}
+
+/**
+ * Nightly HRM sync aborted/failed (S04) -> notify every admin. No Chat
+ * counterpart here: the sync runs as a technical user with no acting human
+ * whose OAuth token could post the message (see S04 plan's "Алерты" — Chat
+ * for HRM alerts is a separate, explicitly-opt-in path via
+ * `HRM_ALERT_CHAT_ACTOR_EMAIL`, not this function).
+ */
+export async function notifyAdminsOfHrmSyncFailure(run: HrmSyncRun): Promise<void> {
+  const admins = await getAdmins();
+  const title =
+    run.status === "ABORTED_GUARD" ? "HRM sync aborted by a guard" : "HRM sync failed";
+  const body = run.failureReason ?? "See the sync run log for details.";
+  await Promise.all(
+    admins.map((admin) =>
+      notify({
+        recipient: admin,
+        type: "HRM_SYNC_FAILED",
+        title,
+        body,
+        link: "/admin/hrm-sync",
+      })
+    )
+  );
 }
