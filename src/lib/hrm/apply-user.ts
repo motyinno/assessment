@@ -1,5 +1,5 @@
 /**
- * The field policy (see plan §"Политика полей"), implemented as one pure
+ * The field policy (see plan §"Field policy"), implemented as one pure
  * function. Both the nightly sync (S04) and the login-time refresh
  * (refresh-user.ts) must call THIS function to decide what to write —
  * duplicating the rule in two places is exactly the failure mode the plan

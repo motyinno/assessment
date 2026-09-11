@@ -75,7 +75,7 @@ function intEnv(name: string, fallback: number): number {
   return Number.isInteger(n) && n >= 0 ? n : fallback;
 }
 
-/** Osiротевшие RUNNING-прогоны, старше 2 часов -> FAILED + alert. Step 1 of the spec's algorithm, run before a new row is created. */
+/** Orphaned RUNNING runs older than 2 hours -> FAILED + alert. Step 1 of the spec's algorithm, run before a new row is created. */
 async function reapOrphanedRuns(): Promise<void> {
   const cutoff = new Date(Date.now() - ORPHAN_RUN_MAX_AGE_MS);
   const orphaned = await prisma.hrmSyncRun.findMany({

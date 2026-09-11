@@ -1,5 +1,5 @@
 /**
- * Pre-write checks for the nightly sync (see plan §"Guard-ы"). Pure
+ * Pre-write checks for the nightly sync (see plan §"Guards"). Pure
  * functions: no Prisma, no network — they take data already collected in
  * memory (dictionaries, org units, mapped employees, current DB counts) and
  * return a `GuardResult`. Testable against fixtures alone.
@@ -69,7 +69,7 @@ export function checkMassDismissal(args: {
   const thresholdPct = (maxRatio * 100).toFixed(0);
   return fail(
     "MASS_DISMISSAL",
-    `под архив уходит ${toArchiveCount} из ${currentActiveCount} (${pct}%), порог ${thresholdPct}%`
+    `archiving ${toArchiveCount} of ${currentActiveCount} (${pct}%), threshold ${thresholdPct}%`
   );
 }
 
@@ -79,6 +79,6 @@ export function checkMassAdminGrant(args: { newAdminCount: number; maxGrants: nu
   if (newAdminCount <= maxGrants) return OK;
   return fail(
     "MASS_ADMIN_GRANT",
-    `роль ADMIN выдаётся ${newAdminCount} новым людям за один прогон, порог ${maxGrants}`
+    `ADMIN role granted to ${newAdminCount} new people in one run, threshold ${maxGrants}`
   );
 }

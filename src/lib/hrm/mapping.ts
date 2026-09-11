@@ -181,7 +181,7 @@ export function mapEmployee(
       isArchived,
       // Same condition as isArchived: agrees with the ready-made
       // employee.isArchived HRM sends, but derived from lifecycleStatus, the
-      // one field this file treats as authoritative — see plan §"Политика полей".
+      // one field this file treats as authoritative — see plan §"Field policy".
       hrmDismissed: isArchived,
       orgUnitIds,
       photoFileName: extractPhotoFileName(employee.linkProfilePicture),

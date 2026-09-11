@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
  * the *only* select used for people inside a department response — unlike
  * `/api/users`, which conditionally widens to STAFF_USER_SELECT by role,
  * `/api/departments*` gives every role the same shape. Grade, project(s) and
- * manager must never leak here (S10 spec, "Что видно обычному пользователю").
+ * manager must never leak here (S10 spec, "What a regular user can see").
  */
 export const DEPARTMENT_MEMBER_SLIM = {
   id: true,
@@ -168,7 +168,7 @@ export function toDepartmentItem(d: DepartmentRow, data: DepartmentData): Depart
 }
 
 /**
- * F2 "Правила отображения": drop units with 0 active memberships anywhere in
+ * F2 "Display rules": drop units with 0 active memberships anywhere in
  * their own subtree (noise), and optionally units not usable as a filter
  * (`isSinglePerson` positions). Safe to prune wholesale — if a node's
  * memberCountWithDescendants is 0 every descendant's is too (the sum only

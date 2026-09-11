@@ -35,7 +35,7 @@ export interface TechMatrix {
 //
 // Shared shape for the fields HRM sync (S02-S04) adds to `User`. Kept in one
 // place and imported rather than copied into every page's local `User`
-// interface a third time (see S09 spec, "Правки типов").
+// interface a third time (see S09 spec, "Type changes").
 
 export interface DepartmentRef {
   id: string;

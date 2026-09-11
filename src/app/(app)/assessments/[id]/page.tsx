@@ -536,7 +536,7 @@ export default function AssessmentDetailPage() {
                       <span className="text-sm">{p.user.name}</span>
                     )}
                     {p.user.isArchived && (
-                      <Badge variant="outline">Архив</Badge>
+                      <Badge variant="outline">Archived</Badge>
                     )}
                     {p.user.jobTitle && (
                       <span className="text-xs text-muted-foreground">
@@ -573,7 +573,7 @@ export default function AssessmentDetailPage() {
                       <span className="text-sm">{p.user.name}</span>
                     )}
                     {p.user.isArchived && (
-                      <Badge variant="outline">Архив</Badge>
+                      <Badge variant="outline">Archived</Badge>
                     )}
                     {p.user.jobTitle && (
                       <span className="text-xs text-muted-foreground">

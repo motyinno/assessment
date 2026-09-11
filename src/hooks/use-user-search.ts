@@ -45,8 +45,8 @@ export interface UseUserSearchOptions {
 }
 
 /**
- * One hook behind every "search users as you type" combobox (S08 §"Нужен
- * один общий хук"). Debounces input and cancels the in-flight request when
+ * One hook behind every "search users as you type" combobox (S08 §"Need
+ * one shared hook"). Debounces input and cancels the in-flight request when
  * the query changes again, so six comboboxes don't grow six slightly
  * different races between keystrokes and responses.
  */

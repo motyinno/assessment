@@ -278,7 +278,7 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                   <span className="text-foreground/60">Subject:</span>{" "}
                   <span className="text-foreground/90">
                     {subjects
-                      .map((s) => s.user.name + (s.user.isArchived ? " (Архив)" : ""))
+                      .map((s) => s.user.name + (s.user.isArchived ? " (Archived)" : ""))
                       .join(", ") || "—"}
                   </span>
                 </span>
@@ -286,7 +286,7 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                   <span className="text-foreground/60">Assessors:</span>{" "}
                   <span className="text-foreground/90">
                     {assessors
-                      .map((a) => a.user.name + (a.user.isArchived ? " (Архив)" : ""))
+                      .map((a) => a.user.name + (a.user.isArchived ? " (Archived)" : ""))
                       .join(", ") || "—"}
                   </span>
                 </span>

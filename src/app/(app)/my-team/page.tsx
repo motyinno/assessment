@@ -117,7 +117,7 @@ export default async function MyTeamPage({
           href={archivedToggleHref}
           className="text-sm text-primary hover:underline"
         >
-          {showArchived ? "Скрыть архив" : "Показать архив"}
+          {showArchived ? "Hide archive" : "Show archive"}
         </Link>
       </div>
 
@@ -150,7 +150,7 @@ export default async function MyTeamPage({
         <div className="space-y-5">
           {sortedGroups.length > 1 && (
             <p className="text-xs text-muted-foreground">
-              Grouped by department — сотрудники в нескольких юнитах учитываются в каждом.
+              Grouped by department — people in several units are counted in each.
             </p>
           )}
           {sortedGroups.map(([key, group]) => (
@@ -195,7 +195,7 @@ export default async function MyTeamPage({
                                 <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
                                   {report.name}
                                   {report.isArchived && (
-                                    <Badge variant="outline">Архив</Badge>
+                                    <Badge variant="outline">Archived</Badge>
                                   )}
                                 </p>
                                 <p className="text-xs text-muted-foreground truncate">

@@ -1,5 +1,5 @@
 /**
- * Discovery run (S04 plan §"Разведочный прогон"): full crawl, NO WRITE, a
+ * Discovery run (S04 plan §"Discovery run"): full crawl, NO WRITE, a
  * report on the table before the first ever writing sync. Answers the six
  * open questions the plan lists — grade dictionary values, manager-field
  * coverage, multi-membership distribution, org-unit types, email match

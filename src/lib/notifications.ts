@@ -282,7 +282,7 @@ export async function notifyAdminsReviewSubmitted(params: {
 /**
  * Nightly HRM sync aborted/failed (S04) -> notify every admin. No Chat
  * counterpart here: the sync runs as a technical user with no acting human
- * whose OAuth token could post the message (see S04 plan's "Алерты" — Chat
+ * whose OAuth token could post the message (see S04 plan's "Alerts" — Chat
  * for HRM alerts is a separate, explicitly-opt-in path via
  * `HRM_ALERT_CHAT_ACTOR_EMAIL`, not this function).
  */

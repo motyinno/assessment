@@ -424,7 +424,7 @@ export default function UserProfilePage() {
                     <Badge variant="outline">{gradeLabel(profile.grade)}</Badge>
                   )}
                   {profile.isArchived && (
-                    <Badge variant="outline">Архив</Badge>
+                    <Badge variant="outline">Archived</Badge>
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5 truncate">

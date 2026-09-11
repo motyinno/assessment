@@ -106,7 +106,7 @@ export default function UsersPage() {
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [departmentId, setDepartmentId] = useState<string | null>(null);
-  // "Only this unit" — unchecked (default) includes descendants (S08 §"Новый контракт").
+  // "Only this unit" — unchecked (default) includes descendants (S08 §"New contract").
   const [onlyThisUnit, setOnlyThisUnit] = useState(false);
 
   const role = (session?.user as { role?: string } | undefined)?.role;
@@ -203,7 +203,7 @@ export default function UsersPage() {
               size="sm"
               onClick={() => setShowArchived((v) => !v)}
             >
-              {showArchived ? "Скрыть архив" : "Показать архив"}
+              {showArchived ? "Hide archive" : "Show archive"}
             </Button>
           )}
         {isAdmin && (
@@ -337,7 +337,7 @@ export default function UsersPage() {
               onChange={(e) => setOnlyThisUnit(e.target.checked)}
               className="h-3.5 w-3.5 rounded border-input"
             />
-            Только этот юнит
+            Only this unit
           </label>
         )}
         <div className="ml-auto w-full sm:w-64">
@@ -403,7 +403,7 @@ export default function UsersPage() {
                   {users.map((user) => {
                     const meta = ROLE_META[user.role] ?? ROLE_META.USER;
                     // Single-seat positions (CEO/CTO, isFilterable:false) don't
-                    // count as departments here (08 §9 / S10 §"Правила отображения").
+                    // count as departments here (08 §9 / S10 §"Display rules").
                     const departmentNames = user.departments
                       .filter((d) => d.department.isFilterable)
                       .map((d) => d.department.name);
@@ -420,7 +420,7 @@ export default function UsersPage() {
                               <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
                                 {user.name}
                                 {user.isArchived && (
-                                  <Badge variant="outline">Архив</Badge>
+                                  <Badge variant="outline">Archived</Badge>
                                 )}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">{user.email}</p>

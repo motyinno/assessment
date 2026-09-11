@@ -174,7 +174,7 @@ export function ManagerCombobox({
         </div>
         {selected?.isArchived && !open && (
           <Badge variant="outline" className="shrink-0">
-            Архив
+            Archived
           </Badge>
         )}
       </div>
