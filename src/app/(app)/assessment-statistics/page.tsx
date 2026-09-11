@@ -14,10 +14,40 @@ export default async function AssessmentStatisticsPage() {
 
   const assessments = await prisma.assessment.findMany({
     include: {
-      participants: { include: { user: true } },
+      // Explicit select (S13): `include: { user: true }` used to drag the
+      // *whole* User row — including googleAccessToken/googleRefreshToken —
+      // into this client component's props for every participant of every
+      // assessment. Nothing here needs more than id/name/isArchived.
+      participants: {
+        select: {
+          userId: true,
+          participantRole: true,
+          user: { select: { id: true, name: true, isArchived: true } },
+        },
+      },
       sessions: { select: { assessorId: true, assessorName: true, status: true } },
     },
   });
+
+  // Departments (S13 §2): one subject can sit in several units (S02), so this
+  // is a flat lookup keyed by subject user id, not a join baked into the
+  // query above.
+  const subjectIds = new Set<string>();
+  for (const a of assessments) {
+    for (const p of a.participants) {
+      if (p.participantRole === "SUBJECT") subjectIds.add(p.userId);
+    }
+  }
+  const memberships = await prisma.userDepartment.findMany({
+    where: { userId: { in: [...subjectIds] } },
+    select: { userId: true, department: { select: { id: true, name: true } } },
+  });
+  const departmentsByUser = new Map<string, { id: string; name: string }[]>();
+  for (const m of memberships) {
+    const list = departmentsByUser.get(m.userId) ?? [];
+    list.push(m.department);
+    departmentsByUser.set(m.userId, list);
+  }
 
   // Build the conductor set per assessment: assigned ASSESSOR participants plus
   // anyone who actually ran a completed stage (session assessor). Deduplicated
@@ -25,9 +55,13 @@ export default async function AssessmentStatisticsPage() {
   const rows: AssessmentRow[] = assessments.map((a) => {
     const conductors = new Map<string, string>();
     const subjects = new Map<string, string>();
+    const subjectDepartments = new Map<string, { id: string; name: string }>();
     for (const p of a.participants) {
       if (p.participantRole === "ASSESSOR") conductors.set(p.userId, p.user.name);
-      else if (p.participantRole === "SUBJECT") subjects.set(p.userId, p.user.name);
+      else if (p.participantRole === "SUBJECT") {
+        subjects.set(p.userId, p.user.name);
+        for (const d of departmentsByUser.get(p.userId) ?? []) subjectDepartments.set(d.id, d);
+      }
     }
     for (const s of a.sessions) {
       if (s.status !== "COMPLETED") continue;
@@ -45,6 +79,7 @@ export default async function AssessmentStatisticsPage() {
       gradeUpgraded: a.gradeUpgraded,
       conductors: [...conductors.entries()].map(([id, name]) => ({ id, name })),
       subjects: [...subjects.entries()].map(([id, name]) => ({ id, name })),
+      subjectDepartments: [...subjectDepartments.values()],
     };
   });
 
