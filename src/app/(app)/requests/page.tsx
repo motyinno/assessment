@@ -75,6 +75,8 @@ export default function RequestsPage() {
     pickedIds: string[];
     eligibleIds: string[];
     ongoing: Record<string, number>;
+    proximity: Record<string, 0 | 1 | 2>;
+    departments: Record<string, Array<{ id: string; name: string }>>;
   } | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
@@ -130,12 +132,21 @@ export default function RequestsPage() {
       const data = (await res.json()) as {
         need: number;
         pickedIds: string[];
-        candidates: Array<{ id: string; ongoingCount: number }>;
+        candidates: Array<{
+          id: string;
+          ongoingCount: number;
+          proximity: 0 | 1 | 2;
+          departments: Array<{ id: string; name: string }>;
+        }>;
       };
       const ongoing: Record<string, number> = {};
+      const proximity: Record<string, 0 | 1 | 2> = {};
+      const departments: Record<string, Array<{ id: string; name: string }>> = {};
       const eligibleIds: string[] = [];
       for (const c of data.candidates) {
         ongoing[c.id] = c.ongoingCount;
+        proximity[c.id] = c.proximity;
+        departments[c.id] = c.departments;
         eligibleIds.push(c.id);
       }
       setSuggestion({
@@ -143,6 +154,8 @@ export default function RequestsPage() {
         pickedIds: data.pickedIds,
         eligibleIds,
         ongoing,
+        proximity,
+        departments,
       });
       if (applyPicked) setSelectedAssessorIds(data.pickedIds);
     } finally {
@@ -398,6 +411,8 @@ export default function RequestsPage() {
                         !suggestion || suggestion.eligibleIds.includes(a.id);
                       const isPicked = suggestion?.pickedIds.includes(a.id);
                       const ongoing = suggestion?.ongoing[a.id];
+                      const proximity = suggestion?.proximity[a.id];
+                      const proximityUnit = suggestion?.departments[a.id]?.[0]?.name;
                       const checked = selectedAssessorIds.includes(a.id);
                       return (
                         <label
@@ -436,6 +451,16 @@ export default function RequestsPage() {
                                 not eligible
                               </Badge>
                             )}
+                            {eligible && proximity === 0 && proximityUnit && (
+                              <Badge variant="outline" className="whitespace-nowrap">
+                                Same unit: {proximityUnit}
+                              </Badge>
+                            )}
+                            {eligible && proximity === 1 && proximityUnit && (
+                              <Badge variant="outline" className="whitespace-nowrap">
+                                Neighboring unit: {proximityUnit}
+                              </Badge>
+                            )}
                             {ongoing !== undefined && (
                               <span
                                 className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums"
@@ -459,7 +484,7 @@ export default function RequestsPage() {
                   Selected: {selectedAssessorIds.length}
                   {suggestion && (
                     <>
-                      {" · "}Rules: grade ≥ employee · not the manager · prefer those with lower load
+                      {" · "}Rules: grade ≥ employee · not the manager · prefer same/neighboring unit · then lower load
                     </>
                   )}
                 </p>
