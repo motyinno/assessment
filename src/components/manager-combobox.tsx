@@ -2,12 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { UserAvatar } from "@/components/user-avatar";
 
 export interface ManagerOption {
   id: string;
   name: string;
   email: string;
   role: string;
+  photoFileName?: string | null;
 }
 
 interface Props {
@@ -161,9 +163,14 @@ export function ManagerCombobox({
                       : "hover:bg-accent/50")
                   }
                 >
-                  <div className="font-medium truncate">{opt.name}</div>
-                  <div className="text-[11px] text-muted-foreground truncate">
-                    {opt.email} · {opt.role === "ADMIN" ? "Admin" : "Manager"}
+                  <div className="flex items-center gap-2">
+                    <UserAvatar user={opt} size="sm" />
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{opt.name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {opt.email} · {opt.role === "ADMIN" ? "Admin" : "Manager"}
+                      </div>
+                    </div>
                   </div>
                 </li>
               );

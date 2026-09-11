@@ -45,6 +45,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface Assessment {
   id: string;
@@ -88,6 +89,7 @@ interface ProfileData {
   project: string | null;
   managerId: string | null;
   manager: ManagerRef | null;
+  photoFileName: string | null;
   participations: Participation[];
   pdps: Pdp[];
 }
@@ -119,16 +121,6 @@ const ROLE_LABEL: Record<string, string> = {
   MANAGER: "Manager",
   ADMIN: "Admin",
 };
-
-function initialsOf(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 function MetaItem({ label, value }: { label: string; value: string | null }) {
   return (
@@ -406,11 +398,7 @@ export default function UserProfilePage() {
         <CardContent className="pt-5 pb-5">
           <div className="flex flex-col lg:flex-row lg:items-center gap-5">
             <div className="flex items-start gap-4 flex-1 min-w-0">
-              <div
-                className={`w-16 h-16 shrink-0 rounded-2xl bg-gradient-to-br ${roleMeta.accent} flex items-center justify-center text-lg font-semibold ring-1 ring-border/50`}
-              >
-                {initialsOf(profile.name)}
-              </div>
+              <UserAvatar user={profile} size="lg" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-semibold tracking-tight truncate">

@@ -151,6 +151,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             grade: true,
             project: true,
             managerId: true,
+            photoFileName: true,
           },
         });
         if (dbUser) {
@@ -160,6 +161,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.grade = dbUser.grade ?? null;
           token.project = dbUser.project ?? null;
           token.managerId = dbUser.managerId ?? null;
+          token.photoFileName = dbUser.photoFileName ?? null;
         }
       }
       return token;
@@ -172,12 +174,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           grade: string | null;
           project: string | null;
           managerId: string | null;
+          photoFileName: string | null;
         };
         u.id = token.id as string;
         u.role = token.role as string;
         u.grade = (token.grade ?? null) as string | null;
         u.project = (token.project ?? null) as string | null;
         u.managerId = (token.managerId ?? null) as string | null;
+        u.photoFileName = (token.photoFileName ?? null) as string | null;
       }
       return session;
     },

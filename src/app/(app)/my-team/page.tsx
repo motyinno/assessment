@@ -13,16 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { gradeLabel } from "@/lib/grades";
-
-function userInitials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
+import { UserAvatar } from "@/components/user-avatar";
 
 export default async function MyTeamPage() {
   const session = await auth();
@@ -39,6 +30,7 @@ export default async function MyTeamPage() {
       grade: true,
       project: true,
       role: true,
+      photoFileName: true,
     },
     orderBy: { name: "asc" },
   });
@@ -100,9 +92,7 @@ export default async function MyTeamPage() {
                         href={`/users/${report.id}`}
                         className="flex items-center gap-3 group"
                       >
-                        <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-muted to-muted text-muted-foreground flex items-center justify-center text-[11px] font-semibold ring-1 ring-border/50">
-                          {userInitials(report.name)}
-                        </div>
+                        <UserAvatar user={report} size="sm" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                             {report.name}

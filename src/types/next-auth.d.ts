@@ -14,6 +14,7 @@ declare module "next-auth" {
       grade: string | null;
       project: string | null;
       managerId: string | null;
+      photoFileName: string | null;
     };
   }
 }
@@ -25,5 +26,6 @@ declare module "next-auth/jwt" {
     grade?: string | null;
     project?: string | null;
     managerId?: string | null;
+    photoFileName?: string | null;
   }
 }
