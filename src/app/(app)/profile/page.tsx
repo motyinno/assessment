@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -19,6 +20,7 @@ import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { ApiTokensCard } from "@/components/api-tokens-card";
 import { CertificatesCard } from "@/components/certificates-card";
+import { UserAvatar } from "@/components/user-avatar";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
@@ -27,27 +29,19 @@ const ROLE_LABEL: Record<string, string> = {
   USER: "User",
 };
 
-function initialsOf(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-interface UserRecord {
+interface MeRecord {
   id: string;
   name: string;
   email: string;
   role: string;
-  grade?: string | null;
-  project?: string | null;
-  managerId?: string | null;
+  grade: string | null;
+  project: string | null;
+  managerId: string | null;
+  photoFileName: string | null;
+  jobTitle: string | null;
+  projects: string[];
+  departments: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
 }
-
-type UserOption = Pick<UserRecord, "id" | "name" | "email" | "role">;
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -62,7 +56,10 @@ export default function ProfilePage() {
     project: "",
     managerId: null,
   });
-  const [users, setUsers] = useState<UserOption[]>([]);
+  const [photoFileName, setPhotoFileName] = useState<string | null>(null);
+  const [jobTitle, setJobTitle] = useState<string | null>(null);
+  const [projects, setProjects] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string }>>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -70,13 +67,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    fetch(`/api/users`)
-      .then((r) => r.json())
-      .then((all: UserRecord[]) => {
-        setUsers(
-          all.map((u) => ({ id: u.id, name: u.name, email: u.email, role: u.role }))
-        );
-        const me = all.find((u) => u.id === session.user.id);
+    // Own profile — via /api/users/me, not by pulling the whole directory
+    // and finding ourselves in it (S08).
+    fetch(`/api/users/me`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me: MeRecord | null) => {
         if (me) {
           setForm({
             name: me.name || "",
@@ -84,6 +79,15 @@ export default function ProfilePage() {
             project: me.project || "",
             managerId: me.managerId ?? null,
           });
+          setPhotoFileName(me.photoFileName ?? null);
+          setJobTitle(me.jobTitle ?? null);
+          setProjects(me.projects ?? []);
+          // Single-seat positions (CEO/CTO) aren't shown as departments (08 §9).
+          setDepartments(
+            (me.departments ?? [])
+              .map((d) => d.department)
+              .filter((d) => d.isFilterable)
+          );
         }
         setLoading(false);
       });
@@ -128,7 +132,6 @@ export default function ProfilePage() {
 
   const email = session?.user?.email ?? "";
   const role = (session?.user as { role?: string } | undefined)?.role ?? "USER";
-  const initials = initialsOf(form.name || "?");
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -142,14 +145,18 @@ export default function ProfilePage() {
       {/* Identity banner */}
       <Card>
         <CardContent className="pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/5 text-primary flex items-center justify-center text-lg font-semibold ring-1 ring-primary/20 shrink-0">
-            {initials}
-          </div>
+          <UserAvatar
+            user={{ id: session?.user?.id ?? "", name: form.name || "?", photoFileName }}
+            size="lg"
+          />
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold text-foreground truncate">
               {form.name || "—"}
             </h2>
             <p className="text-sm text-muted-foreground truncate">{email}</p>
+            {jobTitle && (
+              <p className="text-sm text-muted-foreground truncate">{jobTitle}</p>
+            )}
             <div className="flex flex-wrap gap-2 mt-2">
               <Badge
                 variant={
@@ -171,6 +178,39 @@ export default function ProfilePage() {
                 <Badge variant="secondary">{form.project}</Badge>
               )}
             </div>
+            {(departments.length > 0 || projects.length > 0) && (
+              <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs max-w-sm">
+                <div>
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                    Departments
+                  </p>
+                  {departments.length === 0 ? (
+                    <p className="text-foreground mt-0.5">—</p>
+                  ) : (
+                    <ul className="mt-0.5 space-y-0.5">
+                      {departments.map((d) => (
+                        <li key={d.id}>
+                          <Link
+                            href={`/departments/${d.id}`}
+                            className="text-foreground hover:text-primary hover:underline truncate block"
+                          >
+                            {d.name}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                    Projects
+                  </p>
+                  <p className="text-foreground mt-0.5" title={projects.join(", ")}>
+                    {projects.join(", ") || "—"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -257,7 +297,6 @@ export default function ProfilePage() {
                 <ManagerCombobox
                   value={form.managerId}
                   onChange={(id) => setForm({ ...form, managerId: id })}
-                  options={users}
                   excludeId={session?.user?.id}
                 />
                 <p className="text-[11px] text-muted-foreground">

@@ -29,10 +29,42 @@ export interface MappedEmployee {
   grade: Grade | null;
   /** Raw HRM id of the direct manager (`employee.manager?.id`), unresolved — see mapping.ts's MANAGER_FIELD note. */
   hrmManagerId: number | null;
+  /** Raw HRM id of the M3 manager (`employee.managerM3?.id`), unresolved. See roles.ts (S05) — feeds the ADMIN auto-grant. */
+  hrmM3ManagerId: number | null;
+  /** Raw HRM id of the M4 manager (`employee.managerM4?.id`), unresolved. See roles.ts (S05) — feeds the ADMIN auto-grant. */
+  hrmM4ManagerId: number | null;
   isArchived: boolean;
   hrmDismissed: boolean;
   /** Raw `orgUnits[].id`s — resolved to local `Department` rows by a second pass (S04). */
   orgUnitIds: number[];
+  /** Parsed from `employee.linkProfilePicture` — see extractPhotoFileName(). Always `photos/<file>` or `null`. */
+  photoFileName: string | null;
+}
+
+// Two shapes seen for the path inside `linkProfilePicture`: a plain URL path
+// (`.../photos/<uuid>.jpeg?...`, every sample checked so far) and a
+// `%2F`-encoded one (never observed on live data, but `buildPhotoUrl` in
+// photos.ts produces exactly this encoding for the reverse direction, so
+// parsing it symmetrically is cheaper than fixing it later as an incident).
+const PHOTO_PATH_RE = /\/photos%2F([^&?]+)|\/photos\/([^?]+)/;
+
+/**
+ * `employee.linkProfilePicture` -> `photos/<file>`, or `null` when there's no
+ * photo or the link doesn't match the expected shape. Never throws — a photo
+ * that fails to parse must degrade to initials (S12), not take down the sync.
+ */
+export function extractPhotoFileName(link: string | null | undefined): string | null {
+  if (!link) return null;
+  const trimmed = link.trim();
+  if (trimmed === "") return null;
+  const m = PHOTO_PATH_RE.exec(trimmed);
+  if (!m) return null;
+  const raw = m[1] ?? m[2];
+  try {
+    return `photos/${decodeURIComponent(raw)}`;
+  } catch {
+    return null; // malformed %-escape — don't fail mapEmployee over one bad field
+  }
 }
 
 function trimOrEmpty(s: string | null | undefined): string {
@@ -64,9 +96,13 @@ export function displayName(
  * `employeeManagers[].managerType.type === "PRIMARY_RM"` is a plausible
  * alternative for the product-facing "manager" (S05's auto-role grant).
  * Changing the decision costs exactly this one line.
+ *
+ * Generalized (S05) to accept any `{ id }`-shaped short-info ref, so the same
+ * helper reads `employee.manager?.id`, `employee.managerM3?.id` and
+ * `employee.managerM4?.id` alike.
  */
-export function rawManagerId(employee: Pick<HrmEmployee, "manager">): number | null {
-  const id = employee.manager?.id;
+export function rawManagerId(ref: { id?: number | null } | null | undefined): number | null {
+  const id = ref?.id;
   return typeof id === "number" ? id : null;
 }
 
@@ -149,13 +185,16 @@ export function mapEmployee(
       name: displayName(employee),
       jobTitle: employee.jobTitleId ? (dicts.jobTitle.get(employee.jobTitleId) ?? null) : null,
       grade,
-      hrmManagerId: rawManagerId(employee),
+      hrmManagerId: rawManagerId(employee.manager),
+      hrmM3ManagerId: rawManagerId(employee.managerM3),
+      hrmM4ManagerId: rawManagerId(employee.managerM4),
       isArchived,
       // Same condition as isArchived: agrees with the ready-made
       // employee.isArchived HRM sends, but derived from lifecycleStatus, the
-      // one field this file treats as authoritative — see plan §"Политика полей".
+      // one field this file treats as authoritative — see plan §"Field policy".
       hrmDismissed: isArchived,
       orgUnitIds,
+      photoFileName: extractPhotoFileName(employee.linkProfilePicture),
     },
     issues,
   };
@@ -187,7 +226,10 @@ export function mapOrgUnit(unit: HrmOrgUnit): MappedOrgUnit {
     hrmId: unit.id,
     name: unit.orgUnitName ?? "",
     orgUnitTypeId: unit.orgUnitTypeId ?? null,
-    typeName: type?.orgUnitTypeName ?? null,
+    // HRM sends the type name in three variants; take the English one so we
+    // don't need to translate "Отдел"/"Группа"/etc. on our side — fall back
+    // to the generic (localized) field only if HRM omits orgUnitTypeNameEn.
+    typeName: type?.orgUnitTypeNameEn ?? type?.orgUnitTypeName ?? null,
     isFilterable: type?.isFilterable ?? true,
     isSinglePerson: type?.isSinglePerson ?? false,
     // `unit.reportsToId ?? null`, deliberately not `"reportsToId" in unit` —

@@ -44,16 +44,17 @@ describe("displayName", () => {
 });
 
 describe("rawManagerId", () => {
-  it("reads manager.id when present", () => {
-    expect(rawManagerId({ manager: { id: 42 } })).toBe(42);
+  it("reads id when present", () => {
+    expect(rawManagerId({ id: 42 })).toBe(42);
   });
 
-  it("returns null when manager has no id (empty object)", () => {
-    expect(rawManagerId({ manager: {} })).toBeNull();
+  it("returns null when the ref has no id (empty object)", () => {
+    expect(rawManagerId({})).toBeNull();
   });
 
-  it("returns null when manager is entirely absent", () => {
-    expect(rawManagerId({ manager: undefined })).toBeNull();
+  it("returns null when the ref is entirely absent", () => {
+    expect(rawManagerId(undefined)).toBeNull();
+    expect(rawManagerId(null)).toBeNull();
   });
 });
 
@@ -100,6 +101,30 @@ describe("mapEmployee — synthetic edge cases", () => {
     expect(employee.hrmManagerId).toBeNull();
   });
 
+  it("managerM3/managerM4 present -> hrmM3ManagerId/hrmM4ManagerId extracted", () => {
+    const { employee } = mapEmployee(
+      { id: 1, email: "a@b.com", managerM3: { id: 30 }, managerM4: { id: 40 } },
+      dicts
+    );
+    expect(employee.hrmM3ManagerId).toBe(30);
+    expect(employee.hrmM4ManagerId).toBe(40);
+  });
+
+  it("managerM3/managerM4 absent -> both null", () => {
+    const { employee } = mapEmployee({ id: 1, email: "a@b.com" }, dicts);
+    expect(employee.hrmM3ManagerId).toBeNull();
+    expect(employee.hrmM4ManagerId).toBeNull();
+  });
+
+  it("managerM3/managerM4 present but without an id (empty object) -> both null", () => {
+    const { employee } = mapEmployee(
+      { id: 1, email: "a@b.com", managerM3: {}, managerM4: {} },
+      dicts
+    );
+    expect(employee.hrmM3ManagerId).toBeNull();
+    expect(employee.hrmM4ManagerId).toBeNull();
+  });
+
   it("throws when id is missing — not this function's job to guess an idempotency key", () => {
     expect(() => mapEmployee({ email: "a@b.com" }, dicts)).toThrow();
   });
@@ -128,6 +153,32 @@ describe("mapEmployee — against real (anonymized) stage fixtures", () => {
       expect(employee.isArchived).toBe(true);
       expect(employee.hrmDismissed).toBe(true);
     }
+  });
+});
+
+describe("extractPhotoFileName / mapEmployee photoFileName", () => {
+  const dicts: HrmDictionaries = dictionaries;
+
+  it("parses the path out of a live linkProfilePicture URL", () => {
+    const employee = {
+      ...actualEmployees[0],
+      linkProfilePicture:
+        "https://hrm-stage-employee-photo-bucket.s3.eu-north-1.amazonaws.com/photos/a3a701dc-7d9d-4995-9f7b-f0f2332cdc55.jpeg?X-Amz-Expires=300&X-Amz-Signature=abc",
+    };
+    const { employee: mapped } = mapEmployee(employee, dicts);
+    expect(mapped.photoFileName).toBe("photos/a3a701dc-7d9d-4995-9f7b-f0f2332cdc55.jpeg");
+  });
+
+  it("maps an empty linkProfilePicture to null, not a throw", () => {
+    const employee = { ...actualEmployees[0], linkProfilePicture: "" };
+    const { employee: mapped } = mapEmployee(employee, dicts);
+    expect(mapped.photoFileName).toBeNull();
+  });
+
+  it("maps a missing linkProfilePicture to null", () => {
+    const { linkProfilePicture, ...rest } = actualEmployees[0];
+    const { employee: mapped } = mapEmployee(rest, dicts);
+    expect(mapped.photoFileName).toBeNull();
   });
 });
 

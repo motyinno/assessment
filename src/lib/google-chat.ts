@@ -22,8 +22,7 @@ const CHAT_API = "https://chat.googleapis.com/v1";
 const PEOPLE_API = "https://people.googleapis.com/v1";
 
 export function chatEnabled(): boolean {
-  console.log(process.env.NEXT_PUBLIC_ENABLE_GOOGLE_CHAT)
-  return true;
+  return process.env.NEXT_PUBLIC_ENABLE_GOOGLE_CHAT === "true";
 }
 
 type ResolvableUser = { id: string; email: string; googleId: string | null };

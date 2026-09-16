@@ -23,8 +23,18 @@ const USER_DETAIL_SELECT = {
   role: true,
   grade: true,
   project: true,
+  projects: true,
+  jobTitle: true,
   managerId: true,
   manager: { select: { id: true, name: true, email: true } },
+  isArchived: true,
+  photoFileName: true,
+  hrmEmployeeId: true,
+  departments: {
+    select: {
+      department: { select: { id: true, name: true, isFilterable: true } },
+    },
+  },
 } as const;
 
 export async function GET(
@@ -156,17 +166,33 @@ export async function PATCH(
   }
 
   let demotingFromManager = false;
+  let previousRole: UserRole | null = null;
   if (role !== undefined) {
     if (!isAdminCaller) return forbidden("Only administrators can change role");
     if (!VALID_ROLES.has(role)) return badRequest("Invalid role");
     if (isSelf && role !== "ADMIN") {
       return conflict("Can't change your own role away from administrator");
     }
+    previousRole = current.role;
     data.role = role as UserRole;
     if (!canManagePeople(role) && canManagePeople(current.role)) {
       demotingFromManager = true;
     }
   }
+
+  // A role change is audited (source: MANUAL) alongside the update, in the
+  // same transaction so the log can't be lost to a failure between the two
+  // writes — see RoleAuditLog (S05).
+  const roleAuditData =
+    previousRole !== null
+      ? {
+          userId: id,
+          previousRole,
+          newRole: data.role as UserRole,
+          source: "MANUAL" as const,
+          actorId: me.id,
+        }
+      : null;
 
   let user;
   if (demotingFromManager) {
@@ -180,6 +206,17 @@ export async function PATCH(
         data,
         select: USER_DETAIL_SELECT,
       }),
+      ...(roleAuditData ? [prisma.roleAuditLog.create({ data: roleAuditData })] : []),
+    ]);
+    user = updated;
+  } else if (roleAuditData) {
+    const [updated] = await prisma.$transaction([
+      prisma.user.update({
+        where: { id },
+        data,
+        select: USER_DETAIL_SELECT,
+      }),
+      prisma.roleAuditLog.create({ data: roleAuditData }),
     ]);
     user = updated;
   } else {
@@ -208,10 +245,15 @@ export async function DELETE(
     where: { id },
     select: {
       id: true,
+      hrmEmployeeId: true,
       _count: { select: { participations: true, pdps: true } },
     },
   });
   if (!target) return notFound("User not found");
+
+  if (target.hrmEmployeeId !== null) {
+    return conflict("Archive instead of deleting an HRM-managed user");
+  }
 
   if (target._count.participations > 0 || target._count.pdps > 0) {
     return conflict(

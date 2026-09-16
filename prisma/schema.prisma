@@ -71,6 +71,8 @@ enum NotificationType {
   REQUEST_APPROVED // -> requester: request approved
   REQUEST_REJECTED // -> requester: request rejected
   ASSESSMENT_REVIEW_SUBMITTED // -> admins: assessment finished, grade needs review
+  HRM_SYNC_FAILED // -> admins: nightly HRM sync aborted/failed (S04)
+  HRM_ROLE_GRANTED // -> admins: HRM sync auto-granted ADMIN to someone (S05)
 }
 
 // ---- Models ----

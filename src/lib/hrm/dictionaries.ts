@@ -16,7 +16,7 @@
  * RISK #1 (see S01 plan): `defaultLanguageOnly=false` returns one translation
  * row per `languageId` for every value, so collapsing naively into a Map is
  * last-write-wins over an unordered array — the same value can resolve to
- * "Middle" on one run and "Мидл" on the next. `buildDictionaryMaps` makes
+ * "Middle" on one run and "Mid" on the next. `buildDictionaryMaps` makes
  * that collapse deterministic: candidates for a value are ordered by (match
  * with the optional HRM_DICT_LANGUAGE_ID) -> orderValue -> array index, and
  * we take the first. Every value that produced more than one DISTINCT

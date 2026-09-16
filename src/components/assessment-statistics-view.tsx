@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -18,6 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
+import { DepartmentCombobox } from "@/components/department-combobox";
 
 export interface AssessmentRow {
   id: string;
@@ -31,6 +32,9 @@ export interface AssessmentRow {
   conductors: { id: string; name: string }[];
   // The people who were assessed (SUBJECT participants) — usually one.
   subjects: { id: string; name: string }[];
+  // Units the subject(s) belong to (S13) — a person in several units shows
+  // up under each, so a company-wide sum across units double-counts them.
+  subjectDepartments: { id: string; name: string }[];
 }
 
 type PeriodKey = "1m" | "3m" | "6m" | "12m" | "all";
@@ -235,6 +239,41 @@ function EmptyChart({ message }: { message: string }) {
   );
 }
 
+// ---------- department cut (S13) ----------
+
+interface DepartmentStat {
+  departmentId: string;
+  name: string;
+  depth: number;
+  path: string;
+  people: number;
+  withCompletedAssessment: number;
+  withActivePdp: number;
+  assessments: { total: number; completed: number; cancelled: number };
+  gradeDistribution: Record<string, number>;
+}
+
+// Units below this size make percentages statistically meaningless (spec
+// risk note) — folded into a trailing "Other units" row in the coverage table.
+const SMALL_UNIT_THRESHOLD = 5;
+
+/** A person in several units is counted once per unit — always true here. */
+function DoubleCountingCaption() {
+  return (
+    <p className="text-xs text-muted-foreground">
+      A person who belongs to several units is counted in each of them, so
+      per-unit percentages are accurate but a sum across units will not match
+      total headcount.
+    </p>
+  );
+}
+
+type SortKey = "name" | "people" | "coverage" | "withoutPdp";
+
+function pct(n: number, total: number): string {
+  return total > 0 ? `${Math.round((n / total) * 100)}%` : "—";
+}
+
 // ---------- main view ----------
 
 export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
@@ -242,17 +281,57 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
   // Single timestamp anchor so all derived data agrees within a render.
   const now = useMemo(() => Date.now(), []);
 
+  // Department filter (S13) — narrows the existing (client-side) charts and
+  // drives the two new department-shaped views below.
+  const [deptId, setDeptId] = useState<string | null>(null);
+  const [deptName, setDeptName] = useState<string | null>(null);
+  const [includeDescendants, setIncludeDescendants] = useState(true);
+  const [deptStats, setDeptStats] = useState<DepartmentStat[]>([]);
+  const [deptLoading, setDeptLoading] = useState(false);
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
+    key: "people",
+    dir: "desc",
+  });
+  const [compareIds, setCompareIds] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setDeptLoading(true);
+    const params = new URLSearchParams({
+      includeDescendants: includeDescendants ? "1" : "0",
+      period,
+    });
+    if (deptId) params.set("department", deptId);
+    fetch(`/api/statistics/departments?${params.toString()}`, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { items: DepartmentStat[] } | null) => setDeptStats(data?.items ?? []))
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setDeptStats([]);
+      })
+      .finally(() => setDeptLoading(false));
+    return () => controller.abort();
+  }, [deptId, includeDescendants, period]);
+
+  // The endpoint already resolves the selected unit's subtree (or every unit,
+  // unfiltered) — reuse its id set instead of re-deriving descendants here.
+  const scopedRows = useMemo(() => {
+    if (!deptId) return rows;
+    const ids = new Set(deptStats.map((d) => d.departmentId));
+    return rows.filter((r) => r.subjectDepartments.some((d) => ids.has(d.id)));
+  }, [rows, deptId, deptStats]);
+
   const periodMeta = PERIODS.find((p) => p.key === period)!;
   const periodDays = periodMeta.days;
 
   const completedInPeriod = useMemo(
     () =>
-      rows.filter((r) => {
+      scopedRows.filter((r) => {
         if (r.status !== "COMPLETED" || !r.completedAt) return false;
         if (periodDays == null) return true;
         return new Date(r.completedAt).getTime() >= now - periodDays * DAY_MS;
       }),
-    [rows, periodDays, now]
+    [scopedRows, periodDays, now]
   );
 
   const gradeDistribution = useMemo(() => {
@@ -323,6 +402,69 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
       ? "Completed per week"
       : "Completed per month";
 
+  // ---- department-shaped views (S13) ----
+
+  const topUnits = useMemo(
+    () =>
+      [...deptStats]
+        .filter((d) => d.assessments.total > 0)
+        .sort((a, b) => b.assessments.total - a.assessments.total)
+        .slice(0, 10)
+        .map((d) => ({ name: d.name, count: d.assessments.total })),
+    [deptStats]
+  );
+
+  const coverageRows = useMemo(() => {
+    const big = deptStats.filter((d) => d.people >= SMALL_UNIT_THRESHOLD);
+    const small = deptStats.filter((d) => d.people > 0 && d.people < SMALL_UNIT_THRESHOLD);
+    const rowsOut = big.map((d) => ({
+      id: d.departmentId,
+      name: d.name,
+      people: d.people,
+      withCompleted: d.withCompletedAssessment,
+      withoutPdp: d.people - d.withActivePdp,
+    }));
+    if (small.length > 0) {
+      rowsOut.push({
+        id: "__other__",
+        name: `Other units (${small.length}, < ${SMALL_UNIT_THRESHOLD} people each)`,
+        people: small.reduce((s, d) => s + d.people, 0),
+        withCompleted: small.reduce((s, d) => s + d.withCompletedAssessment, 0),
+        withoutPdp: small.reduce((s, d) => s + (d.people - d.withActivePdp), 0),
+      });
+    }
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return rowsOut.sort((a, b) => {
+      if (sort.key === "name") return a.name.localeCompare(b.name) * dir;
+      if (sort.key === "people") return (a.people - b.people) * dir;
+      if (sort.key === "withoutPdp") return (a.withoutPdp - b.withoutPdp) * dir;
+      const ca = a.people > 0 ? a.withCompleted / a.people : 0;
+      const cb = b.people > 0 ? b.withCompleted / b.people : 0;
+      return (ca - cb) * dir;
+    });
+  }, [deptStats, sort]);
+
+  function toggleSort(key: SortKey) {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
+  }
+
+  const compareUnits = useMemo(
+    () =>
+      compareIds.map(({ id, name }) => {
+        const stat = deptStats.find((d) => d.departmentId === id);
+        return {
+          id,
+          name,
+          grades: GRADE_VALUES.map((g) => ({
+            grade: g,
+            label: gradeLabel(g),
+            count: stat?.gradeDistribution[g] ?? 0,
+          })),
+        };
+      }),
+    [compareIds, deptStats]
+  );
+
   return (
     <div className="space-y-6">
       {/* Period filter */}
@@ -350,11 +492,43 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         })}
       </div>
 
+      {/* Department filter (S13) */}
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Department
+        </span>
+        <div className="w-64">
+          <DepartmentCombobox
+            value={deptId}
+            onChange={(id, name) => {
+              setDeptId(id);
+              setDeptName(name);
+            }}
+            placeholder="All departments"
+          />
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={includeDescendants}
+            onChange={(e) => setIncludeDescendants(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-input"
+          />
+          Including children
+        </label>
+        {deptId && (
+          <span className="text-xs text-muted-foreground">
+            Showing {deptName} {includeDescendants ? "and its sub-units" : "only"}
+            {deptLoading ? " · loading…" : ""}
+          </span>
+        )}
+      </div>
+
       {/* KPI cards (period-sensitive, except the all-time total) */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total assessments"
-          value={rows.length}
+          value={scopedRows.length}
           tone="primary"
           footer={<p className="text-xs text-muted-foreground">All time</p>}
           icon={
@@ -546,6 +720,152 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Top units by assessment count (S13) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top units by number of assessments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {topUnits.length > 0 ? (
+            <ResponsiveContainer width="100%" height={Math.max(260, topUnits.length * 36)}>
+              <BarChart
+                data={topUnits}
+                layout="vertical"
+                margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #e5e7eb)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke={MUTED} />
+                <YAxis type="category" dataKey="name" width={160} tick={{ fontSize: 11 }} stroke={MUTED} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(99,102,241,0.08)" }} />
+                <Bar dataKey="count" name="Assessments" fill={PRIMARY} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart message={deptLoading ? "Loading…" : "No assessments in scope"} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Coverage by unit (S13) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Coverage by unit</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {coverageRows.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    {(
+                      [
+                        ["name", "Unit"],
+                        ["people", "People"],
+                        ["coverage", "With completed assessment"],
+                        ["withoutPdp", "Without PDP"],
+                      ] as [SortKey, string][]
+                    ).map(([key, label]) => (
+                      <th
+                        key={key}
+                        className="cursor-pointer select-none py-2 pr-4 hover:text-foreground"
+                        onClick={() => toggleSort(key)}
+                      >
+                        {label} {sort.key === key ? (sort.dir === "asc" ? "↑" : "↓") : ""}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {coverageRows.map((r) => (
+                    <tr key={r.id} className="border-b border-border/60 last:border-0">
+                      <td className="py-1.5 pr-4">{r.name}</td>
+                      <td className="py-1.5 pr-4">{r.people}</td>
+                      <td className="py-1.5 pr-4">
+                        {r.withCompleted} ({pct(r.withCompleted, r.people)})
+                      </td>
+                      <td className="py-1.5 pr-4">
+                        {r.withoutPdp} ({pct(r.withoutPdp, r.people)})
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyChart message={deptLoading ? "Loading…" : "No units in scope"} />
+          )}
+          <DoubleCountingCaption />
+        </CardContent>
+      </Card>
+
+      {/* Unit comparison (S13) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Compare units by grade distribution</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {compareIds.map((c) => (
+              <span
+                key={c.id}
+                className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs"
+              >
+                {c.name}
+                <button
+                  type="button"
+                  onClick={() => setCompareIds((ids) => ids.filter((i) => i.id !== c.id))}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label={`Remove ${c.name}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            {compareIds.length < 3 && (
+              <div className="w-64">
+                <DepartmentCombobox
+                  value={null}
+                  onChange={(id, name) => {
+                    if (id && name && !compareIds.some((c) => c.id === id)) {
+                      setCompareIds((ids) => [...ids, { id, name }]);
+                    }
+                  }}
+                  placeholder="Add a unit to compare"
+                />
+              </div>
+            )}
+          </div>
+          {compareUnits.length > 0 ? (
+            <div className={cn("grid gap-4", compareUnits.length > 1 ? "lg:grid-cols-2" : "")}>
+              {compareUnits.map((u) => {
+                const hasData = u.grades.some((g) => g.count > 0);
+                return (
+                  <div key={u.id}>
+                    <p className="mb-1.5 text-xs font-medium text-muted-foreground">{u.name}</p>
+                    {hasData ? (
+                      <ResponsiveContainer width="100%" height={220}>
+                        <BarChart data={u.grades} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #e5e7eb)" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke={MUTED} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke={MUTED} />
+                          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(99,102,241,0.08)" }} />
+                          <Bar dataKey="count" name="Assessed" fill={PRIMARY} radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <EmptyChart message="No completed assessments in this period" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Pick up to three units to compare.</p>
+          )}
+          <DoubleCountingCaption />
+        </CardContent>
+      </Card>
     </div>
   );
 }

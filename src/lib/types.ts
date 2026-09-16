@@ -30,3 +30,31 @@ export interface TechMatrixSection {
 export interface TechMatrix {
   sections: TechMatrixSection[];
 }
+
+// ---- People / HRM-sourced user fields (S09) ----
+//
+// Shared shape for the fields HRM sync (S02-S04) adds to `User`. Kept in one
+// place and imported rather than copied into every page's local `User`
+// interface a third time (see S09 spec, "Type changes").
+
+export interface DepartmentRef {
+  id: string;
+  name: string;
+}
+
+export interface ManagerRef {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/** Fields every people-facing page needs beyond the pre-HRM `User` shape. */
+export interface HrmUserFields {
+  jobTitle: string | null;
+  projects: string[];
+  photoFileName: string | null;
+  isArchived: boolean;
+  hrmEmployeeId: number | null;
+  /** All units the person belongs to, `isFilterable: false` ones excluded (08 §9). */
+  departments: DepartmentRef[];
+}

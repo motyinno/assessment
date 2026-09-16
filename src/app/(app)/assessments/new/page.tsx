@@ -17,13 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
-
-interface UserItem {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
+import { AssessorCombobox } from "@/components/assessor-combobox";
+import type { UserSearchItem } from "@/hooks/use-user-search";
 
 interface Participant {
   userId: string;
@@ -35,7 +30,6 @@ interface Participant {
 export default function NewAssessmentPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [users, setUsers] = useState<UserItem[]>([]);
   const [form, setForm] = useState({
     title: "",
     grade: "jun",
@@ -43,7 +37,6 @@ export default function NewAssessmentPage() {
     notes: "",
   });
   const [participants, setParticipants] = useState<Participant[]>([]);
-  const [selectedUser, setSelectedUser] = useState("");
   const [selectedRole, setSelectedRole] = useState<"SUBJECT" | "ASSESSOR">("SUBJECT");
   const [error, setError] = useState("");
 
@@ -53,19 +46,12 @@ export default function NewAssessmentPage() {
       router.push("/dashboard");
       return;
     }
-    fetch("/api/users")
-      .then((r) => r.json())
-      .then(setUsers);
   }, [session, router]);
 
-  function addParticipant() {
-    if (!selectedUser) return;
-    const user = users.find((u) => u.id === selectedUser);
-    if (!user) return;
-
+  function addParticipant(user: UserSearchItem) {
     // Don't add duplicates
-    const exists = participants.find(
-      (p) => p.userId === selectedUser && p.participantRole === selectedRole
+    const exists = participants.some(
+      (p) => p.userId === user.id && p.participantRole === selectedRole
     );
     if (exists) return;
 
@@ -77,7 +63,6 @@ export default function NewAssessmentPage() {
         participantRole: selectedRole,
       },
     ]);
-    setSelectedUser("");
   }
 
   function removeParticipant(idx: number) {
@@ -185,18 +170,23 @@ export default function NewAssessmentPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex gap-2">
-              <Select value={selectedUser} onValueChange={(v) => v && setSelectedUser(v)}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select a user" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex-1">
+                {/* Server-side search (S08) — the directory can be thousands
+                    of rows, so it's no longer loaded whole into a <Select>. */}
+                <AssessorCombobox
+                  role=""
+                  excludeIds={
+                    new Set(
+                      participants
+                        .filter((p) => p.participantRole === selectedRole)
+                        .map((p) => p.userId)
+                    )
+                  }
+                  onSelect={addParticipant}
+                  placeholder="Search by name or email…"
+                  triggerLabel="Search people to add…"
+                />
+              </div>
               <Select
                 value={selectedRole}
                 onValueChange={(v) =>
@@ -211,9 +201,6 @@ export default function NewAssessmentPage() {
                   <SelectItem value="ASSESSOR">Assessor</SelectItem>
                 </SelectContent>
               </Select>
-              <Button type="button" variant="outline" onClick={addParticipant}>
-                Add
-              </Button>
             </div>
 
             {participants.length === 0 ? (

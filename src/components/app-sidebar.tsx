@@ -7,6 +7,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface SidebarProps {
   user: {
@@ -14,6 +15,7 @@ interface SidebarProps {
     name: string;
     email: string;
     role: string;
+    photoFileName?: string | null;
   };
 }
 
@@ -30,15 +32,16 @@ const assessorItems = [
   { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
 ];
 
-// People-section items. Each carries the roles allowed to see the link, so
-// "My Team" is MANAGER-only while the Users directory stays visible to
-// MANAGER + ADMIN.
-const managerItems: Array<{
+// People-section items. Each carries the roles allowed to see the link —
+// "Departments" is open to everyone (S10, F5), "My Team" is MANAGER-only,
+// and the Users directory stays visible to MANAGER + ADMIN.
+const peopleItems: Array<{
   href: string;
   label: string;
   icon: string;
-  roles: ReadonlyArray<"MANAGER" | "ADMIN">;
+  roles: ReadonlyArray<"USER" | "ASSESSOR" | "MANAGER" | "ADMIN">;
 }> = [
+  { href: "/departments", label: "Departments", icon: "sitemap", roles: ["USER", "ASSESSOR", "MANAGER", "ADMIN"] },
   { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
 ];
@@ -49,6 +52,7 @@ const adminItems = [
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
   { href: "/pdp-review", label: "PDP Review", icon: "file-text" },
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
+  { href: "/admin/hrm-sync", label: "HRM Sync", icon: "refresh" },
 ];
 
 // Admin configuration — how the app generates work, not a review action.
@@ -144,6 +148,22 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
         <line x1="17" y1="16" x2="23" y2="16" />
       </svg>
     ),
+    refresh: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10" />
+        <polyline points="1 20 1 14 7 14" />
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+      </svg>
+    ),
+    // lucide "network" glyph — org-chart shape, used for Departments (S10).
+    sitemap: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="9" y="2" width="6" height="6" rx="1" />
+        <rect x="2" y="16" width="6" height="6" rx="1" />
+        <rect x="16" y="16" width="6" height="6" rx="1" />
+        <path d="M12 8v4M12 12H5v4M12 12h7v4" />
+      </svg>
+    ),
   };
   return <>{icons[name] || null}</>;
 }
@@ -155,13 +175,6 @@ export function AppSidebar({ user }: SidebarProps) {
     if (href === "/") return pathname === "/";
     return exact ? pathname === href : pathname.startsWith(href);
   };
-
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
@@ -245,8 +258,8 @@ export function AppSidebar({ user }: SidebarProps) {
         )}
 
         {(() => {
-          const visiblePeopleItems = managerItems.filter((it) =>
-            it.roles.includes(user.role as "MANAGER" | "ADMIN")
+          const visiblePeopleItems = peopleItems.filter((it) =>
+            it.roles.includes(user.role as "USER" | "ASSESSOR" | "MANAGER" | "ADMIN")
           );
           if (visiblePeopleItems.length === 0) return null;
           return (
@@ -356,9 +369,7 @@ export function AppSidebar({ user }: SidebarProps) {
       {/* User section */}
       <div className="border-t border-sidebar-border p-3 space-y-1">
         <Link href="/profile" className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent/50 transition-colors">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-primary flex items-center justify-center text-xs font-semibold shrink-0 ring-1 ring-primary/15">
-            {initials}
-          </div>
+          <UserAvatar user={user} size="md" />
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-medium truncate text-sidebar-foreground">{user.name}</p>
             <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>

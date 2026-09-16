@@ -1,5 +1,5 @@
 /**
- * The field policy (see plan §"Политика полей"), implemented as one pure
+ * The field policy (see plan §"Field policy"), implemented as one pure
  * function. Both the nightly sync (S04) and the login-time refresh
  * (refresh-user.ts) must call THIS function to decide what to write —
  * duplicating the rule in two places is exactly the failure mode the plan
@@ -27,6 +27,7 @@ interface UserWriteCommon {
   hrmDismissed: boolean;
   isArchived: boolean;
   grade?: Grade | null;
+  photoFileName: string | null;
 }
 
 export interface UserCreateWrite extends UserWriteCommon {
@@ -50,9 +51,11 @@ function isGradeEmpty(grade: string | null | undefined): boolean {
  *
  * Deliberately absent from both `create` and `update`, by policy (see plan
  * table): `email` in `update` (never changes after creation), `role` (S05
- * owns it), `photoFileName`/`projects` (not written in S03 — see
+ * owns it), `projects` (not written in S03 — see
  * hrm-payloads/employees-search.schema.md), `managerId` (resolved in a
  * second pass, S04 — only the raw `hrmManagerId` is written here).
+ * `photoFileName` IS written here, always (HRM-owned, like `jobTitle` —
+ * see S12 plan).
  */
 export function buildUserWrite(
   mapped: MappedEmployee,
@@ -67,6 +70,7 @@ export function buildUserWrite(
     hrmSyncedAt: now,
     hrmDismissed: mapped.hrmDismissed,
     isArchived: mapped.isArchived,
+    photoFileName: mapped.photoFileName,
   };
 
   if (existing === null) {

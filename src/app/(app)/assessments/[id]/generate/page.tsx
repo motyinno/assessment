@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { gradeLabel, baseGrade } from "@/lib/grades";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/user-avatar";
 
 interface TopicWithSelection {
   name: string;
@@ -28,6 +29,7 @@ interface SubjectUser {
   project: string | null;
   managerId: string | null;
   manager: { id: string; name: string; email: string } | null;
+  photoFileName: string | null;
 }
 
 interface MatrixTopic {
@@ -51,16 +53,6 @@ interface TopicMeta {
   sectionTitle: string;
   sectionId: string;
   skills: string[];
-}
-
-function initialsOf(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 }
 
 function scoreTone(score: number | null) {
@@ -292,9 +284,13 @@ export default function GeneratePdpPage() {
           <div className="flex flex-col lg:flex-row lg:items-start gap-5">
             {/* Subject */}
             <div className="flex items-start gap-4 flex-1 min-w-0">
-              <div className="w-14 h-14 shrink-0 rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 text-primary flex items-center justify-center text-base font-semibold ring-1 ring-primary/15">
-                {subject ? initialsOf(subject.name) : "—"}
-              </div>
+              {subject ? (
+                <UserAvatar user={subject} size="lg" />
+              ) : (
+                <div className="w-16 h-16 shrink-0 rounded-2xl bg-gradient-to-br from-primary/25 to-primary/5 text-primary flex items-center justify-center text-base font-semibold ring-1 ring-primary/15">
+                  —
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl font-semibold tracking-tight">

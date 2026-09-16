@@ -9,7 +9,7 @@ ADD COLUMN     "projects" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- Backfill: copy the legacy scalar `project` into the new `projects` array so
 -- existing data isn't lost. The legacy column stays; sync only writes `projects`
--- going forward (see S02 plan, "Про project -> projects").
+-- going forward (see S02 plan, "About project -> projects").
 UPDATE "User" SET "projects" = ARRAY["project"] WHERE "project" IS NOT NULL AND "project" <> '';
 
 -- CreateTable

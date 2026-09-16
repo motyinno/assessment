@@ -67,7 +67,9 @@
       "Bash(git cherry-pick *)",
       "Bash(git branch *)",
       "Bash(curl -s -o /dev/null -w \"login=%{http_code}\\\\n\" http://localhost:3000/login)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(rtk ls *)",
+      "Bash(rtk read *)"
     ]
   }
 }
