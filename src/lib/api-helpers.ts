@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError, type ZodSchema } from "zod";
+import { log } from "@/lib/logger";
 
 export type ApiError = {
   code: string;
@@ -88,32 +89,4 @@ export function parseJsonField<T>(
   }
 }
 
-type LogLevel = "debug" | "info" | "warn" | "error";
-
-function fmt(level: LogLevel, msg: string, meta?: Record<string, unknown>) {
-  const entry = {
-    t: new Date().toISOString(),
-    level,
-    msg,
-    ...(meta ?? {}),
-  };
-  // Single line so docker/cloud log collectors can ingest as JSONL.
-  return JSON.stringify(entry);
-}
-
-export const log = {
-  debug(msg: string, meta?: Record<string, unknown>) {
-    if (process.env.NODE_ENV !== "production") {
-      console.debug(fmt("debug", msg, meta));
-    }
-  },
-  info(msg: string, meta?: Record<string, unknown>) {
-    console.log(fmt("info", msg, meta));
-  },
-  warn(msg: string, meta?: Record<string, unknown>) {
-    console.warn(fmt("warn", msg, meta));
-  },
-  error(msg: string, meta?: Record<string, unknown>) {
-    console.error(fmt("error", msg, meta));
-  },
-};
+export { log } from "@/lib/logger";
