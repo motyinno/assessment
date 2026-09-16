@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { canManagePeople } from "@/lib/roles";
+import { canManagePeople, isSuperAdmin } from "@/lib/roles";
 import { getDepartmentCard } from "@/lib/departments";
 import { MULTI_MEMBERSHIP_NOTE } from "@/lib/departments-copy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,7 @@ export default async function DepartmentCardPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (!isSuperAdmin(session.user)) redirect("/dashboard");
 
   const canManageArchive = canManagePeople(session.user.role);
   const includeArchived = searchParams?.archived === "include" && canManageArchive;

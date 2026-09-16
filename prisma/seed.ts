@@ -65,6 +65,11 @@ const ROLE_OVERRIDES: Record<string, Role> = {
   "ilya.razuvaev@innowise.com": "ASSESSOR",
 };
 
+// Super admin (HRM Sync + Departments, see lib/roles.ts#isSuperAdmin) is a
+// standalone flag, not part of ROLE_OVERRIDES — kept separate so a fresh
+// local seed still gives this account the same access it has in prod.
+const SUPER_ADMIN_EMAILS = new Set(["mikhail.shatsila@innowise.com"]);
+
 function mapEmployee(e: EmployeeRecord): SeedUser {
   const name = `${e.firstNameEn} ${e.lastNameEn}`.trim();
   const email = e.email.trim().toLowerCase();
@@ -127,6 +132,7 @@ async function main() {
 
   // Pass 1: upsert every user without resolving managers.
   for (const u of users) {
+    const isSuperAdmin = SUPER_ADMIN_EMAILS.has(u.email);
     await prisma.user.upsert({
       where: { email: u.email },
       update: {
@@ -134,6 +140,7 @@ async function main() {
         role: u.role,
         grade: u.grade,
         project: u.project,
+        ...(isSuperAdmin ? { isSuperAdmin } : {}),
       },
       create: {
         name: u.name,
@@ -141,6 +148,7 @@ async function main() {
         role: u.role,
         grade: u.grade,
         project: u.project,
+        isSuperAdmin,
       },
     });
   }

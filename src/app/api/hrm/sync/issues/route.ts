@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireSuperAdmin } from "@/lib/auth-helpers";
 import prisma from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -28,7 +28,7 @@ const EMPTY_RESPONSE = {
  * `User`, not scoped to `runId` — see S07-sync-admin-PLAN.md.
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
 
   const runIdParam = new URL(req.url).searchParams.get("runId") ?? "latest";

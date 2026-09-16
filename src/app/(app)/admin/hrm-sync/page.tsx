@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { isAdmin } from "@/lib/roles";
+import { isSuperAdmin } from "@/lib/roles";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HrmSyncRuns } from "@/components/hrm-sync-runs";
 import { HrmSyncIssues } from "@/components/hrm-sync-issues";
@@ -8,7 +8,7 @@ import { HrmSyncIssues } from "@/components/hrm-sync-issues";
 export default async function HrmSyncPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!isAdmin(session.user.role)) redirect("/dashboard");
+  if (!isSuperAdmin(session.user)) redirect("/dashboard");
 
   return (
     <div className="space-y-4">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireSuperAdmin } from "@/lib/auth-helpers";
 import { serverError } from "@/lib/api-helpers";
 import { startHrmSyncRun } from "@/lib/hrm/sync";
 import { log } from "@/lib/logger";
@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
  * back `SKIPPED_LOCKED` via the run's own status, not an HTTP error.
  */
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
 
   const dryRun = new URL(req.url).searchParams.get("dryRun") === "1";

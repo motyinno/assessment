@@ -134,7 +134,7 @@ export default function ProfilePage() {
   const role = (session?.user as { role?: string } | undefined)?.role ?? "USER";
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="page-title">Profile</h1>
         <p className="page-subtitle mt-1">
@@ -144,74 +144,89 @@ export default function ProfilePage() {
 
       {/* Identity banner */}
       <Card>
-        <CardContent className="pt-5 pb-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <UserAvatar
-            user={{ id: session?.user?.id ?? "", name: form.name || "?", photoFileName }}
-            size="lg"
-          />
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-foreground truncate">
-              {form.name || "—"}
-            </h2>
-            <p className="text-sm text-muted-foreground truncate">{email}</p>
-            {jobTitle && (
-              <p className="text-sm text-muted-foreground truncate">{jobTitle}</p>
-            )}
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Badge
-                variant={
-                  role === "ADMIN"
-                    ? "warning"
-                    : role === "MANAGER"
-                      ? "info"
-                      : role === "ASSESSOR"
-                        ? "default"
-                        : "secondary"
-                }
-              >
-                {ROLE_LABEL[role] || role}
-              </Badge>
-              {form.grade && (
-                <Badge variant="outline">{gradeLabel(form.grade)}</Badge>
+        <CardContent className="py-6 flex flex-col lg:flex-row lg:items-center gap-6">
+          {/* Who: avatar, name, role/grade */}
+          <div className="flex items-center gap-4 lg:w-72 lg:shrink-0">
+            <UserAvatar
+              user={{ id: session?.user?.id ?? "", name: form.name || "?", photoFileName }}
+              size="lg"
+            />
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-foreground truncate">
+                {form.name || "—"}
+              </h2>
+              <p className="text-sm text-muted-foreground truncate">{email}</p>
+              {jobTitle && (
+                <p className="text-sm text-muted-foreground truncate">{jobTitle}</p>
               )}
-              {form.project && (
-                <Badge variant="secondary">{form.project}</Badge>
-              )}
+              <div className="flex flex-wrap gap-2 mt-2">
+                <Badge
+                  variant={
+                    role === "ADMIN"
+                      ? "warning"
+                      : role === "MANAGER"
+                        ? "info"
+                        : role === "ASSESSOR"
+                          ? "default"
+                          : "secondary"
+                  }
+                >
+                  {ROLE_LABEL[role] || role}
+                </Badge>
+                {form.grade && (
+                  <Badge variant="outline">{gradeLabel(form.grade)}</Badge>
+                )}
+                {form.project && (
+                  <Badge variant="secondary">{form.project}</Badge>
+                )}
+              </div>
             </div>
-            {(departments.length > 0 || projects.length > 0) && (
-              <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-xs max-w-sm">
-                <div>
-                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+          </div>
+
+          {/* Facts: departments & projects, given the rest of the card's width */}
+          {(departments.length > 0 || projects.length > 0) && (
+            <>
+              <div className="hidden lg:block w-px self-stretch bg-border" />
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 min-w-0">
+                <div className="min-w-0">
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px] font-medium">
                     Departments
                   </p>
                   {departments.length === 0 ? (
-                    <p className="text-foreground mt-0.5">—</p>
+                    <p className="text-sm text-muted-foreground mt-1.5">—</p>
                   ) : (
-                    <ul className="mt-0.5 space-y-0.5">
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {departments.map((d) => (
-                        <li key={d.id}>
-                          <Link
-                            href={`/departments/${d.id}`}
-                            className="text-foreground hover:text-primary hover:underline truncate block"
-                          >
-                            {d.name}
-                          </Link>
-                        </li>
+                        <Badge
+                          key={d.id}
+                          variant="outline"
+                          render={<Link href={`/departments/${d.id}`} />}
+                        >
+                          {d.name}
+                        </Badge>
                       ))}
-                    </ul>
+                    </div>
                   )}
                 </div>
-                <div>
-                  <p className="text-muted-foreground uppercase tracking-wide text-[10px]">
+                <div className="min-w-0">
+                  <p className="text-muted-foreground uppercase tracking-wide text-[10px] font-medium">
                     Projects
                   </p>
-                  <p className="text-foreground mt-0.5" title={projects.join(", ")}>
-                    {projects.join(", ") || "—"}
-                  </p>
+                  {projects.length === 0 ? (
+                    <p className="text-sm text-muted-foreground mt-1.5">—</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {projects.map((p) => (
+                        <Badge key={p} variant="secondary">
+                          {p}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </CardContent>
       </Card>
 

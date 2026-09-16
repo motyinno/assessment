@@ -82,6 +82,7 @@ model User {
   name                 String
   email                String    @unique
   role                 UserRole  @default(USER)
+  isSuperAdmin         Boolean   @default(false) // gates HRM Sync + Departments, on top of ADMIN; granted by hand, never by HRM sync
   grade                String? // "jun-" / "jun" / "jun+" / "mid-" / ... see lib/grades.ts
   project              String?
   isArchived           Boolean   @default(false) // left the department; kept for historical assessments

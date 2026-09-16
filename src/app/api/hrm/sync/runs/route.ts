@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireSuperAdmin } from "@/lib/auth-helpers";
 import prisma from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ const MAX_PAGE_SIZE = 50;
 
 /** GET /api/hrm/sync/runs — paginated log of HRM sync runs, newest first. */
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireSuperAdmin();
   if (auth.error) return auth.error;
 
   const searchParams = new URL(req.url).searchParams;

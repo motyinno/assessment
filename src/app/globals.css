@@ -194,4 +194,41 @@
   .card-hover {
     @apply transition-shadow hover:shadow-md;
   }
+  /* Horizontally scrollable table wrapper: always-visible thin scrollbar +
+     edge shadows that fade in only where there's more content to reveal
+     (background-attachment: local scrolls with content, scroll stays fixed
+     to the viewport — the local layer cancels the shadow near the ends). */
+  .table-scroll {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    background-repeat: no-repeat;
+    background-color: var(--card);
+    background-image:
+      linear-gradient(to right, var(--card) 0%, transparent 24px),
+      linear-gradient(to left, var(--card) 0%, transparent 24px),
+      linear-gradient(to right, rgb(0 0 0 / 12%), transparent 12px),
+      linear-gradient(to left, rgb(0 0 0 / 12%), transparent 12px);
+    background-size:
+      24px 100%,
+      24px 100%,
+      12px 100%,
+      12px 100%;
+    background-position:
+      left,
+      right,
+      left,
+      right;
+    background-attachment: local, local, scroll, scroll;
+  }
+  .table-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+  .table-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .table-scroll::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 9999px;
+  }
 }

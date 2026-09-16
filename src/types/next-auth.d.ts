@@ -11,6 +11,7 @@ declare module "next-auth" {
       name: string;
       email: string;
       role: string;
+      isSuperAdmin: boolean;
       grade: string | null;
       project: string | null;
       managerId: string | null;
@@ -24,6 +25,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     role: string;
+    isSuperAdmin?: boolean;
     grade?: string | null;
     project?: string | null;
     managerId?: string | null;

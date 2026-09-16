@@ -15,6 +15,7 @@ interface SidebarProps {
     name: string;
     email: string;
     role: string;
+    isSuperAdmin?: boolean;
     photoFileName?: string | null;
   };
 }
@@ -33,15 +34,14 @@ const assessorItems = [
 ];
 
 // People-section items. Each carries the roles allowed to see the link —
-// "Departments" is open to everyone (S10, F5), "My Team" is MANAGER-only,
-// and the Users directory stays visible to MANAGER + ADMIN.
+// "My Team" is MANAGER-only, the Users directory stays visible to MANAGER +
+// ADMIN. "Departments" moved to superAdminItems below (SUPER_ADMIN only).
 const peopleItems: Array<{
   href: string;
   label: string;
   icon: string;
   roles: ReadonlyArray<"USER" | "ASSESSOR" | "MANAGER" | "ADMIN">;
 }> = [
-  { href: "/departments", label: "Departments", icon: "sitemap", roles: ["USER", "ASSESSOR", "MANAGER", "ADMIN"] },
   { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
 ];
@@ -52,6 +52,12 @@ const adminItems = [
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
   { href: "/pdp-review", label: "PDP Review", icon: "file-text" },
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
+];
+
+// SUPER_ADMIN-only items: org structure browsing + the HRM sync console.
+// Gated by `user.isSuperAdmin`, not just `role === "ADMIN"` (see lib/roles.ts).
+const superAdminItems = [
+  { href: "/departments", label: "Departments", icon: "sitemap" },
   { href: "/admin/hrm-sync", label: "HRM Sync", icon: "refresh" },
 ];
 
@@ -339,6 +345,40 @@ export function AppSidebar({ user }: SidebarProps) {
               </p>
             </div>
             {configItems.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  )}
+                >
+                  <NavIcon
+                    name={item.icon}
+                    className={cn(
+                      "w-[18px] h-[18px] shrink-0 transition-colors",
+                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+                    )}
+                  />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              );
+            })}
+          </>
+        )}
+
+        {user.isSuperAdmin && (
+          <>
+            <div className="pt-5 pb-2 px-3">
+              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
+                Super Admin
+              </p>
+            </div>
+            {superAdminItems.map((item) => {
               const active = isActive(item.href);
               return (
                 <Link

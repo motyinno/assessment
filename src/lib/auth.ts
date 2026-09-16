@@ -154,6 +154,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             id: true,
             name: true,
             role: true,
+            isSuperAdmin: true,
             grade: true,
             project: true,
             managerId: true,
@@ -164,6 +165,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (dbUser) {
           token.id = dbUser.id;
           token.role = dbUser.role;
+          token.isSuperAdmin = dbUser.isSuperAdmin;
           token.name = dbUser.name;
           token.grade = dbUser.grade ?? null;
           token.project = dbUser.project ?? null;
@@ -188,6 +190,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         };
         u.id = token.id as string;
         u.role = token.role as string;
+        u.isSuperAdmin = (token.isSuperAdmin ?? false) as boolean;
         u.grade = (token.grade ?? null) as string | null;
         u.project = (token.project ?? null) as string | null;
         u.managerId = (token.managerId ?? null) as string | null;

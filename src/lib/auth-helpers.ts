@@ -1,7 +1,7 @@
 import type { Session } from "next-auth";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { isStaff, isAdmin, canManagePeople } from "@/lib/roles";
+import { isStaff, isAdmin, canManagePeople, isSuperAdmin } from "@/lib/roles";
 import { unauthorized, forbidden, notFound } from "@/lib/api-helpers";
 import { sessionFromBearerToken } from "@/lib/api-tokens";
 
@@ -31,6 +31,16 @@ export async function requireAdmin(): Promise<AuthGuard> {
   const a = await requireAuth();
   if (a.error) return a;
   if (!isAdmin(a.session.user.role)) {
+    return { error: forbidden(), session: null };
+  }
+  return a;
+}
+
+/** Caller must have the super-admin flag (HRM Sync + Departments). */
+export async function requireSuperAdmin(): Promise<AuthGuard> {
+  const a = await requireAuth();
+  if (a.error) return a;
+  if (!isSuperAdmin(a.session.user)) {
     return { error: forbidden(), session: null };
   }
   return a;

@@ -137,15 +137,15 @@ export default function AssessmentsPage() {
                   <TableHead>Title</TableHead>
                   <TableHead>Grade</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Participants</TableHead>
+                  <TableHead>Assessors</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead className="text-right pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((a) => {
-                  const subjects = a.participants
-                    .filter((p) => p.participantRole === "SUBJECT")
+                  const assessors = a.participants
+                    .filter((p) => p.participantRole === "ASSESSOR")
                     .map((p) => p.user.name);
                   return (
                     <TableRow key={a.id} className="group/row">
@@ -163,7 +163,7 @@ export default function AssessmentsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                        {subjects.join(", ") || "—"}
+                        {assessors.join(", ") || "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {a.scheduledAt
