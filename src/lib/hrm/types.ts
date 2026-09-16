@@ -52,6 +52,12 @@ export interface HrmProject {
  * `orgUnitTypeDto` on OrgUnitDto. Field names are as HRM actually sends them
  * (confirmed against swagger + a live stage response) — NOT "name"/"id" as
  * originally guessed before S01's stage run.
+ *
+ * `lifecycleStatus` here is the source for Prisma `Department.isActive`
+ * (S02): `HrmOrgUnit` itself has no `lifecycleStatus` field (0/436 on a live
+ * sample) — it only exists on the unit's *type*, so `isActive` is derived as
+ * `orgUnitTypeDto.lifecycleStatus !== "DELETED"`, one value shared by every
+ * unit of that type.
  */
 export interface HrmOrgUnitTypeDto {
   id?: number | null;
@@ -111,6 +117,13 @@ export interface HrmEmployee {
  * EmployeeShortInfoDto-shaped object, deliberately left as `unknown` here —
  * it's a different, richer shape than the employee-search DTO
  * (HrmEmployee) and S01 doesn't need to model it.
+ *
+ * No `isActive`/`lifecycleStatus` field on this type on purpose: HRM sends it
+ * only on `orgUnitTypeDto.lifecycleStatus` (see `HrmOrgUnitTypeDto` above),
+ * which is what Prisma `Department.isActive` (S02) is derived from.
+ * `headId`/`deputyId`/`resourceManagerId` can also be absent as a key rather
+ * than `null` (135/436, 135/436, 366/436 on a live sample) — read with
+ * `unit.headId ?? null`, not `"headId" in unit`.
  */
 export interface HrmOrgUnit {
   id?: number | null;
