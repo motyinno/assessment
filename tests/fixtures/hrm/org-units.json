@@ -1,0 +1,210 @@
+[
+  {
+    "id": 473,
+    "orgUnitName": "test test test",
+    "orgUnitTypeId": 8,
+    "reportsToOrgUnitTypeId": 1,
+    "reportsToId": 51,
+    "headId": 782,
+    "deputyId": 782,
+    "unitManagers": [],
+    "orgUnitTypeDto": {
+      "id": 8,
+      "orgUnitTypeName": "test",
+      "orgUnitTypeNameRu": "test",
+      "orgUnitTypeNameEn": "test",
+      "orgUnitTypeMinSize": 22,
+      "orgUnitTypeMaxSize": 22,
+      "orgUnitTypeColor": "#000000",
+      "orgUnitManagerialLevelId": "3e673906-9b37-4ae2-ba39-3669031300a2",
+      "lifecycleStatus": "DELETED",
+      "isReadOnly": false,
+      "isSinglePerson": false,
+      "isFilterable": true
+    },
+    "reportsToOrgUnit": {
+      "id": 473,
+      "orgUnitName": "test test test",
+      "orgUnitTypeId": 8,
+      "reportsToOrgUnitTypeId": 1,
+      "reportsToId": 51,
+      "headId": 782,
+      "deputyId": 782,
+      "production": false
+    },
+    "production": false
+  },
+  {
+    "id": 741,
+    "orgUnitName": "...222221",
+    "orgUnitTypeId": 5,
+    "reportsToOrgUnitTypeId": 6,
+    "reportsToId": 3,
+    "headId": 4795,
+    "deputyId": 4795,
+    "unitManagers": [],
+    "orgUnitTypeDto": {
+      "id": 5,
+      "orgUnitTypeName": "Человек",
+      "orgUnitTypeNameRu": "Человек",
+      "orgUnitTypeNameEn": "Person",
+      "orgUnitTypeMinSize": 1,
+      "orgUnitTypeMaxSize": 1,
+      "orgUnitTypeColor": "#E9E9E9",
+      "orgUnitManagerialLevelId": "a219f00c-6aba-4947-9265-e56b82ed62d8",
+      "lifecycleStatus": "ACTUAL",
+      "isReadOnly": true,
+      "isSinglePerson": true,
+      "isFilterable": false
+    },
+    "reportsToOrgUnit": {
+      "id": 743,
+      "orgUnitName": "..4.1",
+      "orgUnitTypeId": 1,
+      "reportsToOrgUnitTypeId": 6,
+      "reportsToId": 3,
+      "headId": 4795,
+      "deputyId": 4795,
+      "production": true
+    },
+    "production": true
+  },
+  {
+    "id": 736,
+    "orgUnitName": ".....",
+    "orgUnitTypeId": 1,
+    "reportsToOrgUnitTypeId": 3,
+    "reportsToId": 1124,
+    "headId": 4794,
+    "deputyId": 4795,
+    "unitManagers": [
+      {
+        "id": 360,
+        "orgUnit": {
+          "id": 736,
+          "orgUnitName": ".....",
+          "orgUnitTypeId": 1,
+          "reportsToOrgUnitTypeId": 3,
+          "reportsToId": 1124,
+          "headId": 4794,
+          "deputyId": 4795,
+          "production": false
+        },
+        "manager": {
+          "id": 4791,
+          "email": "test.new@innowise.com",
+          "jobTitleId": "f2812a29-5397-47ae-9bf4-ac2555dd7244",
+          "firstNameRu": "тест",
+          "lastNameRu": "новый",
+          "firstNameEn": "test",
+          "lastNameEn": "new",
+          "linkProfilePicture": "",
+          "linkProfilePictureMini": ""
+        },
+        "managerType": {
+          "id": 6,
+          "type": "PRIMARY_RM",
+          "typeValueId": "f7a87193-d08b-47fa-803d-6fe72ca413ec",
+          "isRequired": true,
+          "permissionPostfix": "RESOURCE_MANAGER",
+          "isVisible": true
+        }
+      }
+    ],
+    "orgUnitTypeDto": {
+      "id": 1,
+      "orgUnitTypeName": "Отдел",
+      "orgUnitTypeNameRu": "Отдел",
+      "orgUnitTypeNameEn": "Department",
+      "orgUnitTypeMinSize": 25,
+      "orgUnitTypeMaxSize": 100,
+      "orgUnitTypeColor": "#64b6ff",
+      "orgUnitManagerialLevelId": "5db1506d-07e2-4a59-b7c4-850b9b6b26ee",
+      "lifecycleStatus": "ACTUAL",
+      "isReadOnly": true,
+      "isSinglePerson": false,
+      "isFilterable": true
+    },
+    "reportsToOrgUnit": {
+      "id": 736,
+      "orgUnitName": ".....",
+      "orgUnitTypeId": 1,
+      "reportsToOrgUnitTypeId": 3,
+      "reportsToId": 1124,
+      "headId": 4794,
+      "deputyId": 4795,
+      "production": false
+    },
+    "production": false
+  },
+  {
+    "id": 738,
+    "orgUnitName": "...221",
+    "orgUnitTypeId": 2,
+    "reportsToOrgUnitTypeId": 6,
+    "reportsToId": 3,
+    "headId": 4795,
+    "deputyId": 4795,
+    "unitManagers": [],
+    "orgUnitTypeDto": {
+      "id": 2,
+      "orgUnitTypeName": "Команда",
+      "orgUnitTypeNameRu": "Команда",
+      "orgUnitTypeNameEn": "Team",
+      "orgUnitTypeMinSize": 6,
+      "orgUnitTypeMaxSize": 25,
+      "orgUnitTypeColor": "#ea9999",
+      "orgUnitManagerialLevelId": "3e673906-9b37-4ae2-ba39-3669031300a2",
+      "lifecycleStatus": "ACTUAL",
+      "isReadOnly": true,
+      "isSinglePerson": false,
+      "isFilterable": true
+    },
+    "reportsToOrgUnit": {
+      "id": 743,
+      "orgUnitName": "..4.1",
+      "orgUnitTypeId": 1,
+      "reportsToOrgUnitTypeId": 6,
+      "reportsToId": 3,
+      "headId": 4795,
+      "deputyId": 4795,
+      "production": true
+    },
+    "production": true
+  },
+  {
+    "id": 739,
+    "orgUnitName": "...2221",
+    "orgUnitTypeId": 3,
+    "reportsToOrgUnitTypeId": 6,
+    "reportsToId": 3,
+    "headId": 4795,
+    "deputyId": 4795,
+    "unitManagers": [],
+    "orgUnitTypeDto": {
+      "id": 3,
+      "orgUnitTypeName": "Группа",
+      "orgUnitTypeNameRu": "Группа",
+      "orgUnitTypeNameEn": "Group",
+      "orgUnitTypeMinSize": 2,
+      "orgUnitTypeMaxSize": 5,
+      "orgUnitTypeColor": "#55b82a",
+      "orgUnitManagerialLevelId": "a219f00c-6aba-4947-9265-e56b82ed62d8",
+      "lifecycleStatus": "ACTUAL",
+      "isReadOnly": true,
+      "isSinglePerson": false,
+      "isFilterable": true
+    },
+    "reportsToOrgUnit": {
+      "id": 743,
+      "orgUnitName": "..4.1",
+      "orgUnitTypeId": 1,
+      "reportsToOrgUnitTypeId": 6,
+      "reportsToId": 3,
+      "headId": 4795,
+      "deputyId": 4795,
+      "production": true
+    },
+    "production": true
+  }
+]

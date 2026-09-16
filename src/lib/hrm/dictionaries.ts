@@ -40,6 +40,15 @@ export interface HrmDictionaries {
   professionalLevel: Map<string, string>;
   jobTitle: Map<string, string>;
   employeeStatus: Map<string, string>;
+  /**
+   * `professionalLevel` value id -> stable CODE (`value.value`, e.g.
+   * "JUNIOR_MINUS"), as opposed to `professionalLevel` above which maps to
+   * the locale-dependent `translation`. Populated alongside `professionalLevel`
+   * in the same pass; used by `src/lib/hrm/grade-map.ts` to key
+   * `HRM_GRADE_MAP`, since the translation ("Junior -", with a space before
+   * the dash) is too fragile to compare against.
+   */
+  professionalLevelCode: Map<string, string>;
 }
 
 export interface HrmDictionaryLoadInfo {
@@ -89,6 +98,7 @@ export function buildDictionaryMaps(
     professionalLevel: new Map(),
     jobTitle: new Map(),
     employeeStatus: new Map(),
+    professionalLevelCode: new Map(),
   };
   const sizes: Record<string, number> = {};
   let collisions = 0;
@@ -100,6 +110,9 @@ export function buildDictionaryMaps(
     for (const value of dict?.values ?? []) {
       const valueId = value.id ?? value.translations?.find((t) => t.valueId)?.valueId;
       if (!valueId) continue;
+      if (name === "professionalLevel" && value.value) {
+        dictionaries.professionalLevelCode.set(valueId, value.value);
+      }
       const best = pickBest(value.translations ?? [], preferredLanguageId);
       if (!best) continue;
       target.set(valueId, best.translation);

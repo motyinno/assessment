@@ -1,0 +1,836 @@
+[
+  {
+    "id": "13ba72eb-568a-4111-8268-cce80fae1072",
+    "name": "employeeStatus",
+    "values": [
+      {
+        "id": "e261e52c-6422-438d-b8a9-bf64a9f0aefe",
+        "value": "BUSINESS_TRIP",
+        "dictionaryId": "13ba72eb-568a-4111-8268-cce80fae1072",
+        "parentId": "0",
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "d114e5bb-47e6-4131-af29-833d485dff21",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Business trip",
+            "valueId": "e261e52c-6422-438d-b8a9-bf64a9f0aefe",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "0a68f819-75d7-4a0b-8d0e-f2dadff109fb",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Командировка",
+            "valueId": "e261e52c-6422-438d-b8a9-bf64a9f0aefe",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "15e6075f-850f-4440-8be2-f6a5e684d510",
+        "value": "CANDIDATE",
+        "dictionaryId": "13ba72eb-568a-4111-8268-cce80fae1072",
+        "parentId": "0",
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "d0bfb80b-bbe1-4c0e-8bf6-a461d5d4f0ad",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Candidate",
+            "valueId": "15e6075f-850f-4440-8be2-f6a5e684d510",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "8c0be19f-61bc-4891-9307-aab4143d201e",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Кандидат",
+            "valueId": "15e6075f-850f-4440-8be2-f6a5e684d510",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "52ff28a8-f569-49b0-9d97-cfa7e11cf077",
+        "value": "FIRED",
+        "dictionaryId": "13ba72eb-568a-4111-8268-cce80fae1072",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "1f71ce8d-2db9-4aff-bac0-603fad9c49b4",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Fired",
+            "valueId": "52ff28a8-f569-49b0-9d97-cfa7e11cf077",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "0d6d5f7c-1d63-4380-a491-a9601c4469e8",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Уволен",
+            "valueId": "52ff28a8-f569-49b0-9d97-cfa7e11cf077",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "2455b251-cc09-4a91-bcb9-911c88c6696e",
+        "value": "AT_WORK",
+        "dictionaryId": "13ba72eb-568a-4111-8268-cce80fae1072",
+        "parentId": "0",
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "29382270-e9d3-4fa4-a91d-b5b21781d8ec",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Working",
+            "valueId": "2455b251-cc09-4a91-bcb9-911c88c6696e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "3d41a73a-e26b-4445-9cb7-8bd54db3160c",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "На работе",
+            "valueId": "2455b251-cc09-4a91-bcb9-911c88c6696e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      }
+    ],
+    "translations": null,
+    "canBeDynamicallyUpdated": null
+  },
+  {
+    "id": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+    "name": "jobTitle",
+    "values": [
+      {
+        "id": "f2812a29-5397-47ae-9bf4-ac2555dd7244",
+        "value": ".NET_DEVELOPER",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "5ae475f0-8e92-4ac8-90d0-357376b3aff8",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": ".NET Developer",
+            "valueId": "f2812a29-5397-47ae-9bf4-ac2555dd7244",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "3b7cbd21-7a84-406f-9572-e96e09a84de9",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": ".NET Developer",
+            "valueId": "f2812a29-5397-47ae-9bf4-ac2555dd7244",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "cb3a2beb-7e58-4281-839a-b314290a0d12",
+        "value": "3D_DESIGNER",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "6671afa1-7738-4c43-9b22-4dbbd6189d99",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "3D Designer",
+            "valueId": "cb3a2beb-7e58-4281-839a-b314290a0d12",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "6598753c-bc40-466f-a345-e720869d24a9",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "3D Дизайнер",
+            "valueId": "cb3a2beb-7e58-4281-839a-b314290a0d12",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "217d7f80-ac2d-43ff-a14d-3534306c6aaa",
+        "value": "ANALYTICS_MANAGER",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "c709ffdd-c2d0-489f-a243-a817512c00e8",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Analytics Manager",
+            "valueId": "217d7f80-ac2d-43ff-a14d-3534306c6aaa",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "d1beaa12-d673-40c0-a014-3e07c1a3c18c",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Analytics Manager",
+            "valueId": "217d7f80-ac2d-43ff-a14d-3534306c6aaa",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "762f736f-2e31-4f94-98b8-c7471b90d50e",
+        "value": "BUSINESS_ANALYST",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "c41f3dd4-81bd-45a7-bcd9-cf735fef7194",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Business-analyst",
+            "valueId": "762f736f-2e31-4f94-98b8-c7471b90d50e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "6683c549-dcf7-4728-8ee3-53b723f2ae4f",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Бизнес-аналитик",
+            "valueId": "762f736f-2e31-4f94-98b8-c7471b90d50e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "7d3d16ef-61b5-41ef-b401-17de604b9fec",
+        "value": "DEPARTMENT_LEAD",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "13668c75-e8f3-49f2-b0d6-46fc801382e0",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Department Lead",
+            "valueId": "7d3d16ef-61b5-41ef-b401-17de604b9fec",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "98fa5bf4-3efc-4d79-9c1b-abe959b7cda7",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Глава отдела",
+            "valueId": "7d3d16ef-61b5-41ef-b401-17de604b9fec",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "bba43f3d-74ed-40e1-93c5-01012ca3057f",
+        "value": "JAVA_DEVELOPER",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "7bfe4023-ffd9-4813-b2fc-ac949de649c1",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Java developer",
+            "valueId": "bba43f3d-74ed-40e1-93c5-01012ca3057f",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "68f92353-c36d-4208-a9d0-ce97dcd5fea5",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Java developer",
+            "valueId": "bba43f3d-74ed-40e1-93c5-01012ca3057f",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "cddc2f9c-78d6-4fee-bb6c-8b66de916c20",
+        "value": "PYTHON_DEVELOPER",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "ba564270-a2b7-4faf-8f2b-986e271cf63e",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Python developer",
+            "valueId": "cddc2f9c-78d6-4fee-bb6c-8b66de916c20",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "245c0095-909f-422c-bee4-33a4bdeeb1fd",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Python developer",
+            "valueId": "cddc2f9c-78d6-4fee-bb6c-8b66de916c20",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "16810ee4-be3d-4f2d-ae73-261c641cf375",
+        "value": "SALES_MANAGER",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "64360dc4-8059-491c-a719-06745624740f",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Sales Manager",
+            "valueId": "16810ee4-be3d-4f2d-ae73-261c641cf375",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "2f3e564a-1099-4886-889a-1c26b53dfcaf",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Менеджер по продажам",
+            "valueId": "16810ee4-be3d-4f2d-ae73-261c641cf375",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "0fb6e22e-832e-4475-8c2b-076400d7fc0a",
+        "value": "SYSTEM_ADMINISTRATOR",
+        "dictionaryId": "c9ca06b6-7b53-431f-bdb5-1e0d2d4c10cc",
+        "parentId": null,
+        "orderValue": null,
+        "translations": [
+          {
+            "id": "eb4f2645-50a8-40bd-8f7e-72268fd27ae6",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "System Administrator",
+            "valueId": "0fb6e22e-832e-4475-8c2b-076400d7fc0a",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "21e2631f-d319-42a4-817f-0a6fd0424466",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Системный Администратор",
+            "valueId": "0fb6e22e-832e-4475-8c2b-076400d7fc0a",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      }
+    ],
+    "translations": null,
+    "canBeDynamicallyUpdated": null
+  },
+  {
+    "id": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+    "name": "professionalLevel",
+    "values": [
+      {
+        "id": "d74ca5e9-1fc0-4fe4-9934-bcd21934ab5a",
+        "value": "TRAINEE",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 0,
+        "translations": [
+          {
+            "id": "dd8c85ee-6ebe-4891-99e5-cc23e14a5168",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Trainee",
+            "valueId": "d74ca5e9-1fc0-4fe4-9934-bcd21934ab5a",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "951e17df-fe3c-4fe2-ab5e-8f391d55f4a2",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Trainee",
+            "valueId": "d74ca5e9-1fc0-4fe4-9934-bcd21934ab5a",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "c92f5974-562c-4a95-8cab-6ce487b220e4",
+        "value": "INTERN",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 1,
+        "translations": [
+          {
+            "id": "32f7d375-71b7-4a04-b978-80985d9a12e1",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Intern",
+            "valueId": "c92f5974-562c-4a95-8cab-6ce487b220e4",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "3eac9b33-cf50-4667-8ea8-b12365756bf2",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Intern",
+            "valueId": "c92f5974-562c-4a95-8cab-6ce487b220e4",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "8afeea5d-7ef1-4bce-8325-ea2eb864564e",
+        "value": "JUNIOR_MINUS",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 2,
+        "translations": [
+          {
+            "id": "63dc31fc-1b20-4f9b-beda-70db4b9b8b66",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Junior -",
+            "valueId": "8afeea5d-7ef1-4bce-8325-ea2eb864564e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "b23fabe8-8014-4a8a-b2ff-6fd53f801743",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Junior -",
+            "valueId": "8afeea5d-7ef1-4bce-8325-ea2eb864564e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "9a888aea-2538-4991-9181-31bb96a06f6f",
+        "value": "JUNIOR",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 3,
+        "translations": [
+          {
+            "id": "70314d9b-1340-4780-8d6f-5aff268ba463",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Junior",
+            "valueId": "9a888aea-2538-4991-9181-31bb96a06f6f",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "ca46b6f1-e349-4176-b474-e81a52a15d25",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Junior",
+            "valueId": "9a888aea-2538-4991-9181-31bb96a06f6f",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "657e1647-78e8-4a06-a8e3-13b00a7daca6",
+        "value": "JUNIOR_PLUS",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 4,
+        "translations": [
+          {
+            "id": "467151d4-d2c2-4ceb-bd73-f1073c1d50da",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Junior +",
+            "valueId": "657e1647-78e8-4a06-a8e3-13b00a7daca6",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "f2b8356a-cdb7-4fa5-9271-87c2c1dfc382",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Junior +",
+            "valueId": "657e1647-78e8-4a06-a8e3-13b00a7daca6",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "619da825-7825-47fe-a059-190d1787b800",
+        "value": "MIDDLE_MINUS",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 5,
+        "translations": [
+          {
+            "id": "c976aa6a-0fae-4a8a-9e5f-39ba0b74966b",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Middle -",
+            "valueId": "619da825-7825-47fe-a059-190d1787b800",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "6fbf9a78-0d33-4357-b19e-1f26529ab5bc",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Middle -",
+            "valueId": "619da825-7825-47fe-a059-190d1787b800",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "756fd545-f7cd-4f02-856b-2762481d27f8",
+        "value": "MIDDLE",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 6,
+        "translations": [
+          {
+            "id": "c53e03aa-7f93-4248-b90a-1558767c774b",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Middle",
+            "valueId": "756fd545-f7cd-4f02-856b-2762481d27f8",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "edf0b82e-1f65-4d68-9941-6e0c8644b78f",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Middle",
+            "valueId": "756fd545-f7cd-4f02-856b-2762481d27f8",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "8dde81cd-f142-441f-afac-2769b71f044c",
+        "value": "MIDDLE_PLUS",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 7,
+        "translations": [
+          {
+            "id": "6f9137fc-429f-42d7-a11b-ea8951691674",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Middle +",
+            "valueId": "8dde81cd-f142-441f-afac-2769b71f044c",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "7175200e-763b-49ea-b2ef-44653bc4b9bf",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Middle +",
+            "valueId": "8dde81cd-f142-441f-afac-2769b71f044c",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "4d90760d-ebd1-4c7d-9ea1-2c7f4c7efdc0",
+        "value": "SENIOR_MINUS",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 8,
+        "translations": [
+          {
+            "id": "065bb214-7ddc-4691-b8ef-2627e81b057e",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Senior -",
+            "valueId": "4d90760d-ebd1-4c7d-9ea1-2c7f4c7efdc0",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "eb800879-189e-4b55-b821-5b51eff423a8",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Senior -",
+            "valueId": "4d90760d-ebd1-4c7d-9ea1-2c7f4c7efdc0",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "b23e2227-8f5f-426d-ab4f-78c1eece9aba",
+        "value": "SENIOR",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 9,
+        "translations": [
+          {
+            "id": "f8f1d403-31d9-4fc8-bbb8-dcc433dc6020",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Senior",
+            "valueId": "b23e2227-8f5f-426d-ab4f-78c1eece9aba",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "c78a0e6f-6ae4-4193-9f43-206bb3b307fb",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Senior",
+            "valueId": "b23e2227-8f5f-426d-ab4f-78c1eece9aba",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "1126946b-91c8-4182-95fe-0eaaae07aecd",
+        "value": "SENIOR_PLUS",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 10,
+        "translations": [
+          {
+            "id": "b4040c9a-872f-4b51-8786-8dc97b88089f",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Senior +",
+            "valueId": "1126946b-91c8-4182-95fe-0eaaae07aecd",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "2a3876d7-c246-419f-b6d3-77fa1873045d",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Senior +",
+            "valueId": "1126946b-91c8-4182-95fe-0eaaae07aecd",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "293ec835-d9b4-4107-a912-2fe36ad32487",
+        "value": "LEAD",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 11,
+        "translations": [
+          {
+            "id": "4554494a-5fb9-45b0-9f06-aead7d48996a",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Lead",
+            "valueId": "293ec835-d9b4-4107-a912-2fe36ad32487",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "a16b2b15-4fa4-401a-bf62-4ff37cb12797",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Lead",
+            "valueId": "293ec835-d9b4-4107-a912-2fe36ad32487",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "bd54436e-e909-4e91-8eda-11f12e20bad3",
+        "value": "ARCHITECT",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 12,
+        "translations": [
+          {
+            "id": "e065ca24-e963-4368-ad05-6b534877dfc8",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Architect",
+            "valueId": "bd54436e-e909-4e91-8eda-11f12e20bad3",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "8722e386-a705-49fe-bc8f-0dc15b2b6002",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Architect",
+            "valueId": "bd54436e-e909-4e91-8eda-11f12e20bad3",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      },
+      {
+        "id": "977abace-961c-4b9d-9e33-d8f6b3febd6e",
+        "value": "OTHER",
+        "dictionaryId": "206216fd-c583-41e2-ba6b-ea42d3f82393",
+        "parentId": "0",
+        "orderValue": 13,
+        "translations": [
+          {
+            "id": "cff4141a-a3f9-4095-82ea-630b5d8518f2",
+            "languageId": "5bcb1015-1880-49c8-a5f5-ab74a5db56f4",
+            "translation": "Other",
+            "valueId": "977abace-961c-4b9d-9e33-d8f6b3febd6e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          },
+          {
+            "id": "366c8652-7c49-4591-935d-270c4c5350ab",
+            "languageId": "2f85535f-f9c6-4c53-b74c-b39157cccbfd",
+            "translation": "Other",
+            "valueId": "977abace-961c-4b9d-9e33-d8f6b3febd6e",
+            "parentId": null,
+            "value": null,
+            "orderValue": null,
+            "lifecycleStatus": null
+          }
+        ],
+        "lifecycleStatus": null
+      }
+    ],
+    "translations": null,
+    "canBeDynamicallyUpdated": null
+  }
+]

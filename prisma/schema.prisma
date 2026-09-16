@@ -76,20 +76,28 @@ enum NotificationType {
 // ---- Models ----
 
 model User {
-  id                    String    @id @default(cuid())
-  name                  String
-  email                 String    @unique
-  role                  UserRole  @default(USER)
-  grade                 String? // "jun-" / "jun" / "jun+" / "mid-" / ... see lib/grades.ts
-  project               String?
-  isArchived            Boolean   @default(false) // left the department; kept for historical assessments
-  managerId             String?
-  googleId              String?   @unique // Google account id (OAuth `sub`); used to @mention/add the user in Google Chat
-  googleAccessToken     String?
-  googleRefreshToken    String?
-  googleTokenExpiresAt  DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  name                 String
+  email                String    @unique
+  role                 UserRole  @default(USER)
+  grade                String? // "jun-" / "jun" / "jun+" / "mid-" / ... see lib/grades.ts
+  project              String?
+  isArchived           Boolean   @default(false) // left the department; kept for historical assessments
+  managerId            String?
+  googleId             String?   @unique // Google account id (OAuth `sub`); used to @mention/add the user in Google Chat
+  googleAccessToken    String?
+  googleRefreshToken   String?
+  googleTokenExpiresAt DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  hrmEmployeeId Int?      @unique // employee.id
+  jobTitle      String? // resolved via jobTitle dictionary; exact source field decided by S03 (see hrm-payloads/employees-search.schema.md)
+  photoFileName String? // path like "photos/<uuid>.jpeg"; source decided by S04 (two mechanisms, see hrm-payloads/photos.schema.md)
+  projects      String[]  @default([]) // legacy `project` scalar stays; sync only writes `projects`
+  hrmManagerId  Int? // raw manager id before resolution; exact source field decided by S03
+  hrmSyncedAt   DateTime? // last time this row was refreshed from HRM; null = "not found in HRM"
+  hrmDismissed  Boolean   @default(false) // employee.lifecycleStatus == DELETED (confirmed)
 
   manager              User?                       @relation("manages", fields: [managerId], references: [id], onDelete: SetNull)
   reports              User[]                      @relation("manages")
@@ -103,8 +111,135 @@ model User {
   notifications        Notification[]
   certificates         Certificate[]
   roadmapProgress      RoadmapProgress[]
+  departments          UserDepartment[]
+  headedDepartments    Department[]                @relation("departmentHead")
+  deputyDepartments    Department[]                @relation("departmentDeputy")
+  roleAudit            RoleAuditLog[]              @relation("roleAuditSubject")
+  roleAuditActions     RoleAuditLog[]              @relation("roleAuditActor")
 
   @@index([managerId])
+  @@index([hrmEmployeeId])
+  @@index([isArchived])
+  @@index([name])
+}
+
+/// Org unit from HRM (`GET /org-units`).
+/// Never hard-deleted: a DELETED type flips isActive=false, references stay live.
+model Department {
+  id             String   @id @default(cuid())
+  hrmId          Int      @unique // orgUnit.id — idempotency key
+  name           String // orgUnit.orgUnitName ← was "name" in the earlier comment
+  orgUnitTypeId  Int?
+  typeName       String? // orgUnitTypeDto.orgUnitTypeName
+  isFilterable   Boolean  @default(true) // orgUnitTypeDto.isFilterable
+  isSinglePerson Boolean  @default(false) // orgUnitTypeDto.isSinglePerson — single-seat positions (CEO/CTO)
+  parentHrmId    Int? // reportsToId, raw id before resolution; may not resolve (see risks)
+  parentId       String? // resolved in a second pass
+  path           String   @default("")
+  depth          Int      @default(0)
+  headUserId     String?
+  deputyUserId   String?
+  isActive       Boolean  @default(true) // orgUnitTypeDto.lifecycleStatus != DELETED ← was the unit's own "lifecycleStatus" (no such field exists)
+  syncedAt       DateTime @updatedAt
+
+  parent   Department?      @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Department[]     @relation("depTree")
+  head     User?            @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  deputy   User?            @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
+  members  UserDepartment[]
+
+  @@index([parentId])
+  @@index([isActive])
+  @@index([path])
+}
+
+/// A person's membership in a unit. Confirmed by a live run: an employee
+/// genuinely has several orgUnits[] entries (~2.6 on average over a 60-person
+/// sample, see hrm-payloads/employees-search.schema.md) — there's no "primary" unit.
+model UserDepartment {
+  userId       String
+  departmentId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, departmentId])
+  @@index([departmentId])
+}
+
+/// Log of sync runs.
+model HrmSyncRun {
+  id         String    @id @default(cuid())
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String // RUNNING | SUCCESS | PARTIAL | FAILED | ABORTED_GUARD | DRY_RUN
+  trigger    String // CRON | MANUAL | LOGIN
+  dryRun     Boolean   @default(false)
+
+  employeesSeen       Int @default(0)
+  usersCreated        Int @default(0)
+  usersUpdated        Int @default(0)
+  usersDismissed      Int @default(0)
+  usersRestored       Int @default(0)
+  departmentsUpserted Int @default(0)
+  membershipsAdded    Int @default(0)
+  membershipsRemoved  Int @default(0)
+  rolesGranted        Int @default(0)
+  adminsGranted       Int @default(0)
+  managersResolved    Int @default(0)
+
+  failureReason String?
+  report        Json?
+
+  issues HrmSyncIssue[]
+
+  @@index([startedAt])
+  @@index([status])
+}
+
+/// A single "needs a human look" record — feeds the Exceptions tab (S07).
+/// PARENT_UNRESOLVED is not hypothetical: on a live sample, 44 of 436 units
+/// have a reportsToId pointing at an id absent from that same HRM response.
+model HrmSyncIssue {
+  id            String   @id @default(cuid())
+  runId         String
+  kind          String // NO_CORP_EMAIL | DUPLICATE_EMAIL | GRADE_UNMAPPED |
+  // MANAGER_UNRESOLVED | PARENT_UNRESOLVED | HEAD_UNRESOLVED
+  hrmEmployeeId Int?
+  email         String?
+  userId        String?
+  message       String
+  createdAt     DateTime @default(now())
+
+  run HrmSyncRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([kind])
+}
+
+/// Audit of every role change — automatic or manual.
+/// hrmField is a free-form string; reference values live in
+/// hrm-payloads/employees-search.schema.md (manager | managerM1..M5 |
+/// employeeManagers[].managerType.type | headId) — NOT what the original spec
+/// assumed (fields like employeeManagerId don't exist in the response).
+model RoleAuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  previousRole UserRole
+  newRole      UserRole
+  source       String // HRM_SYNC | MANUAL
+  hrmField     String?
+  runId        String?
+  actorId      String?
+  createdAt    DateTime @default(now())
+
+  user  User  @relation("roleAuditSubject", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("roleAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([newRole])
 }
 
 /// A certificate a user adds to their profile. Stored as the bare code
@@ -145,16 +280,16 @@ model ApiToken {
 }
 
 model Assessment {
-  id                 String             @id @default(cuid())
-  title              String
-  status             AssessmentStatus   @default(PLANNED)
-  assessmentType     AssessmentTypeEnum @default(GENERAL)
-  grade              String
-  scheduledAt        DateTime?
-  completedAt        DateTime?
-  notes              String?
-  aiFeedback         String?
-  pdpTopics          Json?
+  id                   String                 @id @default(cuid())
+  title                String
+  status               AssessmentStatus       @default(PLANNED)
+  assessmentType       AssessmentTypeEnum     @default(GENERAL)
+  grade                String
+  scheduledAt          DateTime?
+  completedAt          DateTime?
+  notes                String?
+  aiFeedback           String?
+  pdpTopics            Json?
   // Admin review of a finished assessment: the assessor "ends" it (PENDING),
   // then an admin decides whether to upgrade the subject's grade (REVIEWED).
   reviewStatus         AssessmentReviewStatus @default(NONE)
@@ -172,9 +307,9 @@ model Assessment {
   /// Optional Google Calendar guest auto-invited to every Meet for this
   /// assessment. Falls back to OPTIONAL_MEETING_GUEST_EMAIL env var when
   /// unset. Empty string and null both mean "no guest".
-  optionalGuestEmail String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  optionalGuestEmail   String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
 
   participants    AssessmentParticipant[]
   results         AssessmentResult[]
@@ -219,22 +354,22 @@ model AssessmentResult {
 }
 
 model Pdp {
-  id           String    @id @default(cuid())
-  userId       String
-  createdById  String?
-  assessmentId String?
-  fileName     String
-  driveFileId  String?
-  driveLink    String?
-  status       PdpStatus @default(DRAFT)
-  error        String?
-  reviewNotes  String?
-  topicsJson   Json
+  id               String    @id @default(cuid())
+  userId           String
+  createdById      String?
+  assessmentId     String?
+  fileName         String
+  driveFileId      String?
+  driveLink        String?
+  status           PdpStatus @default(DRAFT)
+  error            String?
+  reviewNotes      String?
+  topicsJson       Json
   // Original generation inputs ({ topicIds, customTopics }) so a FAILED pdp can
   // be retried in place without re-selecting topics. Null for legacy rows.
   generationInputs Json?
-  startedAt    DateTime  @default(now())
-  createdAt    DateTime  @default(now())
+  startedAt        DateTime  @default(now())
+  createdAt        DateTime  @default(now())
 
   user       User        @relation(fields: [userId], references: [id])
   createdBy  User?       @relation("createdPdps", fields: [createdById], references: [id])
@@ -394,11 +529,11 @@ model SessionTemplate {
 /// preserved from the seed JSON so RoadmapProgress / SelfAssessment references
 /// (which key on section/topic id strings) stay valid across the DB migration.
 model MatrixSection {
-  id        String        @id
+  id        String   @id
   title     String
   order     Int
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   topics MatrixTopic[]
 }
@@ -407,15 +542,15 @@ model MatrixSection {
 /// strings ("questions") per grade band — kept as string arrays so they keep
 /// matching RoadmapProgress.resolvedSkills exactly.
 model MatrixTopic {
-  id        String        @id
+  id        String   @id
   sectionId String
   title     String
   order     Int
-  jun       String[]      @default([])
-  mid       String[]      @default([])
-  sen       String[]      @default([])
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  jun       String[] @default([])
+  mid       String[] @default([])
+  sen       String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   section MatrixSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
 

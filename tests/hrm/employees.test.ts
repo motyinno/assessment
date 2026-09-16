@@ -4,7 +4,7 @@ import { isHrmError } from "@/lib/hrm/http";
 import type { HrmEmployee } from "@/lib/hrm/types";
 
 function employees(n: number): HrmEmployee[] {
-  return Array.from({ length: n }, (_, i) => ({ id: String(i), email: `u${i}@x.com` }));
+  return Array.from({ length: n }, (_, i) => ({ id: i, email: `u${i}@x.com` }));
 }
 
 describe("normalizeEmployeePage", () => {
