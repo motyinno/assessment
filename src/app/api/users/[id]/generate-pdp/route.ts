@@ -5,6 +5,7 @@ import { gradeLabel } from "@/lib/grades";
 import { getValidAccessToken } from "@/lib/google-auth";
 import { generatePdpSchema } from "@/lib/schemas";
 import { resolveSelectedTopics, runPdpGeneration } from "@/lib/pdp-generation";
+import { resolveUserDivision } from "@/lib/user-division";
 import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 export const runtime = "nodejs";
@@ -37,7 +38,8 @@ export async function POST(
     return badRequest("Connect Google Drive in your profile — PDPs need somewhere to be saved");
   }
 
-  const selected = await resolveSelectedTopics({ topicIds, customTopics }, user.grade);
+  const division = await resolveUserDivision(targetUserId);
+  const selected = await resolveSelectedTopics({ topicIds, customTopics }, user.grade, division?.id ?? null);
   if (selected.length === 0) {
     return badRequest("None of the selected topics match the grade");
   }
@@ -63,6 +65,7 @@ export async function POST(
     userGradeLabel: gradeLabel(user.grade),
     selected,
     fileName,
+    departmentId: division?.id ?? null,
   });
 
   return NextResponse.json(pdp, { status: 202 });

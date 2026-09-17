@@ -58,3 +58,48 @@ describe("rebuildDepartmentPaths", () => {
     expect(result.get("orphan")).toEqual({ path: "orphan", depth: 0 });
   });
 });
+
+describe("rebuildDepartmentPaths — cycles", () => {
+  it("breaks a cycle at exactly one node and gives it depth 0", () => {
+    // A -> B -> C -> A (parentId points at the PARENT, so A's parent is B).
+    const paths = rebuildDepartmentPaths([
+      { id: "A", parentId: "B" },
+      { id: "B", parentId: "C" },
+      { id: "C", parentId: "A" },
+    ]);
+
+    const roots = ["A", "B", "C"].filter((id) => paths.get(id)!.depth === 0);
+    expect(roots).toHaveLength(1);
+  });
+
+  it("never repeats a node inside its own path", () => {
+    // The regression: the outer call used to overwrite the cycle-broken root
+    // with a path walked back through the cycle, so every node ended up with
+    // depth > 0 and its own id twice in `path`.
+    const paths = rebuildDepartmentPaths([
+      { id: "A", parentId: "B" },
+      { id: "B", parentId: "C" },
+      { id: "C", parentId: "A" },
+      { id: "leaf", parentId: "A" },
+    ]);
+
+    for (const [id, info] of paths) {
+      const segments = info.path.split("/");
+      expect(new Set(segments).size, `duplicate segment in path of ${id}: ${info.path}`).toBe(
+        segments.length
+      );
+      expect(segments[segments.length - 1]).toBe(id);
+      expect(info.depth).toBe(segments.length - 1);
+    }
+  });
+
+  it("a node outside the cycle still hangs below it", () => {
+    const paths = rebuildDepartmentPaths([
+      { id: "A", parentId: "B" },
+      { id: "B", parentId: "A" },
+      { id: "leaf", parentId: "A" },
+    ]);
+    expect(paths.get("leaf")!.path.endsWith("/leaf")).toBe(true);
+    expect(paths.get("leaf")!.depth).toBeGreaterThan(0);
+  });
+});

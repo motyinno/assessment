@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
+import { isUserInScope } from "@/lib/admin-scope";
 import { countForType, suggestAssessors } from "@/lib/assessor-suggestion";
-import { notFound } from "@/lib/api-helpers";
+import { forbidden, notFound } from "@/lib/api-helpers";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
 
   const { id } = await params;
@@ -21,6 +22,7 @@ export async function GET(
     select: { userId: true, grade: true },
   });
   if (!request) return notFound("Request not found");
+  if (!(await isUserInScope(request.userId, auth.scope))) return forbidden();
 
   const candidates = await suggestAssessors({
     subjectId: request.userId,

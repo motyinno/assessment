@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { assertCanEditDivision } from "@/lib/user-division";
 import { patchSectionSchema } from "@/lib/schemas";
 import { notFound, parseJsonBody } from "@/lib/api-helpers";
 
@@ -16,6 +17,9 @@ export async function PATCH(
   const { id } = params;
   const existing = await prisma.matrixSection.findUnique({ where: { id } });
   if (!existing) return notFound("Section not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, existing.departmentId);
+  if (scopeError) return scopeError;
 
   const parsed = await parseJsonBody(req, patchSectionSchema);
   if (parsed.error) return parsed.error;
@@ -42,6 +46,9 @@ export async function DELETE(
   const { id } = params;
   const existing = await prisma.matrixSection.findUnique({ where: { id } });
   if (!existing) return notFound("Section not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, existing.departmentId);
+  if (scopeError) return scopeError;
 
   // Topics cascade via the FK. Any RoadmapProgress / SelfAssessment rows that
   // referenced this section's topics are left orphaned but harmless — they are

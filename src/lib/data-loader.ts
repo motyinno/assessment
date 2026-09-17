@@ -108,20 +108,20 @@ export function loadTechMatrixFromFile(): TechMatrix {
 }
 
 /**
- * Load the tech matrix from the DB (MatrixSection + MatrixTopic), ordered by
- * `order`. Falls back to the seed JSON file when the tables are still empty
- * (pre-migration / before the seed script has run). The response shape matches
- * the {@link TechMatrix} type consumed across the app.
+ * Load one department's tech matrix (MatrixSection + MatrixTopic scoped to
+ * `departmentId`), ordered by `order`. Every department starts with an empty
+ * matrix (`{ sections: [] }`) until an admin builds one — that's a normal
+ * result, not a fallback case. `loadTechMatrixFromFile()` (the pre-department
+ * seed JSON) is no longer consulted here; it stays only as a utility for
+ * `scripts/seed-tech-matrix.ts`. See lib/user-division.ts for how a
+ * `departmentId` is resolved for a given person.
  */
-export async function loadTechMatrix(): Promise<TechMatrix> {
+export async function loadTechMatrix(departmentId: string): Promise<TechMatrix> {
   const sections = await prisma.matrixSection.findMany({
+    where: { departmentId },
     orderBy: { order: "asc" },
     include: { topics: { orderBy: { order: "asc" } } },
   });
-
-  if (sections.length === 0) {
-    return loadTechMatrixFromFile();
-  }
 
   return {
     sections: sections.map((s) => ({

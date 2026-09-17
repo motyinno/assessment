@@ -44,6 +44,11 @@ interface SessionTemplate {
   enabled: boolean;
 }
 
+interface Division {
+  id: string;
+  name: string;
+}
+
 const GRADE_BANDS = ["jun", "mid", "sen"] as const;
 const ASSESSMENT_TYPES = ["GENERAL", "PDP_CHECK"] as const;
 const BAND_LABELS: Record<string, string> = {
@@ -85,6 +90,12 @@ export default function SessionTemplatesPage() {
 
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = role === "ADMIN";
+  const isSuperAdmin = !!(session?.user as { isSuperAdmin?: boolean } | undefined)?.isSuperAdmin;
+
+  const [divisions, setDivisions] = useState<Division[]>([]);
+  const [ownDivision, setOwnDivision] = useState<Division | null>(null);
+  const [divisionId, setDivisionId] = useState<string>("");
+  const [divisionsLoaded, setDivisionsLoaded] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -92,11 +103,28 @@ export default function SessionTemplatesPage() {
       router.push("/dashboard");
       return;
     }
-    fetchTemplates();
+    fetch("/api/tech-matrix/divisions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { divisions: Division[]; own: Division | null } | null) => {
+        if (!data) return;
+        setDivisions(data.divisions);
+        setOwnDivision(data.own);
+        // Plain admin: only ever their own division. Super-admin: default to
+        // the first one alphabetically until they pick another.
+        setDivisionId(data.own?.id ?? data.divisions[0]?.id ?? "");
+        setDivisionsLoaded(true);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, isAdmin, router]);
 
-  async function fetchTemplates() {
-    const res = await fetch("/api/session-templates");
+  useEffect(() => {
+    if (!divisionId) return;
+    fetchTemplates(divisionId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [divisionId]);
+
+  async function fetchTemplates(forDivisionId: string) {
+    const res = await fetch(`/api/session-templates?departmentId=${forDivisionId}`);
     if (res.ok) setTemplates(await res.json());
   }
 
@@ -162,6 +190,7 @@ export default function SessionTemplatesPage() {
           durationMin,
           order,
           enabled: form.enabled,
+          departmentId: divisionId,
         }),
       });
     }
@@ -169,7 +198,7 @@ export default function SessionTemplatesPage() {
     setSaving(false);
     if (res.ok) {
       setOpen(false);
-      fetchTemplates();
+      fetchTemplates(divisionId);
     } else {
       const data = await res.json().catch(() => null);
       setError(data?.error?.message || "Failed to save session template");
@@ -186,7 +215,7 @@ export default function SessionTemplatesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled }),
     });
-    if (!res.ok) fetchTemplates(); // revert to server truth on failure
+    if (!res.ok) fetchTemplates(divisionId); // revert to server truth on failure
   }
 
   async function handleDelete(t: SessionTemplate) {
@@ -200,7 +229,7 @@ export default function SessionTemplatesPage() {
     const res = await fetch(`/api/session-templates/${t.id}`, {
       method: "DELETE",
     });
-    if (res.ok) fetchTemplates();
+    if (res.ok) fetchTemplates(divisionId);
   }
 
   const rowsFor = (
@@ -243,6 +272,22 @@ export default function SessionTemplatesPage() {
 
   if (!isAdmin) return null;
 
+  if (divisionsLoaded && !isSuperAdmin && !ownDivision) {
+    return (
+      <div className="space-y-6">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Session templates</h1>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          No division resolved for your account — contact a super-admin to configure
+          session templates.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="page-header">
@@ -252,7 +297,28 @@ export default function SessionTemplatesPage() {
             Configure how many sessions and which types are generated for new
             assessments, per grade band. Toggle a session off to skip it without
             deleting it.
+            {ownDivision && <> — showing <strong>{ownDivision.name}</strong>.</>}
           </p>
+          {isSuperAdmin && divisions.length > 0 && (
+            <div className="mt-2">
+              <Select value={divisionId} onValueChange={(v) => v && setDivisionId(v)}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Choose a division">
+                    {(v: unknown) =>
+                      typeof v === "string" ? (divisions.find((d) => d.id === v)?.name ?? "") : ""
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {divisions.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger render={<Button size="lg" onClick={openCreate} />}>

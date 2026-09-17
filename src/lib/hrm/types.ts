@@ -159,6 +159,10 @@ export interface HrmEmployee {
   employeeStatus?: string | null;
   formatOfWork?: string | null;
 
+  /** Confirmed live (tests/fixtures/hrm/employees-actual.json) — the "Mentor"/"DC" rows of HRM's own profile card. */
+  isMentor?: boolean | null;
+  isDeliveryCoordinator?: boolean | null;
+
   hireDate?: string | null;
   registrationDate?: string | null;
   createdDate?: string | null;
@@ -307,4 +311,24 @@ export const HRM_DICTIONARY_NAMES = [
   "professionalLevel",
   "jobTitle",
   "employeeStatus",
+  // `employee.managerialLevelId` — the "M-level" (M1..M5) row of HRM's profile
+  // card. Not every employee has one (only 1 of 5 in the live-derived fixture).
+  "managerialLevel",
 ] as const;
+
+/**
+ * `Department.typeName` values, root-first — the org levels HRM models and the
+ * exact rows of the "Org. structure" card. Kept here (next to the wire types
+ * they come from) rather than in the UI, because both the sync and every read
+ * surface need the same ordering and the same spellings.
+ *
+ * `typeName` is `orgUnitTypeDto.orgUnitTypeNameEn` (see mapOrgUnit), so these
+ * are the English names. A unit whose type is none of these (HRM has a few,
+ * e.g. the "test" type in the fixtures) simply has no slot and is not shown.
+ */
+export const HRM_ORG_UNIT_TYPES = ["Unit", "Division", "Department", "Team", "Group", "Person"] as const;
+
+export type HrmOrgUnitType = (typeof HRM_ORG_UNIT_TYPES)[number];
+
+/** The one level the product splits people by — see `User.divisionId`. */
+export const HRM_DIVISION_TYPE: HrmOrgUnitType = "Division";

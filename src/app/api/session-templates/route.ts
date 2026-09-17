@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { resolveEditableDivision } from "@/lib/user-division";
 import { createSessionTemplateSchema } from "@/lib/schemas";
 import { badRequest, conflict, parseJsonBody } from "@/lib/api-helpers";
 
@@ -18,11 +19,16 @@ function slugifyKey(title: string): string {
   );
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireAdmin();
   if (auth.error) return auth.error;
 
+  const requestedDepartmentId = req.nextUrl.searchParams.get("departmentId");
+  const division = await resolveEditableDivision(auth.session.user, requestedDepartmentId);
+  if (division.error) return division.error;
+
   const templates = await prisma.sessionTemplate.findMany({
+    where: { departmentId: division.departmentId },
     orderBy: [
       { assessmentType: "asc" },
       { gradeBand: "asc" },
@@ -38,13 +44,17 @@ export async function POST(req: NextRequest) {
 
   const parsed = await parseJsonBody(req, createSessionTemplateSchema);
   if (parsed.error) return parsed.error;
-  const { assessmentType, gradeBand, title, order, durationMin, enabled } =
+  const { assessmentType, gradeBand, title, order, durationMin, enabled, departmentId: requestedDepartmentId } =
     parsed.data;
   const key = parsed.data.key?.trim() || slugifyKey(title);
+
+  const division = await resolveEditableDivision(auth.session.user, requestedDepartmentId ?? null);
+  if (division.error) return division.error;
 
   try {
     const created = await prisma.sessionTemplate.create({
       data: {
+        departmentId: division.departmentId,
         assessmentType,
         gradeBand,
         key,
@@ -63,7 +73,7 @@ export async function POST(req: NextRequest) {
       (e as { code?: string }).code === "P2002"
     ) {
       return conflict(
-        "A session with this key already exists for that grade band and type"
+        "A session with this key already exists for that department, grade band, and type"
       );
     }
     return badRequest("Failed to create session template");

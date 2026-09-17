@@ -35,7 +35,10 @@ const assessorItems = [
 
 // People-section items. Each carries the roles allowed to see the link —
 // "My Team" is MANAGER-only, the Users directory stays visible to MANAGER +
-// ADMIN. "Departments" moved to superAdminItems below (SUPER_ADMIN only).
+// ADMIN, and "Departments" (the org chart) is visible to everyone, which is
+// why it lives here rather than under Administration.
+const ALL_ROLES = ["USER", "ASSESSOR", "MANAGER", "ADMIN"] as const;
+
 const peopleItems: Array<{
   href: string;
   label: string;
@@ -44,9 +47,12 @@ const peopleItems: Array<{
 }> = [
   { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
+  { href: "/departments", label: "Departments", icon: "sitemap", roles: ALL_ROLES },
 ];
 
-// Admin review queues & insights — all "Assessment X" / "PDP X" review actions.
+// Admin review queues & insights — all "Assessment X" / "PDP X" review
+// actions. Org structure browsing moved to peopleItems above: it's the company
+// org chart, not an admin action.
 const adminItems = [
   { href: "/requests", label: "Assessment Requests", icon: "inbox" },
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
@@ -54,12 +60,9 @@ const adminItems = [
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
 ];
 
-// SUPER_ADMIN-only items: org structure browsing + the HRM sync console.
+// SUPER_ADMIN-only items: the HRM sync console.
 // Gated by `user.isSuperAdmin`, not just `role === "ADMIN"` (see lib/roles.ts).
-const superAdminItems = [
-  { href: "/departments", label: "Departments", icon: "sitemap" },
-  { href: "/admin/hrm-sync", label: "HRM Sync", icon: "refresh" },
-];
+const superAdminItems = [{ href: "/admin/hrm-sync", label: "HRM Sync", icon: "refresh" }];
 
 // Admin configuration — how the app generates work, not a review action.
 const configItems = [

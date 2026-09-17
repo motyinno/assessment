@@ -17,10 +17,11 @@ function normalizeCategoryName(name: string): string {
 }
 
 /**
- * Creates a mapping from normalized category names to proper titles from tech matrix
+ * Creates a mapping from normalized category names to proper titles from one
+ * department's tech matrix.
  */
-async function createCategoryMapping(): Promise<Map<string, string>> {
-  const techMatrix = await loadTechMatrix();
+async function createCategoryMapping(departmentId: string): Promise<Map<string, string>> {
+  const techMatrix = await loadTechMatrix(departmentId);
   const mapping = new Map<string, string>();
 
   techMatrix.sections.forEach((section: any) => {
@@ -37,26 +38,29 @@ async function createCategoryMapping(): Promise<Map<string, string>> {
   return mapping;
 }
 
-let categoryMapping: Map<string, string> | null = null;
+// Keyed by departmentId — each department's matrix has its own lookup.
+const categoryMappingByDepartment = new Map<string, Map<string, string>>();
 
 /**
- * Warm the category-title lookup from the (now async, DB-backed) tech matrix.
- * Callers must await this once before invoking the synchronous
- * {@link normalizeCategory} in tight loops / .map()s.
+ * Warm the category-title lookup for one department from its (async,
+ * DB-backed) tech matrix. Callers must await this once before invoking the
+ * synchronous {@link normalizeCategory} for that department in tight loops /
+ * .map()s.
  */
-export async function ensureCategoryMapping(): Promise<void> {
-  if (!categoryMapping) {
-    categoryMapping = await createCategoryMapping();
+export async function ensureCategoryMapping(departmentId: string): Promise<void> {
+  if (!categoryMappingByDepartment.has(departmentId)) {
+    categoryMappingByDepartment.set(departmentId, await createCategoryMapping(departmentId));
   }
 }
 
 /**
- * Returns the proper category title from the tech matrix. Falls back to the
- * original name if no match is found (or if the mapping isn't warmed yet).
+ * Returns the proper category title from the given department's tech matrix.
+ * Falls back to the original name if no match is found (or if that
+ * department's mapping isn't warmed yet).
  */
-export function normalizeCategory(category: string): string {
+export function normalizeCategory(category: string, departmentId: string): string {
   const normalized = normalizeCategoryName(category);
-  const properTitle = categoryMapping?.get(normalized);
+  const properTitle = categoryMappingByDepartment.get(departmentId)?.get(normalized);
 
   return properTitle || category;
 }

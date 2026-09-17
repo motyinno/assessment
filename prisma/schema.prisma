@@ -102,6 +102,22 @@ model User {
   hrmSyncedAt   DateTime? // last time this row was refreshed from HRM; null = "not found in HRM"
   hrmDismissed  Boolean   @default(false) // employee.lifecycleStatus == DELETED (confirmed)
 
+  // ---- "Position in the company" (HRM-owned, mirrors the HRM profile card) ----
+  /// employee.managerialLevelId -> the `managerialLevel` dictionary, normalized to "M1".."M5".
+  managerialLevel       String?
+  /// employee.professionalLevelId -> the `professionalLevel` dictionary TRANSLATION ("Middle").
+  /// Deliberately separate from `grade`: `grade` is ours (locally overridable, see
+  /// buildUserWrite's grade policy), this one is HRM's own label and always reflects HRM.
+  professionalLevel     String?
+  isMentor              Boolean @default(false) // employee.isMentor
+  isDeliveryCoordinator Boolean @default(false) // employee.isDeliveryCoordinator
+
+  /// The person's Division — the single org level everything in the product is
+  /// split by. Denormalized from the memberships below (the `typeName == "Division"`
+  /// one, or the nearest Division ancestor of a membership) by the sync, so
+  /// filtering/grouping by division is one indexed column instead of a path walk.
+  divisionId String?
+
   manager              User?                       @relation("manages", fields: [managerId], references: [id], onDelete: SetNull)
   reports              User[]                      @relation("manages")
   participations       AssessmentParticipant[]
@@ -115,6 +131,9 @@ model User {
   certificates         Certificate[]
   roadmapProgress      RoadmapProgress[]
   departments          UserDepartment[]
+  division             Department?                 @relation("divisionMembers", fields: [divisionId], references: [id], onDelete: SetNull)
+  managerLinks         UserManagerLink[]           @relation("managerLinkSubject")
+  managedLinks         UserManagerLink[]           @relation("managerLinkManager")
   headedDepartments    Department[]                @relation("departmentHead")
   deputyDepartments    Department[]                @relation("departmentDeputy")
   roleAudit            RoleAuditLog[]              @relation("roleAuditSubject")
@@ -124,6 +143,7 @@ model User {
   @@index([hrmEmployeeId])
   @@index([isArchived])
   @@index([name])
+  @@index([divisionId])
 }
 
 /// Org unit from HRM (`GET /org-units`).
@@ -145,11 +165,14 @@ model Department {
   isActive       Boolean  @default(true) // orgUnitTypeDto.lifecycleStatus != DELETED ← was the unit's own "lifecycleStatus" (no such field exists)
   syncedAt       DateTime @updatedAt
 
-  parent   Department?      @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children Department[]     @relation("depTree")
-  head     User?            @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
-  deputy   User?            @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
-  members  UserDepartment[]
+  parent           Department?       @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Department[]      @relation("depTree")
+  head             User?             @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  deputy           User?             @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
+  members          UserDepartment[]
+  divisionMembers  User[]            @relation("divisionMembers")
+  matrixSections   MatrixSection[]
+  sessionTemplates SessionTemplate[]
 
   @@index([parentId])
   @@index([isActive])
@@ -169,6 +192,29 @@ model UserDepartment {
 
   @@id([userId, departmentId])
   @@index([departmentId])
+}
+
+/// The M1..M5 managerial chain HRM sends on every employee
+/// (`employee.managerM1` .. `managerM5`) — the "Managerial structure" card on
+/// the profile. One row per populated level, rather than ten columns on User.
+///
+/// `hrmManagerId` is the raw HRM employee id and is always known; `managerId`
+/// is the resolved local user and stays `null` until that person is synced
+/// (or forever, for someone outside the synced set) — the UI renders such a
+/// level as a plain "-", exactly like HRM does for an empty level.
+model UserManagerLink {
+  userId       String
+  level        Int // 1..5, i.e. M1..M5
+  hrmManagerId Int
+  managerId    String?
+  updatedAt    DateTime @updatedAt
+
+  user    User  @relation("managerLinkSubject", fields: [userId], references: [id], onDelete: Cascade)
+  manager User? @relation("managerLinkManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  @@id([userId, level])
+  @@index([managerId])
+  @@index([hrmManagerId])
 }
 
 /// Log of sync runs.
@@ -510,10 +556,14 @@ model SelfAssessment {
 }
 
 /// Admin-managed template that drives session generation for new assessments.
-/// One row per (assessmentType, gradeBand, session). buildSessionsForGrade()
+/// One row per (department, assessmentType, gradeBand, session). buildSessionsForGrade()
 /// reads these ordered by `order`; falls back to hardcoded defaults when empty.
+/// `departmentId` null = legacy pre-department-scoping row, never read by the
+/// app anymore (kept only so historical data isn't orphaned) — see the
+/// per-department tech matrix plan.
 model SessionTemplate {
   id             String             @id @default(cuid())
+  departmentId   String?
   assessmentType AssessmentTypeEnum
   gradeBand      String // base band: "jun" | "mid" | "sen"
   key            String // stable slug written to AssessmentSession.type
@@ -524,21 +574,30 @@ model SessionTemplate {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
-  @@unique([assessmentType, gradeBand, key])
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, assessmentType, gradeBand, key])
   @@index([assessmentType, gradeBand])
 }
 
 /// Editable technical matrix — a section groups related topics. String `id` is
 /// preserved from the seed JSON so RoadmapProgress / SelfAssessment references
 /// (which key on section/topic id strings) stay valid across the DB migration.
+/// `departmentId` scopes a section to one Division-type Department (see
+/// lib/user-division.ts); null = legacy pre-department-scoping row, never
+/// read by the app anymore (kept only so historical data isn't orphaned).
 model MatrixSection {
-  id        String   @id
-  title     String
-  order     Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id
+  departmentId String?
+  title        String
+  order        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  topics MatrixTopic[]
+  department Department?   @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  topics     MatrixTopic[]
+
+  @@index([departmentId])
 }
 
 /// A topic inside a section. `jun`/`mid`/`sen` hold the individual skill

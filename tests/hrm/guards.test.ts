@@ -16,7 +16,9 @@ function dicts(overrides: Partial<Record<"professionalLevel" | "jobTitle" | "emp
     professionalLevel: make(overrides.professionalLevel ?? 1),
     jobTitle: make(overrides.jobTitle ?? 1),
     employeeStatus: make(overrides.employeeStatus ?? 1),
+    managerialLevel: new Map(),
     professionalLevelCode: new Map(),
+    managerialLevelCode: new Map(),
   };
 }
 
@@ -27,9 +29,12 @@ function employee(id: number): MappedEmployee {
     name: `E ${id}`,
     jobTitle: null,
     grade: null,
+    professionalLevel: null,
+    managerialLevel: null,
+    isMentor: false,
+    isDeliveryCoordinator: false,
+    managerChain: [],
     hrmManagerId: null,
-    hrmM3ManagerId: null,
-    hrmM4ManagerId: null,
     isArchived: false,
     hrmDismissed: false,
     orgUnitIds: [],

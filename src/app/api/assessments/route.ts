@@ -3,7 +3,9 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
 import { isStaff } from "@/lib/roles";
+import { getStaffDepartmentScope } from "@/lib/admin-scope";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
+import { resolveUserDivision } from "@/lib/user-division";
 import { createAssessmentSchema } from "@/lib/schemas";
 import { parseJsonBody } from "@/lib/api-helpers";
 
@@ -12,8 +14,18 @@ export async function GET() {
   if (auth.error) return auth.error;
   const me = auth.session.user;
 
+  const scope = isStaff(me.role) ? await getStaffDepartmentScope(me) : null;
   const where = isStaff(me.role)
-    ? {}
+    ? scope
+      ? {
+          participants: {
+            some: {
+              participantRole: "SUBJECT" as const,
+              user: { departments: { some: { departmentId: { in: [...scope] } } } },
+            },
+          },
+        }
+      : {}
     : { participants: { some: { userId: me.id } } };
 
   const assessments = await prisma.assessment.findMany({
@@ -47,7 +59,10 @@ export async function POST(req: NextRequest) {
 
   const subject = participants?.find((p) => p.participantRole === "SUBJECT");
 
-  const sessionTemplates = subject ? await buildSessionsForGrade(grade) : [];
+  const subjectDivision = subject ? await resolveUserDivision(subject.userId) : null;
+  const sessionTemplates = subject
+    ? await buildSessionsForGrade(grade, undefined, subjectDivision?.id ?? null)
+    : [];
 
   // Atomic: create assessment + participants + sessions, or none of them.
   const assessment = await prisma.$transaction(async (tx) => {

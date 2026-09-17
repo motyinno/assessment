@@ -4,10 +4,15 @@ import prisma from "@/lib/prisma";
 import { isStaff, isAdmin, canManagePeople, isSuperAdmin } from "@/lib/roles";
 import { unauthorized, forbidden, notFound } from "@/lib/api-helpers";
 import { sessionFromBearerToken } from "@/lib/api-tokens";
+import { getAdminDepartmentScope, getStaffDepartmentScope, isUserInScope } from "@/lib/admin-scope";
 
 type AuthOk = { error: null; session: Session };
 type AuthFail = { error: Response; session: null };
 type AuthGuard = AuthOk | AuthFail;
+
+type AuthScopeOk = { error: null; session: Session; scope: Set<string> | null };
+type AuthScopeFail = { error: Response; session: null; scope: null };
+type AuthScopeGuard = AuthScopeOk | AuthScopeFail;
 
 export async function requireAuth(): Promise<AuthGuard> {
   const tokenSession = await sessionFromBearerToken();
@@ -34,6 +39,19 @@ export async function requireAdmin(): Promise<AuthGuard> {
     return { error: forbidden(), session: null };
   }
   return a;
+}
+
+/**
+ * Like `requireAdmin`, but also resolves the caller's department scope
+ * (see lib/admin-scope.ts): `null` for a super-admin (unrestricted),
+ * otherwise the set of department ids (own + sub-departments) the caller
+ * may see or act on.
+ */
+export async function requireAdminScope(): Promise<AuthScopeGuard> {
+  const a = await requireAdmin();
+  if (a.error) return { error: a.error, session: null, scope: null };
+  const scope = await getAdminDepartmentScope(a.session.user);
+  return { error: null, session: a.session, scope };
 }
 
 /** Caller must have the super-admin flag (HRM Sync + Departments). */
@@ -83,8 +101,11 @@ type AssessmentGuard =
   | { error: Response; session: null; assessmentId: null };
 
 /**
- * Authorize *read* of an assessment: caller must be admin/assessor (org-wide
- * staff) or a participant of the assessment.
+ * Authorize *read* of an assessment: caller must be staff (ASSESSOR/MANAGER/
+ * ADMIN) whose department scope covers the assessment's subject — or a
+ * super-admin, or any staff member who is themselves a participant on it
+ * (e.g. the assigned assessor), regardless of scope — or a participant of
+ * the assessment (any role).
  */
 export async function requireAssessmentRead(
   assessmentId: string
@@ -96,13 +117,28 @@ export async function requireAssessmentRead(
 
   const me = a.session.user;
   if (isStaff(me.role)) {
-    const exists = await prisma.assessment.findUnique({
+    const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId },
-      select: { id: true },
+      select: { participants: { select: { userId: true, participantRole: true } } },
     });
-    if (!exists) {
+    if (!assessment) {
       return { error: notFound("Assessment not found"), session: null, assessmentId: null };
     }
+
+    const scope = await getStaffDepartmentScope(me);
+    if (scope !== null) {
+      const isParticipant = assessment.participants.some((p) => p.userId === me.id);
+      if (!isParticipant) {
+        const subjectIds = assessment.participants
+          .filter((p) => p.participantRole === "SUBJECT")
+          .map((p) => p.userId);
+        const inScope = await Promise.all(subjectIds.map((id) => isUserInScope(id, scope)));
+        if (!inScope.some(Boolean)) {
+          return { error: forbidden(), session: null, assessmentId: null };
+        }
+      }
+    }
+
     return { error: null, session: a.session, assessmentId };
   }
 

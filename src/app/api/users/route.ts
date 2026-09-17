@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 import { isEmailAllowed, allowedEmailDomains } from "@/lib/allowed-domains";
 import { canManagePeople, isAdmin, isStaff, ROLES } from "@/lib/roles";
+import { getStaffDepartmentScope } from "@/lib/admin-scope";
 import { createUserSchema } from "@/lib/schemas";
 import {
   badRequest,
@@ -26,11 +27,16 @@ const STAFF_USER_SELECT = {
   createdAt: true,
   isArchived: true,
   hrmEmployeeId: true,
+  professionalLevel: true,
+  managerialLevel: true,
+  isMentor: true,
+  isDeliveryCoordinator: true,
   departments: {
     select: {
-      department: { select: { id: true, name: true, isFilterable: true } },
+      department: { select: { id: true, name: true, typeName: true, isFilterable: true } },
     },
   },
+  division: { select: { id: true, name: true } },
 } as const;
 
 const SLIM_USER_SELECT = {
@@ -43,9 +49,10 @@ const SLIM_USER_SELECT = {
   jobTitle: true,
   departments: {
     select: {
-      department: { select: { id: true, name: true, isFilterable: true } },
+      department: { select: { id: true, name: true, typeName: true, isFilterable: true } },
     },
   },
+  division: { select: { id: true, name: true } },
 } as const;
 
 type CallerForGradeRedaction = { role: string | null; id: string };
@@ -79,6 +86,7 @@ const MAX_PAGE_SIZE = 100;
 const NEW_PARAMS = [
   "q",
   "department",
+  "division",
   "includeDescendants",
   "managerId",
   "ids",
@@ -150,6 +158,15 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Staff (ASSESSOR/MANAGER/ADMIN, not super-admin) only ever see the
+  // directory within their own department(s) + sub-departments — see
+  // lib/admin-scope.ts. A staff member with no department membership at all
+  // sees nobody, rather than falling back to everyone.
+  const staffScope = isStaff(me.role) ? await getStaffDepartmentScope(me) : null;
+  if (staffScope && staffScope.size === 0) {
+    return NextResponse.json({ items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE });
+  }
+
   const where: Prisma.UserWhereInput = { isArchived: false };
   if (roleFilter && roleFilter.length > 0) {
     where.role = { in: roleFilter };
@@ -177,6 +194,16 @@ export async function GET(req: NextRequest) {
   }
 
   const departmentId = sp.get("department");
+  const andConditions: Prisma.UserWhereInput[] = [];
+
+  // `?division=` — the primary way the directory is split. Deliberately a
+  // plain equality on the denormalized column rather than a membership
+  // subquery like `?department=` below: a Division is the one level a person
+  // has exactly one of, so "in division X" is a property of the row.
+  const divisionId = sp.get("division");
+  if (divisionId) {
+    where.divisionId = divisionId === "none" ? null : divisionId;
+  }
   if (departmentId) {
     const dept = await prisma.department.findUnique({
       where: { id: departmentId },
@@ -187,16 +214,25 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE });
     }
     const includeDescendants = sp.get("includeDescendants") !== "0";
-    where.departments = includeDescendants
-      ? {
-          some: {
-            department: {
-              OR: [{ id: departmentId }, { path: { startsWith: `${dept.path}/` } }],
+    andConditions.push({
+      departments: includeDescendants
+        ? {
+            some: {
+              department: {
+                OR: [{ id: departmentId }, { path: { startsWith: `${dept.path}/` } }],
+              },
             },
-          },
-        }
-      : { some: { departmentId } };
+          }
+        : { some: { departmentId } },
+    });
   }
+  // Intersect with the caller's own scope last, so an explicit `?department=`
+  // outside their scope correctly yields nothing rather than silently
+  // widening back out to their whole scope.
+  if (staffScope) {
+    andConditions.push({ departments: { some: { departmentId: { in: [...staffScope] } } } });
+  }
+  if (andConditions.length > 0) where.AND = andConditions;
 
   if (isLegacyRequest) {
     const items = await prisma.user.findMany({

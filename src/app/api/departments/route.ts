@@ -20,6 +20,8 @@ import {
  * ?filterable=1  only isFilterable units (selectors — excludes isSinglePerson
  *                positions like CEO, which HRM itself marks unfilterable)
  * ?q=            name search
+ * ?type=Division only units of one HRM org level (see HRM_ORG_UNIT_TYPES) —
+ *                what the "split people by division" pickers ask for
  * ?archived=include   count archived memberships too (canManagePeople gate)
  */
 export async function GET(req: NextRequest) {
@@ -34,12 +36,25 @@ export async function GET(req: NextRequest) {
   const includeArchived = sp.get("archived") === "include" && canManagePeople(me.role);
 
   const data = await loadDepartmentData(includeArchived);
-  const survivors = pruneEmpty(data.all, data, filterableOnly);
+  // Unscoped for every role: the org chart is public to signed-in users (see
+  // the Departments page). Scoping a plain ADMIN here — and nobody else —
+  // would have shown them less of it than a regular user.
+  let survivors = pruneEmpty(data.all, data, filterableOnly);
+
+  // `?type=` narrows to one org level. Only meaningful flat: a tree filtered
+  // to a single level is a list with the parent links dangling, so it's
+  // applied after the tree build decision below would have been pointless.
+  const typeName = sp.get("type")?.trim();
+  if (typeName) survivors = survivors.filter((d) => d.typeName === typeName);
 
   if (!treeMode) {
     let flatItems = survivors;
     if (q) flatItems = flatItems.filter((d) => d.name.toLowerCase().includes(q));
-    flatItems = flatItems.slice(0, 50);
+    // 50 is the type-ahead cap for the search combobox, where the user is
+    // expected to keep typing. A `?type=` request is a COMPLETE list for a
+    // picker (51 Divisions today), so truncating it there would silently drop
+    // real options off the end of a menu nobody can search.
+    flatItems = flatItems.slice(0, typeName ? 300 : 50);
     return NextResponse.json({ items: flatItems.map((d) => toDepartmentItem(d, data)) });
   }
 

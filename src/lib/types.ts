@@ -40,6 +40,8 @@ export interface TechMatrix {
 export interface DepartmentRef {
   id: string;
   name: string;
+  /** HRM org level ("Unit" / "Division" / "Department" / "Team" / "Group" / "Person") — see HRM_ORG_UNIT_TYPES. */
+  typeName?: string | null;
 }
 
 export interface ManagerRef {
@@ -57,4 +59,17 @@ export interface HrmUserFields {
   hrmEmployeeId: number | null;
   /** All units the person belongs to, `isFilterable: false` ones excluded (08 §9). */
   departments: DepartmentRef[];
+  /** The Division slot of `departments`, denormalized by the sync — what people are split by. */
+  division: DepartmentRef | null;
+  // "Position in the company", straight from HRM — see the User model.
+  professionalLevel: string | null;
+  managerialLevel: string | null;
+  isMentor: boolean;
+  isDeliveryCoordinator: boolean;
+}
+
+/** One rung of the M1..M5 "Managerial structure" card. */
+export interface ManagerLinkRef {
+  level: number;
+  manager: { id: string; name: string } | null;
 }

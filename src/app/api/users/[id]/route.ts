@@ -4,6 +4,7 @@ import {
   requireAuth,
   requireAdmin,
 } from "@/lib/auth-helpers";
+import { getAdminDepartmentScope, getStaffDepartmentScope, isUserInScope } from "@/lib/admin-scope";
 import { isValidGrade } from "@/lib/grades";
 import { ROLES, canManagePeople, isAdmin, isStaff } from "@/lib/roles";
 import { patchUserSchema } from "@/lib/schemas";
@@ -30,9 +31,35 @@ const USER_DETAIL_SELECT = {
   isArchived: true,
   photoFileName: true,
   hrmEmployeeId: true,
+  // "Position in the company" card.
+  professionalLevel: true,
+  managerialLevel: true,
+  isMentor: true,
+  isDeliveryCoordinator: true,
+  // "Org. structure" card: `typeName` is what splits the flat membership list
+  // into Unit / Division / Department / Team / Group / Person rows.
   departments: {
     select: {
-      department: { select: { id: true, name: true, isFilterable: true } },
+      department: { select: { id: true, name: true, typeName: true, isFilterable: true } },
+    },
+  },
+  division: { select: { id: true, name: true } },
+  // Units this person heads. Drives the "Head of X" badge: heading a unit is
+  // what earns most of these people their ADMIN role (see lib/hrm/roles.ts),
+  // and without it a department head is indistinguishable from someone who
+  // got ADMIN off an M3+ managerial level.
+  headedDepartments: {
+    where: { isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, typeName: true },
+  },
+  // "Managerial structure" card. `manager` is null for a level HRM left empty
+  // or whose person isn't synced — rendered as "-", same as HRM does.
+  managerLinks: {
+    orderBy: { level: "asc" },
+    select: {
+      level: true,
+      manager: { select: { id: true, name: true } },
     },
   },
 } as const;
@@ -79,6 +106,15 @@ export async function GET(
     },
   });
   if (!user) return notFound("Not found");
+
+  // Staff viewing someone else's profile (not their own, not a direct
+  // report) only ever see people within their own department scope — same
+  // rule as the directory list and the PATCH/DELETE guards below.
+  if (isStaffViewer && me.id !== id && user.managerId !== me.id) {
+    const scope = await getStaffDepartmentScope(me);
+    if (!(await isUserInScope(id, scope))) return forbidden();
+  }
+
   return NextResponse.json(user);
 }
 
@@ -106,6 +142,14 @@ export async function PATCH(
     canManagePeople(me.role) && current.managerId === me.id;
 
   if (!isAdminCaller && !isSelf && !isManagerOfTarget) return forbidden();
+
+  // A plain ADMIN (not self, not the target's manager) may only reach here
+  // via isAdminCaller — restrict that path to the target's own department
+  // scope; self-edits and manager-of-target edits are unaffected.
+  if (isAdminCaller && !isSelf && !isManagerOfTarget) {
+    const scope = await getAdminDepartmentScope(me);
+    if (!(await isUserInScope(id, scope))) return forbidden();
+  }
 
   const parsed = await parseJsonBody(req, patchUserSchema);
   if (parsed.error) return parsed.error;
@@ -250,6 +294,9 @@ export async function DELETE(
     },
   });
   if (!target) return notFound("User not found");
+
+  const scope = await getAdminDepartmentScope(me);
+  if (!(await isUserInScope(id, scope))) return forbidden();
 
   if (target.hrmEmployeeId !== null) {
     return conflict("Archive instead of deleting an HRM-managed user");

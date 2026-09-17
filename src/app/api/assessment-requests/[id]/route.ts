@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
+import { isUserInScope } from "@/lib/admin-scope";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
+import { resolveUserDivision } from "@/lib/user-division";
 import { patchRequestSchema } from "@/lib/schemas";
 import {
   badRequest,
+  forbidden,
   notFound,
   parseJsonBody,
 } from "@/lib/api-helpers";
@@ -18,7 +21,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
 
   const { id } = await params;
@@ -40,6 +43,8 @@ export async function PATCH(
   });
   if (!request) return notFound("Request not found");
 
+  if (!(await isUserInScope(request.userId, auth.scope))) return forbidden();
+
   if (request.status !== "PENDING") {
     return badRequest("Request has already been processed");
   }
@@ -56,9 +61,11 @@ export async function PATCH(
       return badRequest("At least one assessor must be assigned");
     }
 
+    const division = await resolveUserDivision(request.userId);
     const sessionTemplates = await buildSessionsForGrade(
       request.grade,
-      resolvedType
+      resolvedType,
+      division?.id ?? null
     );
 
     // Create assessment + participants + sessions + flip the request status
@@ -160,16 +167,18 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
 
   const { id } = await params;
 
   const request = await prisma.assessmentRequest.findUnique({
     where: { id },
-    select: { id: true, status: true },
+    select: { id: true, status: true, userId: true },
   });
   if (!request) return notFound("Request not found");
+
+  if (!(await isUserInScope(request.userId, auth.scope))) return forbidden();
 
   // Only rejected requests can be discarded. Pending ones still need a
   // decision, and approved ones own an assessment we must not orphan.

@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
+import { isUserInScope } from "@/lib/admin-scope";
 import { addParticipantSchema } from "@/lib/schemas";
-import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
+
+/** Resolves the assessment's SUBJECT user id, for scope checks. */
+async function subjectOf(assessmentId: string): Promise<string | null> {
+  const subject = await prisma.assessmentParticipant.findFirst({
+    where: { assessmentId, participantRole: "SUBJECT" },
+    select: { userId: true },
+  });
+  return subject?.userId ?? null;
+}
 
 /**
  * Roster edits (add/remove assessors) are allowed only while the assessment is
@@ -25,8 +35,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const guard = await requireAdmin();
+  const guard = await requireAdminScope();
   if (guard.error) return guard.error;
+
+  const subjectId = await subjectOf(params.id);
+  if (subjectId && !(await isUserInScope(subjectId, guard.scope))) return forbidden();
 
   const blocked = await assertRosterEditable(params.id);
   if (blocked) return blocked;
@@ -77,8 +90,11 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const guard = await requireAdmin();
+  const guard = await requireAdminScope();
   if (guard.error) return guard.error;
+
+  const subjectId = await subjectOf(params.id);
+  if (subjectId && !(await isUserInScope(subjectId, guard.scope))) return forbidden();
 
   const blocked = await assertRosterEditable(params.id);
   if (blocked) return blocked;

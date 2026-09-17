@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
+import { isUserInScope } from "@/lib/admin-scope";
 import { cancelAssessmentSchema } from "@/lib/schemas";
-import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 /**
  * Cancel an assessment. Admin-only and requires a written reason, which is
@@ -12,7 +13,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
   const me = auth.session.user;
 
@@ -25,6 +26,12 @@ export async function POST(
     select: { status: true },
   });
   if (!assessment) return notFound("Assessment not found");
+
+  const subject = await prisma.assessmentParticipant.findFirst({
+    where: { assessmentId: params.id, participantRole: "SUBJECT" },
+    select: { userId: true },
+  });
+  if (subject && !(await isUserInScope(subject.userId, auth.scope))) return forbidden();
 
   if (assessment.status === "CANCELLED") {
     return badRequest("Assessment is already cancelled");

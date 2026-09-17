@@ -27,7 +27,12 @@ describe("buildDictionaryMaps", () => {
     expect(dictionaries.jobTitle.get("jt-1")).toBe("Engineer");
     expect(dictionaries.employeeStatus.get("es-1")).toBe("Active");
     expect(info.collisions).toBe(0);
-    expect(info.sizes).toEqual({ professionalLevel: 2, jobTitle: 1, employeeStatus: 1 });
+    expect(info.sizes).toEqual({
+      professionalLevel: 2,
+      jobTitle: 1,
+      employeeStatus: 1,
+      managerialLevel: 0,
+    });
   });
 
   it("deterministically collapses multiple languages for one value and counts the collision", () => {

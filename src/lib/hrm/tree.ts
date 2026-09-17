@@ -63,6 +63,16 @@ export function rebuildDepartmentPaths(
     const parentInfo = resolve(node.parentId, visiting);
     visiting.delete(id);
 
+    // The walk we just made may have come back around to THIS node and broken
+    // the cycle here, caching it as a root. That entry is the authoritative
+    // one and must not be overwritten: the path built from `parentInfo` below
+    // runs back through the cycle and would contain this very id again
+    // (".../X/A/.../A"), leaving the graph with no node at depth 0 at all.
+    // Missing this is what silently baked cycles into `path` for 304 of 504
+    // live units and left the Departments tree with zero roots.
+    const brokenHere = result.get(id);
+    if (brokenHere) return brokenHere;
+
     const info: DepartmentPathInfo = {
       path: `${parentInfo.path}/${id}`,
       depth: parentInfo.depth + 1,

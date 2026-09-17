@@ -1,14 +1,28 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
 
 /** Admin queue: assessments the assessor ended and submitted for review. */
 export async function GET() {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
+  const scope = auth.scope;
+  if (scope && scope.size === 0) return NextResponse.json([]);
 
   const assessments = await prisma.assessment.findMany({
-    where: { reviewStatus: "PENDING" },
+    where: {
+      reviewStatus: "PENDING",
+      ...(scope
+        ? {
+            participants: {
+              some: {
+                participantRole: "SUBJECT",
+                user: { departments: { some: { departmentId: { in: [...scope] } } } },
+              },
+            },
+          }
+        : {}),
+    },
     include: {
       participants: {
         where: { participantRole: "SUBJECT" },

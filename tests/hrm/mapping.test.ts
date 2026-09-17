@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { displayName, mapEmployee, mapOrgUnit, rawManagerId } from "@/lib/hrm/mapping";
+import {
+  displayName,
+  mapEmployee,
+  mapManagerChain,
+  mapOrgUnit,
+  rawManagerId,
+  resolveManagerialLevel,
+  resolveOrgUnitParents,
+} from "@/lib/hrm/mapping";
 import { buildDictionaryMaps } from "@/lib/hrm/dictionaries";
 import type { HrmDictionaries } from "@/lib/hrm/dictionaries";
 import type { HrmDictionaryResponse, HrmEmployee, HrmOrgUnit } from "@/lib/hrm/types";
@@ -101,28 +109,28 @@ describe("mapEmployee — synthetic edge cases", () => {
     expect(employee.hrmManagerId).toBeNull();
   });
 
-  it("managerM3/managerM4 present -> hrmM3ManagerId/hrmM4ManagerId extracted", () => {
+  it("managerM3/managerM4 present -> the M-chain carries them at their own levels", () => {
     const { employee } = mapEmployee(
       { id: 1, email: "a@b.com", managerM3: { id: 30 }, managerM4: { id: 40 } },
       dicts
     );
-    expect(employee.hrmM3ManagerId).toBe(30);
-    expect(employee.hrmM4ManagerId).toBe(40);
+    expect(employee.managerChain).toEqual([
+      { level: 3, hrmManagerId: 30 },
+      { level: 4, hrmManagerId: 40 },
+    ]);
   });
 
-  it("managerM3/managerM4 absent -> both null", () => {
+  it("no M-managers at all -> empty chain", () => {
     const { employee } = mapEmployee({ id: 1, email: "a@b.com" }, dicts);
-    expect(employee.hrmM3ManagerId).toBeNull();
-    expect(employee.hrmM4ManagerId).toBeNull();
+    expect(employee.managerChain).toEqual([]);
   });
 
-  it("managerM3/managerM4 present but without an id (empty object) -> both null", () => {
+  it("M-managers present but without an id (empty objects) -> empty chain", () => {
     const { employee } = mapEmployee(
       { id: 1, email: "a@b.com", managerM3: {}, managerM4: {} },
       dicts
     );
-    expect(employee.hrmM3ManagerId).toBeNull();
-    expect(employee.hrmM4ManagerId).toBeNull();
+    expect(employee.managerChain).toEqual([]);
   });
 
   it("throws when id is missing — not this function's job to guess an idempotency key", () => {
@@ -219,5 +227,131 @@ describe("mapOrgUnit", () => {
     const deletedType = orgUnits.find((u) => u.orgUnitTypeDto?.lifecycleStatus === "DELETED");
     expect(deletedType).toBeDefined();
     expect(mapOrgUnit(deletedType as HrmOrgUnit).isActive).toBe(false);
+  });
+});
+
+describe("resolveManagerialLevel", () => {
+  const dicts = (code?: string, translation?: string) => ({
+    managerialLevelCode: new Map(code ? [["lvl", code]] : []),
+    managerialLevel: new Map(translation ? [["lvl", translation]] : []),
+  });
+
+  it("returns null when the employee has no managerial level", () => {
+    expect(resolveManagerialLevel({ managerialLevelId: null }, dicts("M2"))).toBeNull();
+  });
+
+  it("normalizes every spelling HRM uses to a bare M<n>", () => {
+    for (const raw of ["M2", "M_2", "M 2", "m-2"]) {
+      expect(resolveManagerialLevel({ managerialLevelId: "lvl" }, dicts(raw))).toBe("M2");
+    }
+  });
+
+  it("prefers the stable code over the locale translation", () => {
+    expect(resolveManagerialLevel({ managerialLevelId: "lvl" }, dicts("M3", "M4"))).toBe("M3");
+  });
+
+  it("falls back to the translation when there is no code", () => {
+    expect(resolveManagerialLevel({ managerialLevelId: "lvl" }, dicts(undefined, "M5"))).toBe("M5");
+  });
+
+  it("maps HRM's NOT_DEFINED (and any other non-M value) to null", () => {
+    expect(resolveManagerialLevel({ managerialLevelId: "lvl" }, dicts("NOT_DEFINED", "Not defined"))).toBeNull();
+  });
+
+  it("still finds the M-level in the translation when only the code is unusable", () => {
+    expect(resolveManagerialLevel({ managerialLevelId: "lvl" }, dicts("NOT_DEFINED", "M4"))).toBe("M4");
+  });
+
+  it("returns null for an id that is in no dictionary", () => {
+    expect(resolveManagerialLevel({ managerialLevelId: "missing" }, dicts("M2"))).toBeNull();
+  });
+});
+
+describe("mapManagerChain", () => {
+  it("keeps only the levels HRM populated with an id, numbered M1..M5", () => {
+    const chain = mapManagerChain({
+      // HRM sends the key for every level regardless — managerM1 here is the
+      // real live shape for "no M1": an object with no id.
+      managerM1: { firstNameEn: "Nobody" },
+      managerM3: { id: 30 },
+      managerM5: { id: 50 },
+    });
+    expect(chain).toEqual([
+      { level: 3, hrmManagerId: 30 },
+      { level: 5, hrmManagerId: 50 },
+    ]);
+  });
+
+  it("is empty when no level is populated", () => {
+    expect(mapManagerChain({})).toEqual([]);
+  });
+});
+
+describe("resolveOrgUnitParents", () => {
+  const personType = { id: 5, orgUnitTypeNameEn: "Person" };
+  const unitType = { id: 6, orgUnitTypeNameEn: "Unit" };
+  const teamType = { id: 2, orgUnitTypeNameEn: "Team" };
+
+  it("reads reportsToId as an EMPLOYEE id when the parent type is Person", () => {
+    // The live shape: "Global Development" [Unit] declares a Person parent and
+    // carries employee id 791 — the head of the "GDO & DMO" Person unit, NOT
+    // org unit 791, which is an unrelated Team.
+    const parents = resolveOrgUnitParents([
+      { id: 996, orgUnitName: "GDO & DMO", orgUnitTypeId: 5, headId: 791, orgUnitTypeDto: personType },
+      { id: 791, orgUnitName: "Java VOKA", orgUnitTypeId: 2, headId: 12, orgUnitTypeDto: teamType },
+      {
+        id: 5,
+        orgUnitName: "Global Development",
+        orgUnitTypeId: 6,
+        reportsToId: 791,
+        reportsToOrgUnitTypeId: 5,
+        orgUnitTypeDto: unitType,
+      },
+    ]);
+    expect(parents.get(5)).toBe(996);
+  });
+
+  it("reads reportsToId as an ORG UNIT id for every other parent type", () => {
+    const parents = resolveOrgUnitParents([
+      { id: 935, orgUnitName: "Development Team VOKA", orgUnitTypeId: 4, orgUnitTypeDto: { id: 4, orgUnitTypeNameEn: "Division" } },
+      {
+        id: 791,
+        orgUnitName: "Java VOKA",
+        orgUnitTypeId: 2,
+        reportsToId: 935,
+        reportsToOrgUnitTypeId: 4,
+        orgUnitTypeDto: teamType,
+      },
+    ]);
+    expect(parents.get(791)).toBe(935);
+  });
+
+  it("a Person unit pointing at its own head is the top, not a one-node cycle", () => {
+    const parents = resolveOrgUnitParents([
+      {
+        id: 1,
+        orgUnitName: "CEO",
+        orgUnitTypeId: 5,
+        headId: 528,
+        reportsToId: 528,
+        reportsToOrgUnitTypeId: 5,
+        orgUnitTypeDto: personType,
+      },
+    ]);
+    expect(parents.get(1)).toBeNull();
+  });
+
+  it("an unresolvable reference is null, not a wrong parent", () => {
+    const parents = resolveOrgUnitParents([
+      { id: 10, orgUnitName: "Orphan", orgUnitTypeId: 2, reportsToId: 999, reportsToOrgUnitTypeId: 6, orgUnitTypeDto: teamType },
+    ]);
+    expect(parents.get(10)).toBeNull();
+  });
+
+  it("a unit with no reportsToId at all is a root", () => {
+    const parents = resolveOrgUnitParents([
+      { id: 10, orgUnitName: "Root", orgUnitTypeId: 6, orgUnitTypeDto: unitType },
+    ]);
+    expect(parents.get(10)).toBeNull();
   });
 });

@@ -28,6 +28,14 @@ interface UserWriteCommon {
   isArchived: boolean;
   grade?: Grade | null;
   photoFileName: string | null;
+  // "Position in the company" — HRM-owned like jobTitle/photoFileName: always
+  // written, never protected. `professionalLevel` in particular is NOT a
+  // second copy of `grade`: `grade` is ours and stays put once set locally
+  // (see isGradeEmpty below), this one always mirrors HRM.
+  professionalLevel: string | null;
+  managerialLevel: string | null;
+  isMentor: boolean;
+  isDeliveryCoordinator: boolean;
 }
 
 export interface UserCreateWrite extends UserWriteCommon {
@@ -71,6 +79,10 @@ export function buildUserWrite(
     hrmDismissed: mapped.hrmDismissed,
     isArchived: mapped.isArchived,
     photoFileName: mapped.photoFileName,
+    professionalLevel: mapped.professionalLevel,
+    managerialLevel: mapped.managerialLevel,
+    isMentor: mapped.isMentor,
+    isDeliveryCoordinator: mapped.isDeliveryCoordinator,
   };
 
   if (existing === null) {

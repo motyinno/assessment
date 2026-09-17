@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
+import { isUserInScope } from "@/lib/admin-scope";
 import { reviewPdpSchema } from "@/lib/schemas";
-import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
 
   const { id } = await params;
@@ -18,6 +19,7 @@ export async function PATCH(
 
   const pdp = await prisma.pdp.findUnique({ where: { id } });
   if (!pdp) return notFound("PDP not found");
+  if (!(await isUserInScope(pdp.userId, auth.scope))) return forbidden();
   if (pdp.status !== "ON_REVIEW") {
     return badRequest("PDP is no longer in review");
   }

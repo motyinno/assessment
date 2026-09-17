@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
+import { isUserInScope } from "@/lib/admin-scope";
 import { assessmentReviewDecisionSchema } from "@/lib/schemas";
-import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 /**
  * Admin decision on an ended assessment. Upgrading writes the chosen grade to
@@ -12,7 +13,7 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
   const me = auth.session.user;
 
@@ -44,6 +45,7 @@ export async function PATCH(
 
   const subject = assessment.participants[0]?.user;
   if (!subject) return badRequest("Assessment has no subject");
+  if (!(await isUserInScope(subject.id, auth.scope))) return forbidden();
 
   const upgrading = action === "upgrade";
 

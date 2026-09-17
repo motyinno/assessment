@@ -23,7 +23,7 @@ import { hrmConfig, hrmSyncEnabled } from "@/lib/hrm/config";
 import { loadDictionaries, type HrmDictionaries } from "@/lib/hrm/dictionaries";
 import { fetchOrgUnits } from "@/lib/hrm/org-units";
 import { searchEmployees } from "@/lib/hrm/employees";
-import { mapEmployee, mapOrgUnit, type MappedEmployee } from "@/lib/hrm/mapping";
+import { mapEmployee, mapOrgUnit, resolveOrgUnitParents, type MappedEmployee } from "@/lib/hrm/mapping";
 import { buildUserWrite } from "@/lib/hrm/apply-user";
 import { withHrmSyncLock } from "@/lib/hrm/lock";
 import {
@@ -36,6 +36,7 @@ import {
 import type { GuardResult } from "@/lib/hrm/guards";
 import { computeRoleGrants, roleAuditRow, type RoleGrant } from "@/lib/hrm/roles";
 import { rebuildDepartmentPaths } from "@/lib/hrm/tree";
+import { compareByOrgSeniority, resolveDivisionId, type DepartmentWithPath } from "@/lib/org-structure";
 import { notifyAdminsOfHrmRoleGrants, notifyAdminsOfHrmSyncFailure } from "@/lib/notifications";
 import type { HrmOrgUnit } from "@/lib/hrm/types";
 import type { Role } from "@/lib/roles";
@@ -326,6 +327,22 @@ async function writeUsersAndMemberships(
           });
           counters.membershipsAdded += toAdd.length;
         }
+
+        // M1..M5 chain, raw ids only — `managerId` is resolved in pass 9c
+        // alongside the direct manager, once every employee has a local row.
+        // Replace-whole-set rather than diff: five rows, and a level HRM
+        // cleared must disappear, not linger.
+        await tx.userManagerLink.deleteMany({ where: { userId } });
+        if (emp.managerChain.length > 0) {
+          await tx.userManagerLink.createMany({
+            data: emp.managerChain.map((link) => ({
+              userId,
+              level: link.level,
+              hrmManagerId: link.hrmManagerId,
+            })),
+            skipDuplicates: true,
+          });
+        }
       }
     });
   }
@@ -342,6 +359,10 @@ async function resolveDepartmentLinks(
   const issues: SyncIssue[] = [];
   const updates: Promise<unknown>[] = [];
 
+  // `reportsToId` is polymorphic and cannot be read one unit at a time — see
+  // resolveOrgUnitParents().
+  const parentHrmIdByUnit = resolveOrgUnitParents(orgUnits);
+
   for (const unit of orgUnits) {
     if (unit.id === null || unit.id === undefined) continue;
     const localId = deptByHrmId.get(unit.id);
@@ -349,16 +370,19 @@ async function resolveDepartmentLinks(
 
     const data: { parentId?: string | null; headUserId?: string | null; deputyUserId?: string | null } = {};
 
-    if (unit.reportsToId !== null && unit.reportsToId !== undefined) {
-      const parentLocalId = deptByHrmId.get(unit.reportsToId) ?? null;
-      data.parentId = parentLocalId;
-      if (!parentLocalId) {
+    const parentHrmId = parentHrmIdByUnit.get(unit.id) ?? null;
+    data.parentId = parentHrmId !== null ? (deptByHrmId.get(parentHrmId) ?? null) : null;
+    if (unit.reportsToId !== null && unit.reportsToId !== undefined && data.parentId === null) {
+      // A unit that points at its own head is the top of the tree, not a
+      // dangling reference — don't report it as an exception.
+      const isTop = parentHrmId === null && unit.reportsToId === unit.headId;
+      if (!isTop) {
         issues.push({
           kind: "PARENT_UNRESOLVED",
           hrmEmployeeId: null,
           email: null,
           userId: null,
-          message: `org unit ${unit.id} reportsToId ${unit.reportsToId} not found among fetched org units`,
+          message: `org unit ${unit.id} reportsToId ${unit.reportsToId} (parent type ${unit.reportsToOrgUnitTypeId}) did not resolve to a fetched org unit`,
         });
       }
     }
@@ -421,6 +445,94 @@ async function resolveManagers(
 
   if (updates.length > 0) await Promise.all(updates);
   return { managersResolved, issues };
+}
+
+/**
+ * Pass 2d: resolve `UserManagerLink.managerId` from the raw `hrmManagerId`
+ * written in pass 1b. One grouped update per distinct manager instead of one
+ * per link (five links per person over thousands of people is a lot of
+ * round-trips otherwise). A level whose manager isn't in this run's set keeps
+ * `managerId: null` and renders as "-" — deliberately NOT an issue row: HRM's
+ * M1/M2 are routinely empty or point outside the synced population, and
+ * flooding the exceptions view with them would bury the real ones.
+ */
+async function resolveManagerLinks(userIdByHrmEmployeeId: Map<number, string>): Promise<number> {
+  const links = await prisma.userManagerLink.findMany({
+    select: { userId: true, level: true, hrmManagerId: true, managerId: true },
+  });
+
+  const byManager = new Map<string | null, Array<{ userId: string; level: number }>>();
+  for (const link of links) {
+    const resolved = userIdByHrmEmployeeId.get(link.hrmManagerId) ?? null;
+    if (resolved === link.managerId) continue; // already correct
+    const bucket = byManager.get(resolved) ?? [];
+    bucket.push({ userId: link.userId, level: link.level });
+    byManager.set(resolved, bucket);
+  }
+
+  let resolvedCount = 0;
+  for (const [managerId, targets] of byManager) {
+    await prisma.userManagerLink.updateMany({
+      where: { OR: targets.map((t) => ({ userId: t.userId, level: t.level })) },
+      data: { managerId },
+    });
+    if (managerId !== null) resolvedCount += targets.length;
+  }
+  return resolvedCount;
+}
+
+/**
+ * Pass 2e: recompute `User.divisionId` for everyone this run touched.
+ *
+ * Runs AFTER `path`/`depth` are rebuilt, not inside the membership write:
+ * tier 2 of `resolveDivisionId` walks ancestors via `path`, and a department
+ * created earlier in this same run still has the empty default path until
+ * that pass has run. Doing it here means a brand-new unit's members get the
+ * right division on the first run rather than the second.
+ */
+async function resolveDivisions(userIds: string[]): Promise<number> {
+  if (userIds.length === 0) return 0;
+
+  const departments = await prisma.department.findMany({
+    select: { id: true, name: true, typeName: true, path: true },
+  });
+  const byId = new Map(departments.map((d) => [d.id, d]));
+
+  const memberships = await prisma.userDepartment.findMany({
+    where: { userId: { in: userIds } },
+    select: { userId: true, departmentId: true },
+  });
+  const byUser = new Map<string, DepartmentWithPath[]>();
+  for (const m of memberships) {
+    const dept = byId.get(m.departmentId);
+    if (!dept) continue;
+    const bucket = byUser.get(m.userId) ?? [];
+    bucket.push(dept);
+    byUser.set(m.userId, bucket);
+  }
+
+  const current = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, divisionId: true },
+  });
+
+  // Group by target division so this is one updateMany per division, not one
+  // update per person.
+  const byDivision = new Map<string | null, string[]>();
+  for (const user of current) {
+    const divisionId = resolveDivisionId(byUser.get(user.id) ?? [], byId);
+    if (divisionId === user.divisionId) continue;
+    const bucket = byDivision.get(divisionId) ?? [];
+    bucket.push(user.id);
+    byDivision.set(divisionId, bucket);
+  }
+
+  let changed = 0;
+  for (const [divisionId, ids] of byDivision) {
+    await prisma.user.updateMany({ where: { id: { in: ids } }, data: { divisionId } });
+    changed += ids.length;
+  }
+  return changed;
 }
 
 /** Step 10: local users with hrmEmployeeId not seen at all in this run -> archived. Never touches hrmSyncedAt (not "found and synced", just "not found"). */
@@ -524,7 +636,7 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
       }
     }
 
-    const roleGrants = computeRoleGrants(mapped, orgUnits, existingRoleByHrmEmployeeId);
+    const roleGrants = computeRoleGrants(mapped, existingRoleByHrmEmployeeId);
     const newAdminCount = roleGrants.filter((g) => g.to === "ADMIN").length;
     const massAdminGrantGuard = checkMassAdminGrant({
       newAdminCount,
@@ -571,13 +683,27 @@ async function runHrmSyncBody(runId: string, args: RunHrmSyncArgs): Promise<RunH
     issues.push(...managerIssues);
 
     // 9d. path/depth
-    const allDepts = await prisma.department.findMany({ select: { id: true, parentId: true } });
-    const paths = rebuildDepartmentPaths(allDepts);
+    // Sorted, not raw: with parents resolved correctly the graph is a clean
+    // tree, but it is external data — if a future cycle appears,
+    // rebuildDepartmentPaths breaks it at whichever node comes first, and an
+    // unordered findMany would let path/depth (and the headcount rollups,
+    // admin scope and division resolution keyed off them) shift between runs
+    // over identical data.
+    const allDepts = await prisma.department.findMany({
+      select: { id: true, parentId: true, typeName: true, name: true },
+    });
+    const paths = rebuildDepartmentPaths([...allDepts].sort(compareByOrgSeniority));
     await prisma.$transaction(
       [...paths.entries()].map(([id, info]) =>
         prisma.department.update({ where: { id }, data: { path: info.path, depth: info.depth } })
       )
     );
+
+    // 9e. M1..M5 links + the denormalized Division, both of which need the
+    // full local id map (9e) and the rebuilt paths (9d) to exist first.
+    const managerLinksResolved = await resolveManagerLinks(userIdByHrmEmployeeId);
+    const divisionsResolved = await resolveDivisions([...userIdByHrmEmployeeId.values()]);
+    log.info("hrm sync: org structure resolved", { runId, managerLinksResolved, divisionsResolved });
 
     // 10. archive locally-present users not seen at all in this run
     const usersDismissed = await archiveUnseen(seenHrmEmployeeIds);

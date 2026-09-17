@@ -27,7 +27,6 @@ export interface DepartmentTreeNode {
   parentId: string | null;
   depth: number;
   path: string;
-  memberCount: number;
   memberCountWithDescendants: number;
   head: DepartmentTreeHead | null;
   children?: DepartmentTreeNode[];
@@ -115,11 +114,17 @@ function TreeNode({
           </Badge>
         )}
 
+        {/* One number: everyone in this unit and below it, counted once. The
+            old "in unit / including sub-units" pair measured how far HRM
+            propagated membership up the tree rather than anything about the
+            org — "PHP, GO" read 13 / 155 while its sibling read 1451 / 1451,
+            because HRM tagged 13 people with the parent unit in one case and
+            everybody in the other. */}
         <span
           className="text-xs text-muted-foreground shrink-0 tabular-nums"
-          title={`In unit: ${node.memberCount}. Including sub-units: ${node.memberCountWithDescendants}.`}
+          title={`${node.memberCountWithDescendants} people in this unit and its sub-units`}
         >
-          {node.memberCount} / {node.memberCountWithDescendants}
+          {node.memberCountWithDescendants}
         </span>
 
         <span className="flex items-center gap-1.5 min-w-0 shrink-0 text-xs text-muted-foreground">

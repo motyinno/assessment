@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { assertCanEditDivision } from "@/lib/user-division";
 import { patchSessionTemplateSchema } from "@/lib/schemas";
 import { notFound, parseJsonBody } from "@/lib/api-helpers";
 
@@ -16,6 +17,9 @@ export async function PATCH(
   const { id } = params;
   const existing = await prisma.sessionTemplate.findUnique({ where: { id } });
   if (!existing) return notFound("Session template not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, existing.departmentId);
+  if (scopeError) return scopeError;
 
   const parsed = await parseJsonBody(req, patchSessionTemplateSchema);
   if (parsed.error) return parsed.error;
@@ -41,6 +45,9 @@ export async function DELETE(
   const { id } = params;
   const existing = await prisma.sessionTemplate.findUnique({ where: { id } });
   if (!existing) return notFound("Session template not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, existing.departmentId);
+  if (scopeError) return scopeError;
 
   await prisma.sessionTemplate.delete({ where: { id } });
   return NextResponse.json({ ok: true });

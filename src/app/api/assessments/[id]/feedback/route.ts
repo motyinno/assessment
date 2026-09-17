@@ -5,6 +5,7 @@ import {
   requireAssessmentAssessor,
 } from "@/lib/auth-helpers";
 import { generateFeedback, type AssessmentResult } from "@/lib/ai-service";
+import { resolveUserDivision } from "@/lib/user-division";
 import { badRequest, notFound, log } from "@/lib/api-helpers";
 
 export async function GET(
@@ -58,10 +59,12 @@ export async function POST(
       subtopics: (r.subtopics as string[] | null) ?? [],
     }));
 
+    const division = await resolveUserDivision(subject.id);
     const aiResponse = await generateFeedback(
       assessmentResults,
       subject.name,
-      assessment.grade
+      assessment.grade,
+      division?.id ?? null
     );
 
     const text = aiResponse.feedback

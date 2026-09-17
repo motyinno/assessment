@@ -1,5 +1,6 @@
 /**
- * HRM dictionary translations (professionalLevel, jobTitle, employeeStatus),
+ * HRM dictionary translations (professionalLevel, jobTitle, employeeStatus,
+ * managerialLevel),
  * collapsed into `Map<valueId, translation>`.
  *
  * Endpoint and shape confirmed against stage/swagger:
@@ -11,7 +12,7 @@
  *
  * Dictionary names are known ahead of time and hardcoded — a separate call
  * to discover names isn't needed; `filter` still narrows the response to
- * just the three we use.
+ * just the ones we use.
  *
  * RISK #1 (see S01 plan): `defaultLanguageOnly=false` returns one translation
  * row per `languageId` for every value, so collapsing naively into a Map is
@@ -40,6 +41,15 @@ export interface HrmDictionaries {
   professionalLevel: Map<string, string>;
   jobTitle: Map<string, string>;
   employeeStatus: Map<string, string>;
+  /** `employee.managerialLevelId` -> translation (usually already "M2"). */
+  managerialLevel: Map<string, string>;
+  /**
+   * `managerialLevel` value id -> stable CODE (e.g. "M2" / "M_2"). Same
+   * reasoning as `professionalLevelCode`: the code is stable, the translation
+   * is locale text — `resolveManagerialLevel` (mapping.ts) prefers the code
+   * and falls back to the translation.
+   */
+  managerialLevelCode: Map<string, string>;
   /**
    * `professionalLevel` value id -> stable CODE (`value.value`, e.g.
    * "JUNIOR_MINUS"), as opposed to `professionalLevel` above which maps to
@@ -98,7 +108,9 @@ export function buildDictionaryMaps(
     professionalLevel: new Map(),
     jobTitle: new Map(),
     employeeStatus: new Map(),
+    managerialLevel: new Map(),
     professionalLevelCode: new Map(),
+    managerialLevelCode: new Map(),
   };
   const sizes: Record<string, number> = {};
   let collisions = 0;
@@ -112,6 +124,9 @@ export function buildDictionaryMaps(
       if (!valueId) continue;
       if (name === "professionalLevel" && value.value) {
         dictionaries.professionalLevelCode.set(valueId, value.value);
+      }
+      if (name === "managerialLevel" && value.value) {
+        dictionaries.managerialLevelCode.set(valueId, value.value);
       }
       const best = pickBest(value.translations ?? [], preferredLanguageId);
       if (!best) continue;
