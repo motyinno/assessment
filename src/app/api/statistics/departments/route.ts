@@ -30,6 +30,13 @@ function periodCutoff(period: PeriodKey, now: number): Date | null {
  *
  * ?department=<id>          scope to this unit's subtree (omitted = every
  *                            unit); 404-shaped empty response for an unknown id
+ * ?type=Division            return only rows of this HRM org level. Filters the
+ *                            OUTPUT, never the maths: the roll-ups below still
+ *                            walk the whole subtree, so a Division's figures
+ *                            include everyone in the Departments and Teams
+ *                            under it. Without it the page listed Units,
+ *                            Divisions, Departments and Teams side by side —
+ *                            four different granularities in one table.
  * ?includeDescendants=0     each row counts only its own direct members
  *                            (default: 1 — rolls up the subtree, same
  *                            path-prefix convention as /api/departments)
@@ -51,6 +58,7 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const departmentId = sp.get("department");
+  const typeName = sp.get("type")?.trim() || null;
   const includeDescendants = sp.get("includeDescendants") !== "0";
   const periodParam = sp.get("period") as PeriodKey | null;
   const period: PeriodKey = periodParam && periodParam in PERIOD_DAYS ? periodParam : "all";
@@ -200,7 +208,12 @@ export async function GET(req: NextRequest) {
     gradeDistribution.set(d.id, merged);
   }
 
-  const items = scope.map((d) => ({
+  // Applied here, after every roll-up: `scope` has to keep the full subtree or
+  // rollUpDistinct would never see the people sitting in a Division's
+  // sub-departments.
+  const rowsOut = typeName ? scope.filter((d) => d.typeName === typeName) : scope;
+
+  const items = rowsOut.map((d) => ({
     departmentId: d.id,
     name: d.name,
     depth: d.depth,

@@ -12,6 +12,8 @@ interface Props {
   value: string | null;
   onChange: (id: string | null, name: string | null) => void;
   placeholder?: string;
+  /** Restrict to one HRM org level, e.g. "Division" — see HRM_ORG_UNIT_TYPES. */
+  type?: string;
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  * `GET /api/departments?filterable=1&q=` per keystroke, same shape as the
  * user-search comboboxes.
  */
-export function DepartmentCombobox({ value, onChange, placeholder = "Filter by department" }: Props) {
+export function DepartmentCombobox({ value, onChange, placeholder = "Filter by department", type }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<DepartmentOption[]>([]);
@@ -40,6 +42,7 @@ export function DepartmentCombobox({ value, onChange, placeholder = "Filter by d
       // since S10 (department-tree.tsx needs it), but this picker still wants
       // the flat `items[]` of directly-matching units it always did.
       const params = new URLSearchParams({ filterable: "1", tree: "0" });
+      if (type) params.set("type", type);
       if (query.trim()) params.set("q", query.trim());
       fetch(`/api/departments?${params.toString()}`, { signal: controller.signal })
         .then((r) => (r.ok ? r.json() : null))
@@ -51,7 +54,7 @@ export function DepartmentCombobox({ value, onChange, placeholder = "Filter by d
         .finally(() => setLoading(false));
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, open]);
+  }, [query, open, type]);
 
   useEffect(() => {
     if (!open) return;
