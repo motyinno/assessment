@@ -29,8 +29,15 @@ interface TechMatrixSection {
   topics: TechMatrixTopic[];
 }
 
+interface Division {
+  id: string;
+  name: string;
+}
+
 interface TechMatrix {
   sections: TechMatrixSection[];
+  /** The division this matrix belongs to, as resolved by the API. */
+  division: Division | null;
 }
 
 type ViewMode = "table" | "roadmap";
@@ -47,11 +54,46 @@ export default function TechMatrixPage() {
   const [sectionFilter, setSectionFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  // `null` until the first response tells us which division is the caller's own;
+  // after that it's whichever division is being viewed.
+  const [divisionId, setDivisionId] = useState<string | null>(null);
+  const [divisions, setDivisions] = useState<Division[]>([]);
 
   useEffect(() => {
-    fetch("/api/tech-matrix")
-      .then((r) => r.json())
-      .then((data) => { setMatrix(data); setLoading(false); });
+    const controller = new AbortController();
+    setLoading(true);
+    // No param on first load: the API answers with the caller's OWN division
+    // and tells us which one it picked, so the page opens on your own matrix
+    // without a round trip to look it up first.
+    const url = divisionId ? `/api/tech-matrix?departmentId=${divisionId}` : "/api/tech-matrix";
+    fetch(url, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: TechMatrix | null) => {
+        if (!data) return;
+        setMatrix(data);
+        if (data.division) setDivisionId(data.division.id);
+      })
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setMatrix(null);
+      })
+      .finally(() => setLoading(false));
+    return () => controller.abort();
+  }, [divisionId]);
+
+  // The picker's options. Everyone may read any division's matrix, so this is
+  // the plain department list filtered to that level — not the editor's
+  // `/api/tech-matrix/divisions`, which answers "what may I edit".
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/departments?tree=0&filterable=1&type=Division", { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { items: Division[] } | null) => setDivisions(data?.items ?? []))
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+        setDivisions([]);
+      });
+    return () => controller.abort();
   }, []);
 
   const filteredSections = useMemo(() => {
@@ -103,6 +145,34 @@ export default function TechMatrixPage() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {/* Table view only: the roadmap is the viewer's OWN progress against
+              their own division (it fetches /api/users/<id>/roadmap itself), so
+              pointing it at another division's matrix would be meaningless. */}
+          {view === "table" && divisions.length > 0 && (
+            <Select
+              value={divisionId ?? ""}
+              onValueChange={(v) => {
+                if (typeof v === "string" && v) setDivisionId(v);
+              }}
+            >
+              <SelectTrigger className="w-48" aria-label="Division">
+                <SelectValue placeholder="Division">
+                  {(v) =>
+                    typeof v === "string" && v
+                      ? (divisions.find((d) => d.id === v)?.name ?? matrix?.division?.name ?? "…")
+                      : "Division"
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {divisions.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {isAdmin && (
             <Link
               href="/tech-matrix/edit"
@@ -236,7 +306,18 @@ export default function TechMatrixPage() {
 
       {/* Sections */}
       {filteredSections.length === 0 ? (
-        <div className="text-center py-16 text-muted-foreground">Nothing found</div>
+        // "Nothing found" is about the search/filters. A division that simply
+        // has no matrix yet is a different state entirely — most divisions are
+        // in it, since each one's matrix is built by its own admins.
+        <div className="text-center py-16 text-muted-foreground">
+          {matrix && matrix.sections.length === 0
+            ? matrix.division
+              ? `No matrix has been built for ${matrix.division.name} yet.`
+              : // Nobody's fault and not an error: HRM simply hasn't placed
+                // this person in a Division-type unit. The picker is the way out.
+                "You're not in a division yet — pick one above to see its matrix."
+            : "Nothing found"}
+        </div>
       ) : (
         <div className="space-y-4">
           {filteredSections.map((section) => {

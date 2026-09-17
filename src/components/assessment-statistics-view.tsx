@@ -32,9 +32,11 @@ export interface AssessmentRow {
   conductors: { id: string; name: string }[];
   // The people who were assessed (SUBJECT participants) — usually one.
   subjects: { id: string; name: string }[];
-  // Units the subject(s) belong to (S13) — a person in several units shows
-  // up under each, so a company-wide sum across units double-counts them.
-  subjectDepartments: { id: string; name: string }[];
+  // The subject(s)' division (S13). One per person, so an assessment lands in
+  // exactly as many divisions as it has distinct subjects — unlike the raw
+  // membership list this used to carry, which put one assessment under a Unit,
+  // a Division AND a Department at once.
+  subjectDivisions: { id: string; name: string }[];
 }
 
 type PeriodKey = "1m" | "3m" | "6m" | "12m" | "all";
@@ -253,16 +255,16 @@ interface DepartmentStat {
   gradeDistribution: Record<string, number>;
 }
 
-// Units below this size make percentages statistically meaningless (spec
-// risk note) — folded into a trailing "Other units" row in the coverage table.
+// Divisions below this size make percentages statistically meaningless (spec
+// risk note) — folded into a trailing "Other divisions" row in the coverage table.
 const SMALL_UNIT_THRESHOLD = 5;
 
 /** A person in several units is counted once per unit — always true here. */
 function DoubleCountingCaption() {
   return (
     <p className="text-xs text-muted-foreground">
-      A person who belongs to several units is counted in each of them, so
-      per-unit percentages are accurate but a sum across units will not match
+      A person who belongs to several divisions is counted in each of them, so
+      per-division percentages are accurate but a sum across divisions will not match
       total headcount.
     </p>
   );
@@ -285,7 +287,6 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
   // drives the two new department-shaped views below.
   const [deptId, setDeptId] = useState<string | null>(null);
   const [deptName, setDeptName] = useState<string | null>(null);
-  const [includeDescendants, setIncludeDescendants] = useState(true);
   const [deptStats, setDeptStats] = useState<DepartmentStat[]>([]);
   const [deptLoading, setDeptLoading] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({
@@ -297,10 +298,10 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
   useEffect(() => {
     const controller = new AbortController();
     setDeptLoading(true);
-    const params = new URLSearchParams({
-      includeDescendants: includeDescendants ? "1" : "0",
-      period,
-    });
+    // type=Division: the endpoint rolls each division's whole subtree up into
+    // it, so "including children" has nothing left to toggle — a division's
+    // figures always cover the departments and teams beneath it.
+    const params = new URLSearchParams({ type: "Division", period });
     if (deptId) params.set("department", deptId);
     fetch(`/api/statistics/departments?${params.toString()}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
@@ -311,14 +312,14 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
       })
       .finally(() => setDeptLoading(false));
     return () => controller.abort();
-  }, [deptId, includeDescendants, period]);
+  }, [deptId, period]);
 
-  // The endpoint already resolves the selected unit's subtree (or every unit,
-  // unfiltered) — reuse its id set instead of re-deriving descendants here.
+  // The endpoint already resolved the selection to a set of divisions — reuse
+  // its ids instead of re-deriving the subtree here.
   const scopedRows = useMemo(() => {
     if (!deptId) return rows;
     const ids = new Set(deptStats.map((d) => d.departmentId));
-    return rows.filter((r) => r.subjectDepartments.some((d) => ids.has(d.id)));
+    return rows.filter((r) => r.subjectDivisions.some((d) => ids.has(d.id)));
   }, [rows, deptId, deptStats]);
 
   const periodMeta = PERIODS.find((p) => p.key === period)!;
@@ -404,7 +405,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
 
   // ---- department-shaped views (S13) ----
 
-  const topUnits = useMemo(
+  const topDivisions = useMemo(
     () =>
       [...deptStats]
         .filter((d) => d.assessments.total > 0)
@@ -427,7 +428,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
     if (small.length > 0) {
       rowsOut.push({
         id: "__other__",
-        name: `Other units (${small.length}, < ${SMALL_UNIT_THRESHOLD} people each)`,
+        name: `Other divisions (${small.length}, < ${SMALL_UNIT_THRESHOLD} people each)`,
         people: small.reduce((s, d) => s + d.people, 0),
         withCompleted: small.reduce((s, d) => s + d.withCompletedAssessment, 0),
         withoutPdp: small.reduce((s, d) => s + (d.people - d.withActivePdp), 0),
@@ -448,7 +449,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
     setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" }));
   }
 
-  const compareUnits = useMemo(
+  const compareDivisions = useMemo(
     () =>
       compareIds.map(({ id, name }) => {
         const stat = deptStats.find((d) => d.departmentId === id);
@@ -492,33 +493,25 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         })}
       </div>
 
-      {/* Department filter (S13) */}
+      {/* Division filter (S13) */}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Department
+          Division
         </span>
         <div className="w-64">
           <DepartmentCombobox
+            type="Division"
             value={deptId}
             onChange={(id, name) => {
               setDeptId(id);
               setDeptName(name);
             }}
-            placeholder="All departments"
+            placeholder="All divisions"
           />
         </div>
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={includeDescendants}
-            onChange={(e) => setIncludeDescendants(e.target.checked)}
-            className="h-3.5 w-3.5 rounded border-input"
-          />
-          Including children
-        </label>
         {deptId && (
           <span className="text-xs text-muted-foreground">
-            Showing {deptName} {includeDescendants ? "and its sub-units" : "only"}
+            Showing {deptName}, including its departments and teams
             {deptLoading ? " · loading…" : ""}
           </span>
         )}
@@ -721,16 +714,16 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         </Card>
       </div>
 
-      {/* Top units by assessment count (S13) */}
+      {/* Top divisions by assessment count (S13) */}
       <Card>
         <CardHeader>
-          <CardTitle>Top units by number of assessments</CardTitle>
+          <CardTitle>Top divisions by number of assessments</CardTitle>
         </CardHeader>
         <CardContent>
-          {topUnits.length > 0 ? (
-            <ResponsiveContainer width="100%" height={Math.max(260, topUnits.length * 36)}>
+          {topDivisions.length > 0 ? (
+            <ResponsiveContainer width="100%" height={Math.max(260, topDivisions.length * 36)}>
               <BarChart
-                data={topUnits}
+                data={topDivisions}
                 layout="vertical"
                 margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
               >
@@ -747,10 +740,10 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         </CardContent>
       </Card>
 
-      {/* Coverage by unit (S13) */}
+      {/* Coverage by division (S13) */}
       <Card>
         <CardHeader>
-          <CardTitle>Coverage by unit</CardTitle>
+          <CardTitle>Coverage by division</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {coverageRows.length > 0 ? (
@@ -760,7 +753,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                     {(
                       [
-                        ["name", "Unit"],
+                        ["name", "Division"],
                         ["people", "People"],
                         ["coverage", "With completed assessment"],
                         ["withoutPdp", "Without PDP"],
@@ -793,16 +786,16 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
               </table>
             </div>
           ) : (
-            <EmptyChart message={deptLoading ? "Loading…" : "No units in scope"} />
+            <EmptyChart message={deptLoading ? "Loading…" : "No divisions in scope"} />
           )}
           <DoubleCountingCaption />
         </CardContent>
       </Card>
 
-      {/* Unit comparison (S13) */}
+      {/* Division comparison (S13) */}
       <Card>
         <CardHeader>
-          <CardTitle>Compare units by grade distribution</CardTitle>
+          <CardTitle>Compare divisions by grade distribution</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -831,14 +824,15 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
                       setCompareIds((ids) => [...ids, { id, name }]);
                     }
                   }}
-                  placeholder="Add a unit to compare"
+                  type="Division"
+                  placeholder="Add a division to compare"
                 />
               </div>
             )}
           </div>
-          {compareUnits.length > 0 ? (
-            <div className={cn("grid gap-4", compareUnits.length > 1 ? "lg:grid-cols-2" : "")}>
-              {compareUnits.map((u) => {
+          {compareDivisions.length > 0 ? (
+            <div className={cn("grid gap-4", compareDivisions.length > 1 ? "lg:grid-cols-2" : "")}>
+              {compareDivisions.map((u) => {
                 const hasData = u.grades.some((g) => g.count > 0);
                 return (
                   <div key={u.id}>
@@ -861,7 +855,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Pick up to three units to compare.</p>
+            <p className="text-sm text-muted-foreground">Pick up to three divisions to compare.</p>
           )}
           <DoubleCountingCaption />
         </CardContent>
