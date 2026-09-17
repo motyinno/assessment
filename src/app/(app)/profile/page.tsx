@@ -20,6 +20,7 @@ import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { ApiTokensCard } from "@/components/api-tokens-card";
 import { CertificatesCard } from "@/components/certificates-card";
+import { GradeHistoryCard } from "@/components/grade-history-card";
 import { UserAvatar } from "@/components/user-avatar";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -347,6 +348,10 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {session?.user?.id && (
+        <GradeHistoryCard userId={session.user.id} title="My growth history" />
+      )}
 
       <CertificatesCard />
 

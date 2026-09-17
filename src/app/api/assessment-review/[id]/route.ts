@@ -59,12 +59,32 @@ export async function PATCH(
   const resolvedNewGrade = upgrading ? newGrade! : null;
   const notes = (reviewNotes ?? "").trim();
 
+  // A promotion is audited (source: ASSESSMENT) in the same transaction as the
+  // User.grade write, so the growth timeline can never disagree with the grade
+  // it describes — see GradeAuditLog / lib/grade-history.ts.
+  const gradeChanged = upgrading && previousGrade !== resolvedNewGrade;
+
   await prisma.$transaction([
     ...(upgrading
       ? [
           prisma.user.update({
             where: { id: subject.id },
             data: { grade: resolvedNewGrade },
+          }),
+        ]
+      : []),
+    ...(gradeChanged
+      ? [
+          prisma.gradeAuditLog.create({
+            data: {
+              userId: subject.id,
+              previousGrade,
+              newGrade: resolvedNewGrade,
+              source: "ASSESSMENT",
+              assessmentId: params.id,
+              actorId: me.id,
+              note: notes.length > 0 ? notes : null,
+            },
           }),
         ]
       : []),

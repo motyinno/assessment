@@ -44,6 +44,15 @@ const peopleItems: Array<{
 }> = [
   { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
   { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
+  // Same page as the admin "Assessment Statistics" entry below, scoped
+  // server-side to the manager's direct reports. Listed here rather than
+  // added to adminItems so an admin's Administration menu stays as it was.
+  {
+    href: "/assessment-statistics",
+    label: "Team Statistics",
+    icon: "bar-chart",
+    roles: ["MANAGER"],
+  },
 ];
 
 // Admin review queues & insights — all "Assessment X" / "PDP X" review actions.

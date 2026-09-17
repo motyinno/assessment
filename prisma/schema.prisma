@@ -119,6 +119,8 @@ model User {
   deputyDepartments    Department[]                @relation("departmentDeputy")
   roleAudit            RoleAuditLog[]              @relation("roleAuditSubject")
   roleAuditActions     RoleAuditLog[]              @relation("roleAuditActor")
+  gradeAudit           GradeAuditLog[]             @relation("gradeAuditSubject")
+  gradeAuditActions    GradeAuditLog[]             @relation("gradeAuditActor")
 
   @@index([managerId])
   @@index([hrmEmployeeId])
@@ -245,6 +247,44 @@ model RoleAuditLog {
   @@index([newRole])
 }
 
+/// Audit of every change to `User.grade` — one row per transition, written in
+/// the same transaction as the `User.grade` write so the timeline can never
+/// drift from the value it describes. Feeds the "Growth history" card on the
+/// profile / user detail pages (see lib/grade-history.ts).
+///
+/// Grades are free-form strings here for the same reason `User.grade` is (see
+/// the enum note at the top of this file). `previousGrade` is null when the
+/// person had no grade recorded yet; `newGrade` is null when a grade was
+/// cleared.
+///
+/// Not audited: the HRM sync's grade writes. The sync only ever fills an
+/// *empty* grade (see lib/hrm/apply-user.ts), so it sets a starting point
+/// rather than recording growth — lib/grade-history.ts renders that starting
+/// point from the earliest row's `previousGrade` instead.
+model GradeAuditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  previousGrade String?
+  newGrade      String?
+  source        String // ASSESSMENT | MANUAL
+  /// Set when source = ASSESSMENT — the assessment whose review produced the
+  /// upgrade. Kept nullable so deleting an assessment never deletes history.
+  assessmentId  String?
+  /// Who made the decision. Null for rows backfilled from historical
+  /// assessments that predate this table.
+  actorId       String?
+  /// Review notes (ASSESSMENT) or a free-form reason (MANUAL).
+  note          String?
+  createdAt     DateTime @default(now())
+
+  user       User        @relation("gradeAuditSubject", fields: [userId], references: [id], onDelete: Cascade)
+  actor      User?       @relation("gradeAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  assessment Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([assessmentId])
+}
+
 /// A certificate a user adds to their profile. Stored as the bare code
 /// (e.g. "5Y0FT4E8X7GG9F6T"); the public verification URL is derived as
 /// `${CERT_VERIFY_BASE_URL}${code}` (see lib/certificates.ts).
@@ -320,6 +360,7 @@ model Assessment {
   pdps            Pdp[]
   sessions        AssessmentSession[]
   request         AssessmentRequest?
+  gradeAudit      GradeAuditLog[]
   reviewedBy      User?                   @relation("reviewedAssessments", fields: [reviewedById], references: [id])
 
   @@index([reviewStatus])

@@ -98,7 +98,7 @@ export async function PATCH(
 
   const current = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, role: true, managerId: true, hrmEmployeeId: true },
+    select: { id: true, role: true, grade: true, managerId: true, hrmEmployeeId: true },
   });
   if (!current) return notFound("User not found");
 
@@ -194,38 +194,42 @@ export async function PATCH(
         }
       : null;
 
-  let user;
-  if (demotingFromManager) {
-    const [, updated] = await prisma.$transaction([
-      prisma.user.updateMany({
+  // A manual grade change is audited (source: MANUAL) the same way a role
+  // change is, so the growth timeline covers grades set by hand and not only
+  // promotions decided through an assessment review. `data.grade` is only
+  // present when the caller actually sent a grade, and an unchanged value is
+  // not an event.
+  const gradeAuditData =
+    "grade" in data && (data.grade as string | null) !== (current.grade ?? null)
+      ? {
+          userId: id,
+          previousGrade: current.grade ?? null,
+          newGrade: (data.grade as string | null) ?? null,
+          source: "MANUAL" as const,
+          actorId: me.id,
+        }
+      : null;
+
+  // One interactive transaction covers all four possible writes (orphaning the
+  // demoted manager's reports, the update itself, and the two audit rows), so
+  // an audit row can't survive a failed update or vice versa. Replaces three
+  // near-identical array transactions that each had to repeat the audit writes.
+  const user = await prisma.$transaction(async (tx) => {
+    if (demotingFromManager) {
+      await tx.user.updateMany({
         where: { managerId: id },
         data: { managerId: null },
-      }),
-      prisma.user.update({
-        where: { id },
-        data,
-        select: USER_DETAIL_SELECT,
-      }),
-      ...(roleAuditData ? [prisma.roleAuditLog.create({ data: roleAuditData })] : []),
-    ]);
-    user = updated;
-  } else if (roleAuditData) {
-    const [updated] = await prisma.$transaction([
-      prisma.user.update({
-        where: { id },
-        data,
-        select: USER_DETAIL_SELECT,
-      }),
-      prisma.roleAuditLog.create({ data: roleAuditData }),
-    ]);
-    user = updated;
-  } else {
-    user = await prisma.user.update({
+      });
+    }
+    const updated = await tx.user.update({
       where: { id },
       data,
       select: USER_DETAIL_SELECT,
     });
-  }
+    if (roleAuditData) await tx.roleAuditLog.create({ data: roleAuditData });
+    if (gradeAuditData) await tx.gradeAuditLog.create({ data: gradeAuditData });
+    return updated;
+  });
 
   return NextResponse.json(user);
 }

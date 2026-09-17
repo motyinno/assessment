@@ -276,7 +276,25 @@ function pct(n: number, total: number): string {
 
 // ---------- main view ----------
 
-export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
+/**
+ * "org" is the admin view: every assessment in the company, plus the
+ * department-shaped cuts fed by /api/statistics/departments.
+ *
+ * "team" is the manager view: `rows` already arrive scoped to the
+ * caller's direct reports, and the department cuts are hidden — they describe
+ * org units company-wide, which a manager has no business reading, and their
+ * endpoint is admin-only anyway.
+ */
+export type StatisticsScope = "org" | "team";
+
+export function AssessmentStatisticsView({
+  rows,
+  scope = "org",
+}: {
+  rows: AssessmentRow[];
+  scope?: StatisticsScope;
+}) {
+  const showDepartmentViews = scope === "org";
   const [period, setPeriod] = useState<PeriodKey>("12m");
   // Single timestamp anchor so all derived data agrees within a render.
   const now = useMemo(() => Date.now(), []);
@@ -295,6 +313,9 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
   const [compareIds, setCompareIds] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
+    // /api/statistics/departments is admin-only — in the team view there is
+    // nothing to fetch and a request would just 403.
+    if (!showDepartmentViews) return;
     const controller = new AbortController();
     setDeptLoading(true);
     const params = new URLSearchParams({
@@ -311,7 +332,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
       })
       .finally(() => setDeptLoading(false));
     return () => controller.abort();
-  }, [deptId, includeDescendants, period]);
+  }, [deptId, includeDescendants, period, showDepartmentViews]);
 
   // The endpoint already resolves the selected unit's subtree (or every unit,
   // unfiltered) — reuse its id set instead of re-deriving descendants here.
@@ -492,7 +513,8 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         })}
       </div>
 
-      {/* Department filter (S13) */}
+      {/* Department filter (S13) — org scope only */}
+      {showDepartmentViews && (
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Department
@@ -523,6 +545,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
           </span>
         )}
       </div>
+      )}
 
       {/* KPI cards (period-sensitive, except the all-time total) */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -721,6 +744,9 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         </Card>
       </div>
 
+      {/* Department-shaped views (S13) — org scope only */}
+      {showDepartmentViews && (
+      <>
       {/* Top units by assessment count (S13) */}
       <Card>
         <CardHeader>
@@ -866,6 +892,8 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
           <DoubleCountingCaption />
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   );
 }

@@ -35,6 +35,7 @@ import {
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { UserCertificatesCard } from "@/components/user-certificates-card";
+import { GradeHistoryCard } from "@/components/grade-history-card";
 import { Separator } from "@/components/ui/separator";
 import {
   FileText,
@@ -843,6 +844,8 @@ export default function UserProfilePage() {
       </div>
 
       {/* Certificates — visible to anyone viewing this profile */}
+      <GradeHistoryCard userId={profile.id} refreshKey={profile.grade} />
+
       <UserCertificatesCard userId={profile.id} />
 
       {/* Edit user dialog */}
