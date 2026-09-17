@@ -25,7 +25,9 @@ export async function POST(
       request: { select: { chatSpaceName: true } },
       participants: {
         where: { participantRole: "SUBJECT" },
-        select: { user: { select: { name: true } } },
+        // `id` as well as `name`: the review notification is addressed to the
+        // SUBJECT's admins, which needs the subject's id to resolve.
+        select: { user: { select: { id: true, name: true } } },
       },
     },
   });
@@ -49,6 +51,7 @@ export async function POST(
   await notifyAdminsReviewSubmitted({
     actingUserId: guard.session.user.id,
     actingUserName: guard.session.user.name ?? "An assessor",
+    subjectUserId: assessment.participants[0]?.user.id ?? null,
     subjectName: assessment.participants[0]?.user.name ?? assessment.title,
     assessmentId: params.id,
     space: assessment.request?.chatSpaceName ?? null,

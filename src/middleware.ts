@@ -1,5 +1,11 @@
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
+import { authConfig } from "@/lib/auth.config";
+
+// Built from the EDGE-SAFE config, never from "@/lib/auth": that one carries
+// the Prisma-backed providers and `jwt` callback, and middleware runs on the
+// edge runtime, where Prisma throws. See the note in auth.config.ts.
+const { auth } = NextAuth(authConfig);
 
 // Public paths — anything else requires an authenticated session.
 // /api/health is intentionally public so that orchestrators (Docker, k8s,

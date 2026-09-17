@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { getAdminsResponsibleFor, getSuperAdmins } from "@/lib/admin-scope";
 import { log } from "@/lib/api-helpers";
 import { appBaseUrl } from "@/lib/email";
 import {
@@ -58,7 +59,7 @@ async function notify({ recipient, type, title, body, link }: NotifyArgs): Promi
 
 // ---- Event-level helpers -------------------------------------------------
 
-/** A user submitted an assessment request -> notify every admin. */
+/** A user submitted an assessment request -> notify the admins responsible for them. */
 export async function notifyAdminsOfNewRequest(params: {
   requestId: string;
   requesterId: string;
@@ -66,7 +67,10 @@ export async function notifyAdminsOfNewRequest(params: {
   grade: string;
 }): Promise<void> {
   const { requestId, requesterId, requesterName, grade } = params;
-  const admins = await getAdmins();
+  // The requester's own admins, not every admin in the company — see
+  // getAdminsResponsibleFor. This same list becomes the Chat space's member
+  // list below, so the in-app audience and the room can't drift apart.
+  const admins = await getAdminsResponsibleFor(requesterId);
   await Promise.all(
     admins.map((admin) =>
       notify({
@@ -233,18 +237,24 @@ async function chatNotifyAssessorsAssigned(
 
 /**
  * An assessor finished an assessment and submitted it for grade review ->
- * notify every admin (in-app + email) and @mention them in the Chat thread,
+ * notify the subject's admins (in-app) and @mention them in the Chat thread,
  * authored by the assessor.
  */
 export async function notifyAdminsReviewSubmitted(params: {
   actingUserId: string;
   actingUserName: string;
+  /** The person being assessed — whose admins are the audience, not the assessor's. */
+  subjectUserId: string | null;
   subjectName: string;
   assessmentId: string;
   space: string | null;
 }): Promise<void> {
-  const { actingUserId, actingUserName, subjectName, assessmentId, space } = params;
-  const admins = await getAdmins();
+  const { actingUserId, actingUserName, subjectUserId, subjectName, assessmentId, space } = params;
+  // Scoped to the SUBJECT: it's their grade under review, and it keeps this
+  // audience identical to the one the request thread was opened with.
+  // No subject on the assessment is a data anomaly, not a reason to tell the
+  // whole company — that's the super-admins' business.
+  const admins = subjectUserId ? await getAdminsResponsibleFor(subjectUserId) : await getSuperAdmins();
   await Promise.all(
     admins.map((admin) =>
       notify({

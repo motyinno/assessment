@@ -1,4 +1,5 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
+import { authConfig } from "./auth.config";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import prisma from "./prisma";
@@ -77,14 +78,18 @@ if (devLoginEnabled) {
   );
 }
 
+/**
+ * The FULL config: the edge-safe half (auth.config.ts) plus everything that
+ * needs the database — the providers and the `signIn`/`jwt` callbacks. Used by
+ * the route handlers and by every server-side `auth()` call, all of which run
+ * on the Node runtime. `src/middleware.ts` must NOT import this: see the note
+ * at the top of auth.config.ts for what happens when Prisma reaches the edge.
+ */
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers,
-  session: { strategy: "jwt" },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
   callbacks: {
+    ...authConfig.callbacks,
     async signIn({ account, profile }) {
       // Dev credentials bypass the domain allowlist (already verified in authorize())
       if (account?.provider === "dev-credentials") return true;
@@ -138,6 +143,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       return true;
     },
+    // Node runtime only (see auth.config.ts): this is the callback that
+    // touches Prisma, and the middleware's edge instance deliberately has no
+    // copy of it.
     async jwt({ token, user, trigger }) {
       const email = (user?.email ?? token.email) as string | undefined;
       // Refresh denormalized profile fields on sign-in OR when the client
@@ -176,28 +184,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.checkedAt = Date.now();
       }
       return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        const u = session.user as typeof session.user & {
-          id: string;
-          role: string;
-          grade: string | null;
-          project: string | null;
-          managerId: string | null;
-          isArchived: boolean;
-          photoFileName: string | null;
-        };
-        u.id = token.id as string;
-        u.role = token.role as string;
-        u.isSuperAdmin = (token.isSuperAdmin ?? false) as boolean;
-        u.grade = (token.grade ?? null) as string | null;
-        u.project = (token.project ?? null) as string | null;
-        u.managerId = (token.managerId ?? null) as string | null;
-        u.isArchived = (token.isArchived ?? false) as boolean;
-        u.photoFileName = (token.photoFileName ?? null) as string | null;
-      }
-      return session;
     },
   },
 });

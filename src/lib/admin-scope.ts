@@ -74,3 +74,101 @@ export async function isUserInScope(userId: string, scope: Set<string> | null): 
   });
   return count > 0;
 }
+
+/** The fields every admin-audience consumer needs (in-app notify + Chat mention). */
+export interface ResponsibleAdmin {
+  id: string;
+  name: string;
+  email: string;
+  googleId: string | null;
+}
+
+const RESPONSIBLE_ADMIN_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  googleId: true,
+} as const;
+
+/**
+ * The admins who should hear about something that happened to `userId` — the
+ * inverse of `getAdminDepartmentScope`: not "what may this admin see" but "who
+ * administers this person".
+ *
+ * Everything person-shaped (a new assessment request, an assessment submitted
+ * for grade review) used to go to EVERY admin in the company — 109 people on
+ * live data, all of them added to the request's Google Chat space and
+ * @mentioned in it. That is the wrong audience and an unusable chat room.
+ *
+ * Three tiers, each used only when the one before it comes up empty, because a
+ * strict rule would silently drop requests on the floor: 19 of 54 live
+ * divisions have no admin at all (276 people), and 51 more people have no
+ * division. Better a wider audience than a request nobody is told about.
+ *
+ *   1. Admins in the person's own division — 2 to 4 people, the intended case.
+ *   2. Admins whose department scope contains them: an admin who is a member of
+ *      an ancestor-or-self unit of any unit this person belongs to. This is
+ *      exactly the `getAdminDepartmentScope` relation, evaluated from the other
+ *      side so it costs one query instead of one per admin. 24-45 people.
+ *   3. Super-admins, who are unrestricted by definition. Last resort.
+ *
+ * The person themself is never in the result — nobody needs a notification
+ * about their own request. Archived admins are excluded.
+ */
+export async function getAdminsResponsibleFor(userId: string): Promise<ResponsibleAdmin[]> {
+  const subject = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      divisionId: true,
+      departments: { select: { department: { select: { path: true } } } },
+    },
+  });
+  if (!subject) return [];
+
+  const base = { role: "ADMIN" as const, isArchived: false, id: { not: userId } };
+
+  if (subject.divisionId) {
+    const sameDivision = await prisma.user.findMany({
+      where: { ...base, divisionId: subject.divisionId },
+      select: RESPONSIBLE_ADMIN_SELECT,
+      orderBy: { name: "asc" },
+    });
+    if (sameDivision.length > 0) return sameDivision;
+  }
+
+  // `path` is the root-first chain of ids ending with the unit itself, so its
+  // segments are exactly that unit and every ancestor of it.
+  const ancestorIds = new Set<string>();
+  for (const m of subject.departments) {
+    for (const segment of m.department.path.split("/")) ancestorIds.add(segment);
+  }
+  if (ancestorIds.size > 0) {
+    const inScope = await prisma.user.findMany({
+      where: { ...base, departments: { some: { departmentId: { in: [...ancestorIds] } } } },
+      select: RESPONSIBLE_ADMIN_SELECT,
+      orderBy: { name: "asc" },
+    });
+    if (inScope.length > 0) return inScope;
+  }
+
+  return getSuperAdmins(userId);
+}
+
+/**
+ * Super-admins — the org-wide operators. Tier 3 of `getAdminsResponsibleFor`,
+ * and the right audience on its own whenever an event can't be attributed to a
+ * person at all: falling back to every admin in the company there would quietly
+ * restore the 109-recipient blast this all exists to stop.
+ */
+export async function getSuperAdmins(excludeUserId?: string): Promise<ResponsibleAdmin[]> {
+  return prisma.user.findMany({
+    where: {
+      role: "ADMIN",
+      isArchived: false,
+      isSuperAdmin: true,
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    },
+    select: RESPONSIBLE_ADMIN_SELECT,
+    orderBy: { name: "asc" },
+  });
+}
