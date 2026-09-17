@@ -174,7 +174,8 @@ Rules for resources: 2-3 items. Only link to well-known, canonical, stable sourc
 export async function generateFeedback(
   results: AssessmentResult[],
   employeeName: string,
-  grade: string
+  grade: string,
+  departmentId: string | null
 ): Promise<AIGeneratedFeedback> {
   // Prepare the assessment data for AI
   const assessmentData = results
@@ -242,10 +243,10 @@ Use the EXACT same category name as shown in the Assessment Results above (maint
     console.log("AI Feedback Response:", JSON.stringify(parsed, null, 2));
 
     // Normalize category names to match tech matrix titles
-    await ensureCategoryMapping();
+    if (departmentId) await ensureCategoryMapping(departmentId);
     parsed.feedback = parsed.feedback.map((item) => ({
       ...item,
-      category: normalizeCategory(item.category),
+      category: departmentId ? normalizeCategory(item.category, departmentId) : item.category,
     }));
 
     return parsed;
@@ -263,7 +264,8 @@ Use the EXACT same category name as shown in the Assessment Results above (maint
 export async function generateStandalonePDP(
   topics: TechMatrixTopicInput[],
   employeeName: string,
-  grade: string
+  grade: string,
+  departmentId: string | null
 ): Promise<AIGeneratedPDPTopics> {
   if (topics.length === 0) {
     return { pdpTopics: [] };
@@ -339,10 +341,10 @@ Respond ONLY with valid JSON:
     if (!responseContent) throw new Error("No response content from Gemini");
 
     const parsed = JSON.parse(responseContent) as AIGeneratedPDPTopics;
-    await ensureCategoryMapping();
+    if (departmentId) await ensureCategoryMapping(departmentId);
     parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
       ...topic,
-      category: normalizeCategory(topic.category),
+      category: departmentId ? normalizeCategory(topic.category, departmentId) : topic.category,
     }));
     return parsed;
   } catch (error) {
@@ -372,6 +374,7 @@ export async function generatePDPTopics(
   results: AssessmentResult[],
   employeeName: string,
   grade: string,
+  departmentId: string | null,
   assessmentId?: string
 ): Promise<AIGeneratedPDPTopics> {
   // Prepare the assessment data for AI
@@ -442,10 +445,10 @@ Only include categories in pdpTopics that have scores below 7 or need improvemen
     console.log("AI Response:", JSON.stringify(parsed, null, 2));
 
     // Normalize category names to match tech matrix titles
-    await ensureCategoryMapping();
+    if (departmentId) await ensureCategoryMapping(departmentId);
     parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
       ...topic,
-      category: normalizeCategory(topic.category),
+      category: departmentId ? normalizeCategory(topic.category, departmentId) : topic.category,
     }));
 
     // Save to database for caching if assessmentId is provided

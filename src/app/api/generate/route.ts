@@ -22,6 +22,7 @@ import {
   log,
 } from "@/lib/api-helpers";
 import { generatePDPTopics } from "@/lib/ai-service";
+import { resolveUserDivision } from "@/lib/user-division";
 import { loadPdpTopicsMarkdown } from "@/lib/data-loader";
 import { parsePdpTopicsMd, selectQuestions } from "@/lib/pdp-topics-parser";
 import { baseGrade } from "@/lib/grades";
@@ -84,10 +85,12 @@ export async function POST(request: NextRequest) {
       subtopics: (r.subtopics as string[] | null) ?? [],
     }));
 
+    const division = await resolveUserDivision(subject.id);
     const aiResponse = await generatePDPTopics(
       assessmentResults,
       subject.name,
       assessment.grade,
+      division?.id ?? null,
       assessmentId
     );
     pdpData = aiResponse.pdpTopics;

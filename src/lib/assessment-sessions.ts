@@ -83,26 +83,33 @@ export function buildDefaultSessions(
 }
 
 /**
- * Build session templates for a given grade and assessment type. Reads the
- * admin-managed SessionTemplate rows for the resolved grade band; falls back to
- * {@link buildDefaultSessions} when none are configured.
+ * Build session templates for a given grade, assessment type, and
+ * department (the subject's resolved division — see lib/user-division.ts;
+ * `null` when unresolvable). Reads the admin-managed SessionTemplate rows for
+ * that department + grade band; falls back to {@link buildDefaultSessions}
+ * when none are configured (the expected state for every division at
+ * launch, and for a subject with no resolvable division).
  */
 export async function buildSessionsForGrade(
   grade: string,
-  assessmentType: string = ASSESSMENT_TYPES.GENERAL
+  assessmentType: string = ASSESSMENT_TYPES.GENERAL,
+  departmentId: string | null = null
 ): Promise<SessionTemplate[]> {
   // Dynamic import keeps this module client-safe: the label constants above are
   // imported by client components, but Prisma must never reach the browser.
   const { default: prisma } = await import("./prisma");
   const gradeBand = baseGrade(grade);
-  const rows = await prisma.sessionTemplate.findMany({
-    where: {
-      assessmentType: assessmentType as "GENERAL" | "PDP_CHECK",
-      gradeBand,
-      enabled: true,
-    },
-    orderBy: { order: "asc" },
-  });
+  const rows = departmentId
+    ? await prisma.sessionTemplate.findMany({
+        where: {
+          departmentId,
+          assessmentType: assessmentType as "GENERAL" | "PDP_CHECK",
+          gradeBand,
+          enabled: true,
+        },
+        orderBy: { order: "asc" },
+      })
+    : [];
 
   if (rows.length === 0) {
     return buildDefaultSessions(grade, assessmentType);

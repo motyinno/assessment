@@ -1,4 +1,6 @@
 import prisma from "@/lib/prisma";
+import { rebuildDepartmentPaths } from "@/lib/hrm/tree";
+import { compareByOrgSeniority } from "@/lib/org-structure";
 
 /**
  * Non-staff shape for department members / head / deputy (S10). Deliberately
@@ -46,43 +48,62 @@ export type DepartmentRow = {
 };
 
 /**
- * Active membership counts per department, "in unit" only (not summed over
- * descendants — callers that need the subtree total add path-prefix sums
- * themselves, see department-tree building in the route). One `groupBy`,
- * not N queries per node.
+ * Active memberships per department as SETS of user ids, "in unit" only.
+ * Sets rather than counts because every subtree roll-up below has to
+ * deduplicate people — see `rollUpDistinct`.
  */
-export async function getMemberCounts(
+export async function getMembersByDepartment(
   includeArchived: boolean
-): Promise<Map<string, number>> {
-  const counts = await prisma.userDepartment.groupBy({
-    by: ["departmentId"],
+): Promise<Map<string, Set<string>>> {
+  const rows = await prisma.userDepartment.findMany({
     where: includeArchived ? {} : { user: { isArchived: false } },
-    _count: { userId: true },
+    select: { userId: true, departmentId: true },
   });
-  return new Map(counts.map((c) => [c.departmentId, c._count.userId]));
+  const byDept = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const set = byDept.get(r.departmentId) ?? new Set<string>();
+    set.add(r.userId);
+    byDept.set(r.departmentId, set);
+  }
+  return byDept;
 }
 
 /**
- * Sums `memberCount` over a department and every descendant, using the
- * `path` prefix convention from `rebuildDepartmentPaths` (src/lib/hrm/tree.ts):
- * a node's subtree is every row whose `path` starts with `${path}/`, plus
- * the node itself. O(depts × avgChildren) in memory — no per-node SQL.
+ * Rolls per-department sets of entity ids (users, assessments, …) up each
+ * subtree and returns the DISTINCT count per department, using the `path`
+ * convention from `rebuildDepartmentPaths` (src/lib/hrm/tree.ts): a node's
+ * `path` is the root-first chain of ids ending with itself, so adding each
+ * entity to every segment of its department's path fills in that department
+ * and all of its ancestors in one pass.
+ *
+ * Distinct, not summed. HRM puts one person in ~2.6 units, so the same person
+ * routinely appears in a unit AND in one of its own sub-units — summing
+ * per-node counts then counts them once per unit. Live example, the shape this
+ * function exists to fix: "PHP, GO" showed 13 in unit and 168 including
+ * sub-units over children of 62 and 93, i.e. 13 + 62 + 93 — but those 13
+ * people are all also in PHP or GO, so the subtree really holds 155 people,
+ * not 168.
+ *
+ * O(entities × depth), not O(depts²).
  */
-export function withDescendantCounts<T extends { id: string; path: string }>(
+export function rollUpDistinct<T extends { id: string; path: string }>(
   nodes: T[],
-  memberCount: Map<string, number>
+  directSets: Map<string, Set<string>>
 ): Map<string, number> {
-  const withDescendants = new Map<string, number>();
+  const accumulated = new Map<string, Set<string>>();
   for (const node of nodes) {
-    let sum = memberCount.get(node.id) ?? 0;
-    for (const other of nodes) {
-      if (other.id !== node.id && other.path.startsWith(`${node.path}/`)) {
-        sum += memberCount.get(other.id) ?? 0;
-      }
+    const own = directSets.get(node.id);
+    if (!own || own.size === 0) continue;
+    for (const ancestorId of node.path.split("/")) {
+      const set = accumulated.get(ancestorId) ?? new Set<string>();
+      for (const entityId of own) set.add(entityId);
+      accumulated.set(ancestorId, set);
     }
-    withDescendants.set(node.id, sum);
   }
-  return withDescendants;
+
+  const counts = new Map<string, number>();
+  for (const node of nodes) counts.set(node.id, accumulated.get(node.id)?.size ?? 0);
+  return counts;
 }
 
 export interface DepartmentHeadRef {
@@ -120,14 +141,24 @@ export interface DepartmentItem {
   parentId: string | null;
   depth: number;
   path: string;
+  /**
+   * Direct memberships of this exact unit. No longer rendered anywhere — it
+   * measures how far HRM propagated membership up the tree, not the org (see
+   * department-tree.tsx) — but kept on the response: it's a well-defined datum
+   * and /api/departments is a published shape.
+   */
   memberCount: number;
+  /** Distinct people in this unit and everything under it. The headcount the UI shows. */
   memberCountWithDescendants: number;
   head: DepartmentHeadRef | null;
 }
 
 export interface DepartmentData {
   all: DepartmentRow[];
+  /** User ids per department, "in unit" only — the input every subtree roll-up needs. */
+  membersByDepartment: Map<string, Set<string>>;
   memberCount: Map<string, number>;
+  /** DISTINCT people in the department's whole subtree — see rollUpDistinct. */
   withDescendants: Map<string, number>;
   headRefs: Map<string, DepartmentHeadRef>;
 }
@@ -144,10 +175,11 @@ export async function loadDepartmentData(includeArchived: boolean): Promise<Depa
     select: DEPARTMENT_SELECT,
     orderBy: { name: "asc" },
   });
-  const memberCount = await getMemberCounts(includeArchived);
-  const withDescendants = withDescendantCounts(all, memberCount);
+  const membersByDept = await getMembersByDepartment(includeArchived);
+  const memberCount = new Map([...membersByDept].map(([id, set]) => [id, set.size]));
+  const withDescendants = rollUpDistinct(all, membersByDept);
   const headRefs = await getHeadRefs(all.flatMap((d) => [d.headUserId, d.deputyUserId]));
-  return { all, memberCount, withDescendants, headRefs };
+  return { all, membersByDepartment: membersByDept, memberCount, withDescendants, headRefs };
 }
 
 export function toDepartmentItem(d: DepartmentRow, data: DepartmentData): DepartmentItem {
@@ -171,8 +203,9 @@ export function toDepartmentItem(d: DepartmentRow, data: DepartmentData): Depart
  * F2 "Display rules": drop units with 0 active memberships anywhere in
  * their own subtree (noise), and optionally units not usable as a filter
  * (`isSinglePerson` positions). Safe to prune wholesale — if a node's
- * memberCountWithDescendants is 0 every descendant's is too (the sum only
- * grows going down), so nothing downstream gets orphaned by removing it.
+ * memberCountWithDescendants is 0 every descendant's is too (a subtree's
+ * distinct set only grows going down), so nothing downstream gets orphaned by
+ * removing it.
  */
 export function pruneEmpty(
   all: DepartmentRow[],
@@ -188,20 +221,49 @@ export interface DepartmentTreeItem extends DepartmentItem {
   children: DepartmentTreeItem[];
 }
 
-/** Nests `survivors` into root-level items with recursive `children`. */
+/**
+ * Nests `survivors` into root-level items with recursive `children`.
+ *
+ * Must not assume the parent chain terminates: HRM's `reportsToId` graph
+ * genuinely contains cycles. A live pull had 502 of 504 units inside one —
+ * Global Development -> Java VOKA -> Development Team VOKA -> VOKA.IO -> VOKA
+ * -> ERP Solutions -> Business Practice -> DMO -> back to Java VOKA — which
+ * left this function with ZERO roots (every node had a surviving parent) and
+ * rendered the whole Departments page blank.
+ *
+ * So the parent used for nesting is the EFFECTIVE one from
+ * `rebuildDepartmentPaths` — the same cycle-breaking walk that computes
+ * `path`/`depth` during the sync (one implementation, already tested for
+ * cycles) — rather than the raw `parentId`. It promotes one member of each
+ * cycle to a root and hangs the rest below it, dropping exactly one edge. That
+ * matters here: nesting by raw `parentId` while taking roots from the
+ * cycle-broken walk would list the promoted node twice and recurse forever.
+ */
 export function buildDepartmentTree(
   survivors: DepartmentRow[],
   data: DepartmentData
 ): DepartmentTreeItem[] {
   const survivorIds = new Set(survivors.map((d) => d.id));
+  const paths = rebuildDepartmentPaths(
+    [...survivors].sort(compareByOrgSeniority).map((d) => ({
+      id: d.id,
+      // A parent that didn't survive the prune counts as absent, so its
+      // orphaned children surface as roots instead of vanishing.
+      parentId: d.parentId !== null && survivorIds.has(d.parentId) ? d.parentId : null,
+    }))
+  );
+
   const childrenOf = new Map<string, DepartmentRow[]>();
   const roots: DepartmentRow[] = [];
   for (const d of survivors) {
-    const parentKnown = d.parentId !== null && survivorIds.has(d.parentId);
-    if (parentKnown) {
-      const list = childrenOf.get(d.parentId as string) ?? [];
+    // `path` is a root-first "/"-joined id chain ending with the node itself,
+    // so the effective parent is the segment before last.
+    const segments = paths.get(d.id)?.path.split("/") ?? [d.id];
+    const parentId = segments.length > 1 ? segments[segments.length - 2] : null;
+    if (parentId) {
+      const list = childrenOf.get(parentId) ?? [];
       list.push(d);
-      childrenOf.set(d.parentId as string, list);
+      childrenOf.set(parentId, list);
     } else {
       roots.push(d);
     }

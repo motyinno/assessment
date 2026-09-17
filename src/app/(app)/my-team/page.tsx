@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { gradeLabel } from "@/lib/grades";
 import { UserAvatar } from "@/components/user-avatar";
+import { buildOrgStructure } from "@/lib/org-structure";
 
 const PAGE_SIZE = 25;
 
@@ -53,9 +54,10 @@ export default async function MyTeamPage({
         photoFileName: true,
         departments: {
           select: {
-            department: { select: { id: true, name: true, isFilterable: true } },
+            department: { select: { id: true, name: true, typeName: true, isFilterable: true } },
           },
         },
+        division: { select: { id: true, name: true } },
       },
       orderBy: { name: "asc" },
       skip: (page - 1) * PAGE_SIZE,
@@ -64,27 +66,21 @@ export default async function MyTeamPage({
     prisma.user.count({ where }),
   ]);
 
-  // Group by department (S09): a person in several units appears in each of
-  // their groups — the same multi-membership fact as S13, called out below so
-  // "more people than direct reports" doesn't read as a bug.
+  // Group by DIVISION, not by every membership. This used to iterate
+  // `departments[]` and put the same person into one group per unit — so a
+  // report with a Unit, a Division and a Department showed up three times and
+  // the group headings mixed org levels ("Global Development" next to
+  // "NodeJS BY & Asia"). A person has exactly one division, so each report now
+  // appears exactly once.
   type Report = (typeof reports)[number];
   const groups = new Map<string, { name: string; members: Report[] }>();
   const UNASSIGNED = "__unassigned__";
   for (const report of reports) {
-    const filterable = report.departments
-      .map((d) => d.department)
-      .filter((d) => d.isFilterable);
-    if (filterable.length === 0) {
-      const g = groups.get(UNASSIGNED) ?? { name: "No department", members: [] };
-      g.members.push(report);
-      groups.set(UNASSIGNED, g);
-      continue;
-    }
-    for (const dept of filterable) {
-      const g = groups.get(dept.id) ?? { name: dept.name, members: [] };
-      g.members.push(report);
-      groups.set(dept.id, g);
-    }
+    const division = report.division;
+    const key = division?.id ?? UNASSIGNED;
+    const g = groups.get(key) ?? { name: division?.name ?? "No division", members: [] };
+    g.members.push(report);
+    groups.set(key, g);
   }
   const sortedGroups = Array.from(groups.entries()).sort(([a], [b]) => {
     if (a === UNASSIGNED) return 1;
@@ -150,7 +146,7 @@ export default async function MyTeamPage({
         <div className="space-y-5">
           {sortedGroups.length > 1 && (
             <p className="text-xs text-muted-foreground">
-              Grouped by department — people in several units are counted in each.
+              Grouped by division — each person appears once, under the division HRM places them in.
             </p>
           )}
           {sortedGroups.map(([key, group]) => (
@@ -168,7 +164,7 @@ export default async function MyTeamPage({
                     <TableRow>
                       <TableHead>User</TableHead>
                       <TableHead>Position</TableHead>
-                      <TableHead>Departments</TableHead>
+                      <TableHead>Department</TableHead>
                       <TableHead>Projects</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead className="text-right">Roadmap</TableHead>
@@ -176,10 +172,12 @@ export default async function MyTeamPage({
                   </TableHeader>
                   <TableBody>
                     {group.members.map((report) => {
-                      const departmentNames = report.departments
-                        .map((d) => d.department)
-                        .filter((d) => d.isFilterable)
-                        .map((d) => d.name);
+                      // The Department-level unit only — the group heading
+                      // above already carries the division.
+                      const departmentNames =
+                        buildOrgStructure(
+                          report.departments.map((d) => d.department).filter((d) => d.isFilterable)
+                        ).find((slot) => slot.type === "Department")?.units.map((u) => u.name) ?? [];
                       return (
                         <TableRow
                           key={report.id}

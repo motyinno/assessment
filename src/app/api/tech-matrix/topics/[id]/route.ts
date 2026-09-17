@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { assertCanEditDivision } from "@/lib/user-division";
 import { patchTopicSchema } from "@/lib/schemas";
 import { notFound, parseJsonBody } from "@/lib/api-helpers";
 
@@ -14,8 +15,14 @@ export async function PATCH(
   if (auth.error) return auth.error;
 
   const { id } = params;
-  const existing = await prisma.matrixTopic.findUnique({ where: { id } });
+  const existing = await prisma.matrixTopic.findUnique({
+    where: { id },
+    include: { section: { select: { departmentId: true } } },
+  });
   if (!existing) return notFound("Topic not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, existing.section.departmentId);
+  if (scopeError) return scopeError;
 
   const parsed = await parseJsonBody(req, patchTopicSchema);
   if (parsed.error) return parsed.error;
@@ -39,8 +46,14 @@ export async function DELETE(
   if (auth.error) return auth.error;
 
   const { id } = params;
-  const existing = await prisma.matrixTopic.findUnique({ where: { id } });
+  const existing = await prisma.matrixTopic.findUnique({
+    where: { id },
+    include: { section: { select: { departmentId: true } } },
+  });
   if (!existing) return notFound("Topic not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, existing.section.departmentId);
+  if (scopeError) return scopeError;
 
   await prisma.matrixTopic.delete({ where: { id } });
   return NextResponse.json({ ok: true });

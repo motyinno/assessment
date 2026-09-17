@@ -6,6 +6,7 @@ import {
   requireAssessmentSessionRunner,
 } from "@/lib/auth-helpers";
 import { buildSessionsForGrade, SESSION_STATUSES } from "@/lib/assessment-sessions";
+import { resolveUserDivision } from "@/lib/user-division";
 import { syncSessionAssets } from "@/lib/session-sync";
 import { sessionPatchSchema } from "@/lib/schemas";
 import {
@@ -84,9 +85,11 @@ export async function POST(
   );
   if (!subject) return badRequest("Assessment subject not found");
 
+  const division = await resolveUserDivision(subject.userId);
   const templates = await buildSessionsForGrade(
     assessment.grade,
-    assessment.assessmentType
+    assessment.assessmentType,
+    division?.id ?? null
   );
 
   await prisma.assessmentSession.createMany({

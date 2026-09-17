@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
 import { isStaff } from "@/lib/roles";
+import { getStaffDepartmentScope } from "@/lib/admin-scope";
 import { uploadPdpToDrive } from "@/lib/google-drive";
 import { getValidAccessToken } from "@/lib/google-auth";
 import { badRequest } from "@/lib/api-helpers";
@@ -11,8 +12,11 @@ export async function GET() {
   if (auth.error) return auth.error;
   const me = auth.session.user;
 
+  const scope = isStaff(me.role) ? await getStaffDepartmentScope(me) : null;
   const where = isStaff(me.role)
-    ? {}
+    ? scope
+      ? { user: { departments: { some: { departmentId: { in: [...scope] } } } } }
+      : {}
     : { userId: me.id, status: { not: "ON_REVIEW" as const } };
 
   const pdps = await prisma.pdp.findMany({

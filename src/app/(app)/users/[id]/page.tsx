@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
 import { ManagerCombobox } from "@/components/manager-combobox";
+import { RoleInCompany } from "@/components/role-in-company";
 import { UserCertificatesCard } from "@/components/user-certificates-card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -46,7 +47,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
-import type { HrmUserFields } from "@/lib/types";
+import type { HrmUserFields, ManagerLinkRef } from "@/lib/types";
 
 interface Assessment {
   id: string;
@@ -94,7 +95,12 @@ interface ProfileData extends Omit<HrmUserFields, "departments"> {
   pdps: Pdp[];
   // Raw Prisma join shape — flattened before rendering (isFilterable:false
   // units, i.e. single-seat positions, dropped per 08 §9).
-  departments: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
+  departments: Array<{
+    department: { id: string; name: string; typeName: string | null; isFilterable: boolean };
+  }>;
+  managerLinks: ManagerLinkRef[];
+  /** Active units this person heads — drives the "Head of X" badge. */
+  headedDepartments: Array<{ id: string; name: string; typeName: string | null }>;
 }
 
 const statusLabels: Record<string, string> = {
@@ -420,6 +426,21 @@ export default function UserProfilePage() {
                     {profile.name}
                   </h1>
                   <Badge variant={roleMeta.tone}>{roleMeta.label}</Badge>
+                  {/* Heading a unit is what earns most of these people their
+                      ADMIN role — say so, instead of leaving them looking like
+                      an ordinary admin. Names the unit when there's one; a
+                      person heading several gets a count with the full list on
+                      hover, so the badge can't push the name off the row. */}
+                  {profile.headedDepartments.length > 0 && (
+                    <Badge
+                      variant="info"
+                      title={profile.headedDepartments.map((d) => d.name).join(", ")}
+                    >
+                      {profile.headedDepartments.length === 1
+                        ? `Head of ${profile.headedDepartments[0].name}`
+                        : `Head of ${profile.headedDepartments.length} units`}
+                    </Badge>
+                  )}
                   {profile.grade && (
                     <Badge variant="outline">{gradeLabel(profile.grade)}</Badge>
                   )}
@@ -436,22 +457,20 @@ export default function UserProfilePage() {
                   </p>
                 )}
                 <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
-                  <MetaItem label="Departments">
-                    {departmentRefs.length === 0 ? (
-                      <p className="text-foreground mt-0.5">—</p>
+                  {/* Division, not the whole membership list: the full org
+                      placement lives in the "Role in the company" card below,
+                      and this banner is for the handful of things you scan a
+                      profile for. */}
+                  <MetaItem label="Division">
+                    {profile.division ? (
+                      <Link
+                        href={`/departments/${profile.division.id}`}
+                        className="text-foreground hover:text-primary hover:underline truncate block mt-0.5"
+                      >
+                        {profile.division.name}
+                      </Link>
                     ) : (
-                      <ul className="mt-0.5 space-y-0.5">
-                        {departmentRefs.map((d) => (
-                          <li key={d.id}>
-                            <Link
-                              href={`/departments/${d.id}`}
-                              className="text-foreground hover:text-primary hover:underline truncate block"
-                            >
-                              {d.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
+                      <p className="text-foreground mt-0.5">—</p>
                     )}
                   </MetaItem>
                   <MetaItem label="Projects">
@@ -543,6 +562,21 @@ export default function UserProfilePage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Where this person actually sits in the company — the Unit/Division/
+          Department/Team/Group/Person split plus the M1..M5 chain, mirroring
+          HRM's own profile card. */}
+      <RoleInCompany
+        position={{
+          jobTitle: profile.jobTitle,
+          managerialLevel: profile.managerialLevel,
+          professionalLevel: profile.professionalLevel,
+          isMentor: profile.isMentor,
+          isDeliveryCoordinator: profile.isDeliveryCoordinator,
+        }}
+        units={departmentRefs}
+        managerLinks={profile.managerLinks}
+      />
 
       {/* Assessments + PDPs side-by-side on large screens */}
       <div className="grid gap-6 xl:grid-cols-3">

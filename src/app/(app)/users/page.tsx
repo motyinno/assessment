@@ -34,6 +34,8 @@ import {
 import { GRADE_VALUES, gradeLabel } from "@/lib/grades";
 import { ManagerCombobox } from "@/components/manager-combobox";
 import { DepartmentCombobox } from "@/components/department-combobox";
+import { DivisionSelect } from "@/components/division-select";
+import { buildOrgStructure } from "@/lib/org-structure";
 import { canManagePeople } from "@/lib/roles";
 import { UserAvatar } from "@/components/user-avatar";
 import type { ManagerRef, HrmUserFields } from "@/lib/types";
@@ -50,7 +52,9 @@ interface User extends Omit<HrmUserFields, "departments"> {
   createdAt: string;
   // Raw Prisma join shape from GET /api/users — flattened to `DepartmentRef[]`
   // (and isFilterable:false units dropped, 08 §9) before rendering, not here.
-  departments: Array<{ department: { id: string; name: string; isFilterable: boolean } }>;
+  departments: Array<{
+    department: { id: string; name: string; typeName: string | null; isFilterable: boolean };
+  }>;
 }
 
 /** Joins a list with ", ", truncating with an ellipsis + full value on hover. */
@@ -106,6 +110,9 @@ export default function UsersPage() {
   const [error, setError] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [departmentId, setDepartmentId] = useState<string | null>(null);
+  // The primary split (see User.divisionId) — a person has exactly one, so
+  // this is a single-select rather than the unit combobox below it.
+  const [divisionId, setDivisionId] = useState<string | null>(null);
   // "Only this unit" — unchecked (default) includes descendants (S08 §"New contract").
   const [onlyThisUnit, setOnlyThisUnit] = useState(false);
 
@@ -125,7 +132,7 @@ export default function UsersPage() {
   // Any filter change starts back at page 1.
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, roleFilter, showArchived, departmentId, onlyThisUnit]);
+  }, [debouncedSearch, roleFilter, showArchived, divisionId, departmentId, onlyThisUnit]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -137,13 +144,14 @@ export default function UsersPage() {
     fetchUsers(controller.signal);
     return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, canViewUsers, router, showArchived, roleFilter, debouncedSearch, departmentId, onlyThisUnit, page]);
+  }, [status, canViewUsers, router, showArchived, roleFilter, debouncedSearch, divisionId, departmentId, onlyThisUnit, page]);
 
   async function fetchUsers(signal?: AbortSignal) {
     const params = new URLSearchParams();
     if (debouncedSearch) params.set("q", debouncedSearch);
     if (roleFilter !== "ALL") params.set("role", roleFilter);
     if (showArchived && canToggleArchived) params.set("archived", "include");
+    if (divisionId) params.set("division", divisionId);
     if (departmentId) {
       params.set("department", departmentId);
       params.set("includeDescendants", onlyThisUnit ? "0" : "1");
@@ -323,6 +331,9 @@ export default function UsersPage() {
             </button>
           );
         })}
+        <div className="w-full sm:w-52">
+          <DivisionSelect value={divisionId} onChange={setDivisionId} />
+        </div>
         <div className="w-full sm:w-56">
           <DepartmentCombobox
             value={departmentId}
@@ -392,7 +403,8 @@ export default function UsersPage() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Position</TableHead>
-                    <TableHead>Departments</TableHead>
+                    <TableHead>Division</TableHead>
+                    <TableHead>Department</TableHead>
                     <TableHead>Projects</TableHead>
                     <TableHead>Grade</TableHead>
                     <TableHead>Role</TableHead>
@@ -404,9 +416,14 @@ export default function UsersPage() {
                     const meta = ROLE_META[user.role] ?? ROLE_META.USER;
                     // Single-seat positions (CEO/CTO, isFilterable:false) don't
                     // count as departments here (08 §9 / S10 §"Display rules").
-                    const departmentNames = user.departments
-                      .filter((d) => d.department.isFilterable)
-                      .map((d) => d.department.name);
+                    // The rest are split by org level rather than listed raw —
+                    // "Global Development, NodeJS, NodeJS BY & Asia" in one
+                    // cell told you nothing about which was which.
+                    const orgSlots = buildOrgStructure(
+                      user.departments.filter((d) => d.department.isFilterable).map((d) => d.department)
+                    );
+                    const departmentNames =
+                      orgSlots.find((s) => s.type === "Department")?.units.map((u) => u.name) ?? [];
                     return (
                       <TableRow
                         key={user.id}
@@ -429,6 +446,9 @@ export default function UsersPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {user.jobTitle || "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {user.division?.name ?? <span className="text-muted-foreground">—</span>}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           <TruncatedList values={departmentNames} />

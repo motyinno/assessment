@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { isAdmin } from "@/lib/roles";
+import { getAdminDepartmentScope } from "@/lib/admin-scope";
 import {
   AssessmentStatisticsView,
   type AssessmentRow,
@@ -12,7 +13,34 @@ export default async function AssessmentStatisticsPage() {
   if (!session?.user) redirect("/login");
   if (!isAdmin(session.user.role)) redirect("/dashboard");
 
+  const scope = await getAdminDepartmentScope(session.user);
+  if (scope && scope.size === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Assessment statistics</h1>
+            <p className="page-subtitle mt-1">
+              You're not currently assigned to a department, so there's nothing to show.
+            </p>
+          </div>
+        </div>
+        <AssessmentStatisticsView rows={[]} />
+      </div>
+    );
+  }
+
   const assessments = await prisma.assessment.findMany({
+    where: scope
+      ? {
+          participants: {
+            some: {
+              participantRole: "SUBJECT",
+              user: { departments: { some: { departmentId: { in: [...scope] } } } },
+            },
+          },
+        }
+      : undefined,
     include: {
       // Explicit select (S13): `include: { user: true }` used to drag the
       // *whole* User row — including googleAccessToken/googleRefreshToken —

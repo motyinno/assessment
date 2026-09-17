@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth-helpers";
+import { requireAdminScope } from "@/lib/auth-helpers";
 import prisma from "@/lib/prisma";
-import { loadDepartmentData, pruneEmpty, withDescendantCounts, type DepartmentRow } from "@/lib/departments";
+import { loadDepartmentData, pruneEmpty, rollUpDistinct, type DepartmentRow } from "@/lib/departments";
 import { GRADE_VALUES } from "@/lib/grades";
 
 export const runtime = "nodejs";
@@ -45,8 +45,9 @@ function periodCutoff(period: PeriodKey, now: number): Date | null {
  * past periods don't shift when someone later leaves (same rule as S06).
  */
 export async function GET(req: NextRequest) {
-  const auth = await requireAdmin();
+  const auth = await requireAdminScope();
   if (auth.error) return auth.error;
+  const adminScope = auth.scope; // null = unrestricted (super-admin)
 
   const sp = req.nextUrl.searchParams;
   const departmentId = sp.get("department");
@@ -57,12 +58,13 @@ export async function GET(req: NextRequest) {
   const cutoff = periodCutoff(period, now);
 
   const data = await loadDepartmentData(false); // non-archived member counts
-  const survivors = pruneEmpty(data.all, data, true); // filterable, non-empty units only
+  let survivors = pruneEmpty(data.all, data, true); // filterable, non-empty units only
+  if (adminScope) survivors = survivors.filter((d) => adminScope.has(d.id));
 
   let scope: DepartmentRow[] = survivors;
   if (departmentId) {
     const target = data.all.find((d) => d.id === departmentId);
-    if (!target) {
+    if (!target || (adminScope && !adminScope.has(target.id))) {
       return NextResponse.json({ items: [] });
     }
     scope = survivors.filter(
@@ -103,17 +105,24 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const directPeople = new Map<string, number>();
-  const directWithCompleted = new Map<string, number>();
-  const directWithPdp = new Map<string, number>();
-  for (const d of scope) directPeople.set(d.id, data.memberCount.get(d.id) ?? 0);
-  const bump = (map: Map<string, number>, deptId: string) =>
-    map.set(deptId, (map.get(deptId) ?? 0) + 1);
+  // Every counter is kept as a SET of entity ids per department, never a
+  // running total: the subtree roll-up below has to deduplicate, because one
+  // person (and so one assessment) sits in ~2.6 units at once and would
+  // otherwise be counted once per unit on the way up. See rollUpDistinct.
+  const directPeople = new Map<string, Set<string>>();
+  const directWithCompleted = new Map<string, Set<string>>();
+  const directWithPdp = new Map<string, Set<string>>();
+  const add = (map: Map<string, Set<string>>, deptId: string, entityId: string) => {
+    const set = map.get(deptId) ?? new Set<string>();
+    set.add(entityId);
+    map.set(deptId, set);
+  };
+  for (const [deptId, members] of data.membersByDepartment) directPeople.set(deptId, new Set(members));
   for (const { userId } of completedSubjectUsers) {
-    for (const deptId of deptsByUserActive.get(userId) ?? []) bump(directWithCompleted, deptId);
+    for (const deptId of deptsByUserActive.get(userId) ?? []) add(directWithCompleted, deptId, userId);
   }
   for (const { userId } of activePdpUsers) {
-    for (const deptId of deptsByUserActive.get(userId) ?? []) bump(directWithPdp, deptId);
+    for (const deptId of deptsByUserActive.get(userId) ?? []) add(directWithPdp, deptId, userId);
   }
 
   // ---- assessment/grade inputs: every subject, archived or not (historical) ----
@@ -134,52 +143,38 @@ export async function GET(req: NextRequest) {
     deptsByUserAll.set(m.userId, list);
   }
 
-  const directTotal = new Map<string, number>();
-  const directCompleted = new Map<string, number>();
-  const directCancelled = new Map<string, number>();
-  const directGrades = new Map<string, Map<string, number>>();
-  // Dedupe by (assessmentId, departmentId) — an assessment with several
-  // SUBJECT rows in the same unit should still count once for that unit.
-  const seenTotal = new Set<string>();
-  const seenCompleted = new Set<string>();
-  const seenCancelled = new Set<string>();
-  const seenGrade = new Set<string>();
+  const directTotal = new Map<string, Set<string>>();
+  const directCompleted = new Map<string, Set<string>>();
+  const directCancelled = new Map<string, Set<string>>();
+  const directGrades = new Map<string, Map<string, Set<string>>>();
+  // Keying every set by assessment id makes the old per-(assessment, unit)
+  // dedupe bookkeeping unnecessary: an assessment with several SUBJECT rows in
+  // the same unit lands in that unit's set once by construction, and the
+  // subtree roll-up dedupes it across units too.
   for (const p of subjectParticipants) {
     const depts = deptsByUserAll.get(p.userId) ?? [];
     const inPeriod = !cutoff || (p.assessment.completedAt != null && p.assessment.completedAt >= cutoff);
     for (const deptId of depts) {
-      const totalKey = `${p.assessment.id}:${deptId}`;
-      if (!seenTotal.has(totalKey)) {
-        seenTotal.add(totalKey);
-        bump(directTotal, deptId);
-      }
+      add(directTotal, deptId, p.assessment.id);
       if (p.assessment.status === "COMPLETED" && inPeriod) {
-        const key = `${p.assessment.id}:${deptId}`;
-        if (!seenCompleted.has(key)) {
-          seenCompleted.add(key);
-          bump(directCompleted, deptId);
-          const gKey = `${key}:${p.assessment.grade}`;
-          if (!seenGrade.has(gKey)) {
-            seenGrade.add(gKey);
-            const grades = directGrades.get(deptId) ?? new Map<string, number>();
-            grades.set(p.assessment.grade, (grades.get(p.assessment.grade) ?? 0) + 1);
-            directGrades.set(deptId, grades);
-          }
+        add(directCompleted, deptId, p.assessment.id);
+        if (p.assessment.grade) {
+          const grades = directGrades.get(deptId) ?? new Map<string, Set<string>>();
+          const forGrade = grades.get(p.assessment.grade) ?? new Set<string>();
+          forGrade.add(p.assessment.id);
+          grades.set(p.assessment.grade, forGrade);
+          directGrades.set(deptId, grades);
         }
       }
-      if (p.assessment.status === "CANCELLED") {
-        const key = `${p.assessment.id}:${deptId}`;
-        if (!seenCancelled.has(key)) {
-          seenCancelled.add(key);
-          bump(directCancelled, deptId);
-        }
-      }
+      if (p.assessment.status === "CANCELLED") add(directCancelled, deptId, p.assessment.id);
     }
   }
 
-  // ---- roll each direct map up the subtree with the shared path-prefix helper ----
-  const rollUp = (direct: Map<string, number>) =>
-    includeDescendants ? withDescendantCounts(scope, direct) : direct;
+  // ---- roll each direct set up the subtree, counting distinct entities ----
+  const sizes = (direct: Map<string, Set<string>>) =>
+    new Map([...direct].map(([id, set]) => [id, set.size]));
+  const rollUp = (direct: Map<string, Set<string>>) =>
+    includeDescendants ? rollUpDistinct(scope, direct) : sizes(direct);
   const people = rollUp(directPeople);
   const withCompletedAssessment = rollUp(directWithCompleted);
   const withActivePdp = rollUp(directWithPdp);
@@ -188,16 +183,19 @@ export async function GET(req: NextRequest) {
   const cancelled = rollUp(directCancelled);
   const gradeDistribution = new Map<string, Record<string, number>>();
   for (const d of scope) {
-    const own = directGrades.get(d.id) ?? new Map<string, number>();
+    // Union the assessment ids per grade, then size — same reason the counters
+    // above are sets: one assessment belongs to every unit its subject is in,
+    // so summing counts down the subtree would inflate the distribution.
     const merged: Record<string, number> = {};
-    for (const g of GRADE_VALUES) merged[g] = own.get(g) ?? 0;
-    if (includeDescendants) {
-      for (const other of scope) {
-        if (other.id === d.id || !other.path.startsWith(`${d.path}/`)) continue;
-        const otherGrades = directGrades.get(other.id);
-        if (!otherGrades) continue;
-        for (const [g, c] of otherGrades) merged[g] = (merged[g] ?? 0) + c;
+    for (const g of GRADE_VALUES) {
+      const ids = new Set(directGrades.get(d.id)?.get(g) ?? []);
+      if (includeDescendants) {
+        for (const other of scope) {
+          if (other.id === d.id || !other.path.startsWith(`${d.path}/`)) continue;
+          for (const id of directGrades.get(other.id)?.get(g) ?? []) ids.add(id);
+        }
       }
+      merged[g] = ids.size;
     }
     gradeDistribution.set(d.id, merged);
   }

@@ -19,6 +19,7 @@ import { loadDictionaries, type HrmDictionaries } from "@/lib/hrm/dictionaries";
 import { mapEmployee } from "@/lib/hrm/mapping";
 import { buildUserWrite } from "@/lib/hrm/apply-user";
 import { log } from "@/lib/logger";
+import { resolveDivisionId, type DepartmentWithPath } from "@/lib/org-structure";
 
 const DICTIONARY_CACHE_TTL_MS = 60 * 60 * 1000; // 1h — see dictionaries.ts's note: this file owns the cache-on-login decision.
 
@@ -113,10 +114,63 @@ export async function refreshEmployeeByEmail(email: string): Promise<void> {
         });
       }
     }
+
+    // M1..M5 chain. Same replace-whole-set write as the nightly sync, with the
+    // same "resolve only what already exists locally" rule as the manager link
+    // above — an unresolved level renders as "-" until the next full sync.
+    await prisma.userManagerLink.deleteMany({ where: { userId } });
+    if (mapped.managerChain.length > 0) {
+      const chainManagers = await prisma.user.findMany({
+        where: { hrmEmployeeId: { in: mapped.managerChain.map((l) => l.hrmManagerId) } },
+        select: { id: true, hrmEmployeeId: true },
+      });
+      const localByHrmId = new Map(
+        chainManagers.map((m) => [m.hrmEmployeeId as number, m.id])
+      );
+      await prisma.userManagerLink.createMany({
+        data: mapped.managerChain.map((link) => ({
+          userId,
+          level: link.level,
+          hrmManagerId: link.hrmManagerId,
+          managerId: localByHrmId.get(link.hrmManagerId) ?? null,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    // Division. Cheap enough on the login path (one query over the person's
+    // own memberships + the department rows they need), and it's what every
+    // division-scoped screen reads — a day-one hire would otherwise see an
+    // empty matrix until the first nightly run.
+    await refreshDivision(userId);
   } catch (e) {
     log.warn("hrm: refreshEmployeeByEmail failed, sign-in proceeds anyway", {
       email,
       error: e instanceof Error ? e.message : String(e),
     });
   }
+}
+
+/**
+ * Recomputes one person's `User.divisionId` from their current memberships —
+ * the single-user counterpart of the sync's bulk pass. Exported so the
+ * membership-editing surfaces can call it too.
+ */
+export async function refreshDivision(userId: string): Promise<string | null> {
+  const memberships = await prisma.userDepartment.findMany({
+    where: { userId },
+    select: { department: { select: { id: true, name: true, typeName: true, path: true } } },
+  });
+  const own: DepartmentWithPath[] = memberships.map((m) => m.department);
+
+  // Tier 2 of resolveDivisionId walks ancestors, so the candidate set has to
+  // include units the person is not a member of — every department, keyed by
+  // id, same as the sync pass.
+  const departments = await prisma.department.findMany({
+    select: { id: true, name: true, typeName: true },
+  });
+  const divisionId = resolveDivisionId(own, new Map(departments.map((d) => [d.id, d])));
+
+  await prisma.user.update({ where: { id: userId }, data: { divisionId } });
+  return divisionId;
 }

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { canManagePeople, isSuperAdmin } from "@/lib/roles";
+import { canManagePeople } from "@/lib/roles";
 import { getDepartmentCard } from "@/lib/departments";
 import { MULTI_MEMBERSHIP_NOTE } from "@/lib/departments-copy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +45,6 @@ export default async function DepartmentCardPage({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (!isSuperAdmin(session.user)) redirect("/dashboard");
 
   const canManageArchive = canManagePeople(session.user.role);
   const includeArchived = searchParams?.archived === "include" && canManageArchive;
@@ -81,6 +80,8 @@ export default async function DepartmentCardPage({
         {breadcrumbs.map((b, i) => (
           <span key={b.id} className="flex items-center gap-1">
             <span aria-hidden>/</span>
+            {/* Every ancestor is reachable now that the chart is unscoped —
+                only the current unit stays unlinked. */}
             {i === breadcrumbs.length - 1 ? (
               <span className="text-foreground font-medium">{b.name}</span>
             ) : (
@@ -107,7 +108,9 @@ export default async function DepartmentCardPage({
             )}
           </h1>
           <p className="page-subtitle mt-1">
-            {department.memberCount} in unit · {department.memberCountWithDescendants} including sub-units
+            {department.memberCountWithDescendants}{" "}
+            {department.memberCountWithDescendants === 1 ? "person" : "people"} in this unit and
+            its sub-units
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -169,7 +172,7 @@ export default async function DepartmentCardPage({
                       )}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                      {c.memberCount} / {c.memberCountWithDescendants}
+                      {c.memberCountWithDescendants}
                     </span>
                   </Link>
                 </li>
@@ -181,12 +184,17 @@ export default async function DepartmentCardPage({
 
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-3 py-3">
-          <CardTitle className="text-sm">Members</CardTitle>
+          {/* Directly filed here, so this count is NOT the headcount in the
+              page title, which covers the sub-units too — and HRM files people
+              inconsistently, so a unit can show 155 people above and 13 here.
+              Say which one this is rather than leave two bare numbers to be
+              read as a contradiction. */}
+          <CardTitle className="text-sm">Listed directly in this unit</CardTitle>
           <span className="text-xs text-muted-foreground">{members.total}</span>
         </CardHeader>
         {members.items.length === 0 ? (
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No members in this unit.
+            Nobody is listed directly in this unit — its people sit in the sub-units above.
           </CardContent>
         ) : (
           <>

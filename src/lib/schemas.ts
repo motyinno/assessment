@@ -145,6 +145,9 @@ export const createSessionTemplateSchema = z.object({
   order: z.number().int().min(0),
   durationMin: z.number().int().min(1).max(480),
   enabled: z.boolean().optional(),
+  // Required for a super-admin (they have no "own" division); ignored/forced
+  // for a plain admin, who always writes to their own resolved division.
+  departmentId: z.string().min(1).optional(),
 });
 
 export const patchSessionTemplateSchema = z.object({
@@ -160,6 +163,9 @@ const skillsArray = z.array(z.string().trim().min(1).max(300));
 
 export const createSectionSchema = z.object({
   title: z.string().trim().min(1).max(200),
+  // Required for a super-admin (they have no "own" division); ignored/forced
+  // for a plain admin, who always writes to their own resolved division.
+  departmentId: z.string().min(1).optional(),
 });
 
 export const patchSectionSchema = z.object({

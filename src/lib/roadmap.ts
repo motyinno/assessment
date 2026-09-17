@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { loadTechMatrix } from "@/lib/data-loader";
+import { resolveUserDivision } from "@/lib/user-division";
 import { baseGrade } from "@/lib/grades";
 import type { Grade } from "@/lib/types";
 import {
@@ -23,7 +24,8 @@ function nextBand(grade: Grade): Grade | null {
  * (b) their self-tracked per-question progress (RoadmapProgress.resolvedSkills).
  */
 export async function buildRoadmap(userId: string): Promise<RoadmapDTO> {
-  const matrix = await loadTechMatrix();
+  const division = await resolveUserDivision(userId);
+  const matrix = division ? await loadTechMatrix(division.id) : { sections: [] };
 
   const [user, assessments, progressRows] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { grade: true } }),

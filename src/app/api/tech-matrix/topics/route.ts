@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-helpers";
+import { assertCanEditDivision } from "@/lib/user-division";
 import { createTopicSchema } from "@/lib/schemas";
 import { badRequest, parseJsonBody } from "@/lib/api-helpers";
 import { uniqueSlug } from "@/lib/slug";
@@ -20,6 +21,9 @@ export async function POST(req: NextRequest) {
     include: { topics: { select: { id: true } } },
   });
   if (!section) return badRequest("Section not found");
+
+  const scopeError = await assertCanEditDivision(auth.session.user, section.departmentId);
+  if (scopeError) return scopeError;
 
   // Topic ids are unique globally (primary key), so guard against collisions
   // across the whole matrix, not just within the section.

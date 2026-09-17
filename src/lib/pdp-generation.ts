@@ -29,10 +29,11 @@ export interface PdpGenerationInputs {
  */
 export async function resolveSelectedTopics(
   inputs: PdpGenerationInputs,
-  grade: string
+  grade: string,
+  departmentId: string | null
 ): Promise<SelectedTopic[]> {
   const base = baseGrade(grade);
-  const matrix = await loadTechMatrix();
+  const matrix = departmentId ? await loadTechMatrix(departmentId) : { sections: [] };
   // Build an O(1) topic lookup once instead of scanning the matrix N×M times.
   const topicById = new Map<
     string,
@@ -76,6 +77,7 @@ export async function runPdpGeneration(opts: {
   userGradeLabel: string;
   selected: SelectedTopic[];
   fileName: string;
+  departmentId: string | null;
 }) {
   const {
     pdpId,
@@ -85,9 +87,10 @@ export async function runPdpGeneration(opts: {
     userGradeLabel,
     selected,
     fileName,
+    departmentId,
   } = opts;
   try {
-    const ai = await generateStandalonePDP(selected, userName, userGradeLabel);
+    const ai = await generateStandalonePDP(selected, userName, userGradeLabel, departmentId);
 
     const buffer = await buildPdpDocx(
       { employee: userName, manager: userManager, next_date: "" },

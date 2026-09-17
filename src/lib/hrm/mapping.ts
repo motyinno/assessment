@@ -9,6 +9,7 @@ import {
   HRM_LIFECYCLE_ACTUAL,
   HRM_LIFECYCLE_DELETED,
   type HrmEmployee,
+  type HrmEmployeeShortInfo,
   type HrmOrgUnit,
 } from "@/lib/hrm/types";
 import type { Grade } from "@/lib/grades";
@@ -21,18 +22,29 @@ export interface MappingIssue {
   message: string;
 }
 
+/** One rung of the M1..M5 chain — `Prisma UserManagerLink` before resolution. */
+export interface MappedManagerLink {
+  /** 1..5 */
+  level: number;
+  hrmManagerId: number;
+}
+
 export interface MappedEmployee {
   hrmEmployeeId: number;
   email: string;
   name: string;
   jobTitle: string | null;
   grade: Grade | null;
+  /** HRM's own professional-level label ("Middle"), as opposed to our overridable `grade`. */
+  professionalLevel: string | null;
+  /** Normalized "M1".."M5" (see resolveManagerialLevel), or null. */
+  managerialLevel: string | null;
+  isMentor: boolean;
+  isDeliveryCoordinator: boolean;
+  /** `managerM1..M5`, only the levels HRM actually populated with an id. */
+  managerChain: MappedManagerLink[];
   /** Raw HRM id of the direct manager (`employee.manager?.id`), unresolved — see mapping.ts's MANAGER_FIELD note. */
   hrmManagerId: number | null;
-  /** Raw HRM id of the M3 manager (`employee.managerM3?.id`), unresolved. See roles.ts (S05) — feeds the ADMIN auto-grant. */
-  hrmM3ManagerId: number | null;
-  /** Raw HRM id of the M4 manager (`employee.managerM4?.id`), unresolved. See roles.ts (S05) — feeds the ADMIN auto-grant. */
-  hrmM4ManagerId: number | null;
   isArchived: boolean;
   hrmDismissed: boolean;
   /** Raw `orgUnits[].id`s — resolved to local `Department` rows by a second pass (S04). */
@@ -104,6 +116,57 @@ export function displayName(
 export function rawManagerId(ref: { id?: number | null } | null | undefined): number | null {
   const id = ref?.id;
   return typeof id === "number" ? id : null;
+}
+
+const MANAGERIAL_LEVEL_RE = /^M[_\s-]?([1-9])$/i;
+
+/**
+ * `employee.managerialLevelId` -> "M1".."M5".
+ *
+ * The dictionary CODE is tried first (stable) and the translation second
+ * (locale text), normalized through the same regex — HRM writes this value as
+ * "M2", "M_2" or "M 2" depending on the surface, and the profile card shows a
+ * bare "M2".
+ *
+ * Anything that isn't an M-level becomes `null`, not a pass-through string:
+ * the live dictionary is exactly M1..M5 plus `NOT_DEFINED` / "Not defined"
+ * (confirmed against stage), and rendering "NOT_DEFINED" in the M-level row
+ * would be strictly worse than the "-" that null gives.
+ */
+export function resolveManagerialLevel(
+  employee: Pick<HrmEmployee, "managerialLevelId">,
+  dicts: Pick<HrmDictionaries, "managerialLevel" | "managerialLevelCode">
+): string | null {
+  const levelId = employee.managerialLevelId;
+  if (!levelId) return null;
+
+  for (const raw of [dicts.managerialLevelCode.get(levelId), dicts.managerialLevel.get(levelId)]) {
+    const m = MANAGERIAL_LEVEL_RE.exec(trimOrEmpty(raw));
+    if (m) return `M${m[1]}`;
+  }
+  return null;
+}
+
+/**
+ * `managerM1`..`managerM5` -> one link per level that carries an id. HRM sends
+ * the key for every level regardless (confirmed live: an empty `managerM1`
+ * object with skills maps but no `id`), so a missing/`null` id is "this level
+ * is empty", not "this level is absent".
+ */
+export function mapManagerChain(employee: HrmEmployee): MappedManagerLink[] {
+  const byLevel: Array<HrmEmployeeShortInfo | null | undefined> = [
+    employee.managerM1,
+    employee.managerM2,
+    employee.managerM3,
+    employee.managerM4,
+    employee.managerM5,
+  ];
+  const links: MappedManagerLink[] = [];
+  byLevel.forEach((ref, index) => {
+    const hrmManagerId = rawManagerId(ref);
+    if (hrmManagerId !== null) links.push({ level: index + 1, hrmManagerId });
+  });
+  return links;
 }
 
 /**
@@ -185,9 +248,14 @@ export function mapEmployee(
       name: displayName(employee),
       jobTitle: employee.jobTitleId ? (dicts.jobTitle.get(employee.jobTitleId) ?? null) : null,
       grade,
+      professionalLevel: employee.professionalLevelId
+        ? (dicts.professionalLevel.get(employee.professionalLevelId) ?? null)
+        : null,
+      managerialLevel: resolveManagerialLevel(employee, dicts),
+      isMentor: employee.isMentor === true,
+      isDeliveryCoordinator: employee.isDeliveryCoordinator === true,
+      managerChain: mapManagerChain(employee),
       hrmManagerId: rawManagerId(employee.manager),
-      hrmM3ManagerId: rawManagerId(employee.managerM3),
-      hrmM4ManagerId: rawManagerId(employee.managerM4),
       isArchived,
       // Same condition as isArchived: agrees with the ready-made
       // employee.isArchived HRM sends, but derived from lifecycleStatus, the
@@ -207,9 +275,74 @@ export interface MappedOrgUnit {
   typeName: string | null;
   isFilterable: boolean;
   isSinglePerson: boolean;
-  /** `reportsToId` as-is; absent key and explicit root both normalize to `null`. */
+  /**
+   * `reportsToId` AS SENT — not the parent org unit. Resolving it needs the
+   * whole unit set, so use `resolveOrgUnitParents()`; this field exists only
+   * because `Department.parentHrmId` stores the raw value. See that function
+   * for why it cannot be interpreted on its own.
+   */
   parentHrmId: number | null;
   isActive: boolean;
+}
+
+/** HRM's name for the single-seat unit type whose id namespace is people, not units. */
+const PERSON_TYPE = "Person";
+
+/**
+ * `reportsToId` -> the parent unit's `hrmId`, for every unit at once.
+ *
+ * `reportsToId` is POLYMORPHIC: it is read in the namespace named by the same
+ * unit's `reportsToOrgUnitTypeId`. For an ordinary parent type it is an org
+ * unit id, but when the parent is a `Person` unit (CEO and friends — one seat,
+ * identified by the person sitting in it) it is an EMPLOYEE id, matching that
+ * unit's `headId`.
+ *
+ * Reading it as an org unit id unconditionally — which is what this sync did
+ * until 2026-09-17 — silently attaches those units to whatever unrelated unit
+ * happens to share the number. Live, that was 13 of 504 units, and it was
+ * enough to knot the whole graph: "Global Development" [Unit] landed under
+ * "Java VOKA" [Team] (employee 791 = Ivan Shatuho, head of "GDO & DMO"), which
+ * produced the cycle that left the Departments page blank and scattered units
+ * that belong under Global Development across the top level.
+ *
+ * A Person unit pointing at its own head is the top of the tree (the CEO
+ * reports to the CEO) and normalizes to `null`, as does a reference that
+ * resolves to nothing.
+ */
+export function resolveOrgUnitParents(units: HrmOrgUnit[]): Map<number, number | null> {
+  const typeNameById = new Map<number, string>();
+  for (const u of units) {
+    if (typeof u.orgUnitTypeId === "number" && u.orgUnitTypeDto) {
+      const name = u.orgUnitTypeDto.orgUnitTypeNameEn ?? u.orgUnitTypeDto.orgUnitTypeName;
+      if (name) typeNameById.set(u.orgUnitTypeId, name);
+    }
+  }
+
+  const unitIds = new Set<number>();
+  const personUnitByHeadId = new Map<number, number>();
+  for (const u of units) {
+    if (typeof u.id !== "number") continue;
+    unitIds.add(u.id);
+    const isPersonUnit = typeNameById.get(u.orgUnitTypeId as number) === PERSON_TYPE;
+    if (isPersonUnit && typeof u.headId === "number") personUnitByHeadId.set(u.headId, u.id);
+  }
+
+  const parents = new Map<number, number | null>();
+  for (const u of units) {
+    if (typeof u.id !== "number") continue;
+    const ref = u.reportsToId;
+    if (typeof ref !== "number") {
+      parents.set(u.id, null);
+      continue;
+    }
+    const parentIsPerson = typeNameById.get(u.reportsToOrgUnitTypeId as number) === PERSON_TYPE;
+    const resolved = parentIsPerson
+      ? (personUnitByHeadId.get(ref) ?? null)
+      : (unitIds.has(ref) ? ref : null);
+    // Self-reference means "top of the tree", not a one-node cycle.
+    parents.set(u.id, resolved === u.id ? null : resolved);
+  }
+  return parents;
 }
 
 /**
@@ -232,9 +365,9 @@ export function mapOrgUnit(unit: HrmOrgUnit): MappedOrgUnit {
     typeName: type?.orgUnitTypeNameEn ?? type?.orgUnitTypeName ?? null,
     isFilterable: type?.isFilterable ?? true,
     isSinglePerson: type?.isSinglePerson ?? false,
-    // `unit.reportsToId ?? null`, deliberately not `"reportsToId" in unit` —
-    // the key can be absent entirely rather than present-as-null, and both
-    // mean "root" here.
+    // Raw, deliberately: interpreting it needs every unit (see
+    // resolveOrgUnitParents). `unit.reportsToId ?? null` rather than
+    // `"reportsToId" in unit` — the key can be absent entirely.
     parentHrmId: unit.reportsToId ?? null,
     isActive: type?.lifecycleStatus !== HRM_LIFECYCLE_DELETED,
   };

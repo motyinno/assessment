@@ -8,6 +8,7 @@ import {
   runPdpGeneration,
   type PdpGenerationInputs,
 } from "@/lib/pdp-generation";
+import { resolveUserDivision } from "@/lib/user-division";
 import { badRequest, notFound } from "@/lib/api-helpers";
 
 export const runtime = "nodejs";
@@ -61,9 +62,11 @@ export async function POST(
     return badRequest("Connect Google Drive in your profile — PDPs need somewhere to be saved");
   }
 
+  const division = await resolveUserDivision(pdp.userId);
   const selected = await resolveSelectedTopics(
     { topicIds: inputs.topicIds, customTopics: inputs.customTopics ?? [] },
-    user.grade
+    user.grade,
+    division?.id ?? null
   );
   if (selected.length === 0) {
     return badRequest("None of the original topics match the current matrix");
@@ -83,6 +86,7 @@ export async function POST(
     userGradeLabel: gradeLabel(user.grade),
     selected,
     fileName: pdp.fileName,
+    departmentId: division?.id ?? null,
   });
 
   return NextResponse.json(updated, { status: 202 });

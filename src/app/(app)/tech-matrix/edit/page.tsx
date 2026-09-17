@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/confirm-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 
 interface Topic {
@@ -21,6 +28,11 @@ interface Section {
   id: string;
   title: string;
   topics: Topic[];
+}
+
+interface Division {
+  id: string;
+  name: string;
 }
 
 const BANDS = ["jun", "mid", "sen"] as const;
@@ -45,9 +57,16 @@ export default function TechMatrixEditPage() {
 
   const role = (session?.user as { role?: string } | undefined)?.role;
   const isAdmin = role === "ADMIN";
+  const isSuperAdmin = !!(session?.user as { isSuperAdmin?: boolean } | undefined)?.isSuperAdmin;
 
-  const reload = useCallback(async () => {
-    const res = await fetch("/api/tech-matrix");
+  const [divisions, setDivisions] = useState<{ id: string; name: string }[]>([]);
+  const [ownDivision, setOwnDivision] = useState<{ id: string; name: string } | null>(null);
+  const [divisionId, setDivisionId] = useState("");
+  const [divisionsLoaded, setDivisionsLoaded] = useState(false);
+
+  const reload = useCallback(async (forDivisionId: string) => {
+    if (!forDivisionId) return;
+    const res = await fetch(`/api/tech-matrix?departmentId=${forDivisionId}`);
     if (res.ok) {
       const data = await res.json();
       setSections(data.sections ?? []);
@@ -61,8 +80,20 @@ export default function TechMatrixEditPage() {
       router.push("/dashboard");
       return;
     }
-    reload();
-  }, [status, isAdmin, router, reload]);
+    fetch("/api/tech-matrix/divisions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { divisions: { id: string; name: string }[]; own: { id: string; name: string } | null } | null) => {
+        if (!data) return;
+        setDivisions(data.divisions);
+        setOwnDivision(data.own);
+        setDivisionId(data.own?.id ?? data.divisions[0]?.id ?? "");
+        setDivisionsLoaded(true);
+      });
+  }, [status, isAdmin, router]);
+
+  useEffect(() => {
+    if (divisionId) reload(divisionId);
+  }, [divisionId, reload]);
 
   // ---- Section mutations ----
   async function addSection() {
@@ -71,11 +102,11 @@ export default function TechMatrixEditPage() {
     const res = await fetch("/api/tech-matrix/sections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, departmentId: divisionId }),
     });
     if (res.ok) {
       setNewSection("");
-      reload();
+      reload(divisionId);
     }
   }
 
@@ -98,7 +129,7 @@ export default function TechMatrixEditPage() {
     const res = await fetch(`/api/tech-matrix/sections/${section.id}`, {
       method: "DELETE",
     });
-    if (res.ok) reload();
+    if (res.ok) reload(divisionId);
   }
 
   // ---- Topic mutations ----
@@ -112,7 +143,7 @@ export default function TechMatrixEditPage() {
     });
     if (res.ok) {
       setTopicDrafts((d) => ({ ...d, [sectionId]: "" }));
-      reload();
+      reload(divisionId);
     }
   }
 
@@ -136,7 +167,7 @@ export default function TechMatrixEditPage() {
     const res = await fetch(`/api/tech-matrix/topics/${topic.id}`, {
       method: "DELETE",
     });
-    if (res.ok) reload();
+    if (res.ok) reload(divisionId);
   }
 
   /** Persist a topic's skill list for one band and mirror it into local state. */
@@ -194,6 +225,22 @@ export default function TechMatrixEditPage() {
 
   if (!isAdmin) return null;
 
+  if (divisionsLoaded && !isSuperAdmin && !ownDivision) {
+    return (
+      <div className="space-y-6">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Edit tech matrix</h1>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          No division resolved for your account — contact a super-admin to edit a
+          tech matrix.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="page-header">
@@ -202,7 +249,28 @@ export default function TechMatrixEditPage() {
           <p className="page-subtitle mt-1">
             Add, rename, or remove sections, topics, and questions. Deleting an
             item orphans (but never deletes) users' existing progress on it.
+            {ownDivision && <> — editing <strong>{ownDivision.name}</strong>.</>}
           </p>
+          {isSuperAdmin && divisions.length > 0 && (
+            <div className="mt-2">
+              <Select value={divisionId} onValueChange={(v) => v && setDivisionId(v)}>
+                <SelectTrigger className="w-64">
+                  <SelectValue placeholder="Choose a division">
+                    {(v: unknown) =>
+                      typeof v === "string" ? (divisions.find((d) => d.id === v)?.name ?? "") : ""
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {divisions.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
         <div className="inline-flex self-center rounded-lg border border-border bg-card p-0.5">
           <Button
