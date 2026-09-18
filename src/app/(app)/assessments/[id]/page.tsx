@@ -108,6 +108,8 @@ interface SessionInfo {
   meetingLink: string | null;
   meetingScheduledAt: string | null;
   recordingLink: string | null;
+  meetStartedAt: string | null;
+  meetEndedAt: string | null;
 }
 
 interface Assessment {
@@ -198,12 +200,11 @@ export default function AssessmentDetailPage() {
 
   async function handleSessionAction(
     sessionId: string,
-    action: "start" | "complete",
+    _action: "complete",
     extra?: { notes?: string }
   ) {
     setSessionActionLoading(true);
-    const newStatus = action === "start" ? "IN_PROGRESS" : "COMPLETED";
-    const body: Record<string, unknown> = { sessionId, status: newStatus };
+    const body: Record<string, unknown> = { sessionId, status: "COMPLETED" };
     if (extra?.notes !== undefined) body.notes = extra.notes;
     const res = await fetch(`/api/assessments/${id}/sessions`, {
       method: "PATCH",
@@ -627,36 +628,47 @@ export default function AssessmentDetailPage() {
             {assessment.sessions
               .filter((s) => s.status !== "NOT_STARTED")
               .map((s) => {
+                // The measured Meet call wins over the Start/Complete clicks:
+                // the buttons get pressed a few minutes early or late (or on
+                // the way out of the room), the conference record doesn't
+                // drift. Falls back to the clicks for sessions that had no
+                // Meet call, or while Meet hasn't published the record yet.
+                const fromMeet = !!(s.meetStartedAt && s.meetEndedAt);
+                const rangeStart = s.meetStartedAt ?? s.startedAt;
+                const rangeEnd = s.meetEndedAt ?? s.completedAt;
+
                 const duration =
-                  s.startedAt && s.completedAt
+                  rangeStart && rangeEnd
                     ? `${Math.round(
-                        (new Date(s.completedAt).getTime() -
-                          new Date(s.startedAt).getTime()) /
+                        (new Date(rangeEnd).getTime() -
+                          new Date(rangeStart).getTime()) /
                           60000
                       )} min`
                     : null;
-                const dateStr = s.startedAt
-                  ? new Date(s.startedAt).toLocaleDateString("en-US", {
+                // A session closed without a Meet call has no start at all —
+                // nothing writes one since the Start button went away — so the
+                // date falls back to when it was closed rather than vanishing.
+                const dateAnchor = rangeStart ?? rangeEnd;
+                const dateStr = dateAnchor
+                  ? new Date(dateAnchor).toLocaleDateString("en-US", {
                       day: "2-digit",
                       month: "2-digit",
                       year: "numeric",
                     })
                   : null;
+                const hhmm = (iso: string) =>
+                  new Date(iso).toLocaleTimeString("en-US", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
                 const timeRange =
-                  s.startedAt && s.completedAt
-                    ? `${new Date(s.startedAt).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })} – ${new Date(s.completedAt).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}`
-                    : s.startedAt
-                      ? `from ${new Date(s.startedAt).toLocaleTimeString("en-US", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}`
-                      : null;
+                  rangeStart && rangeEnd
+                    ? `${hhmm(rangeStart)} – ${hhmm(rangeEnd)}`
+                    : rangeStart
+                      ? `from ${hhmm(rangeStart)}`
+                      : rangeEnd
+                        ? `closed ${hhmm(rangeEnd)}`
+                        : null;
 
                 const metaParts: React.ReactNode[] = [];
                 metaParts.push(
@@ -686,12 +698,23 @@ export default function AssessmentDetailPage() {
                 }
                 if (duration || s.status === "SKIPPED") {
                   metaParts.push(
-                    <span key="dur" className="inline-flex items-center gap-1">
+                    <span
+                      key="dur"
+                      className="inline-flex items-center gap-1"
+                      title={
+                        fromMeet
+                          ? "Measured from the Google Meet call"
+                          : "From the Start/Complete clicks — no Meet call recorded for this session"
+                      }
+                    >
                       <svg className="w-3.5 h-3.5 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                       </svg>
                       {duration ?? (s.status === "SKIPPED" ? "Skipped" : "—")}
+                      {fromMeet && (
+                        <span className="text-muted-foreground">· Meet</span>
+                      )}
                     </span>
                   );
                 }
@@ -751,7 +774,7 @@ export default function AssessmentDetailPage() {
                                 Recording pending
                               </span>
                             )}
-                            {isAssessor && !s.recordingLink && (
+                            {isAssessor && (!s.recordingLink || !s.meetEndedAt) && (
                               <RecordingSyncButton
                                 assessmentId={id}
                                 sessionId={s.id}

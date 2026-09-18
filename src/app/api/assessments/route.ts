@@ -54,7 +54,6 @@ export async function POST(req: NextRequest) {
     scheduledAt,
     notes,
     participants,
-    optionalGuestEmail,
   } = parsed.data;
 
   const subject = participants?.find((p) => p.participantRole === "SUBJECT");
@@ -72,7 +71,6 @@ export async function POST(req: NextRequest) {
         grade,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
         notes: notes ?? null,
-        optionalGuestEmail: optionalGuestEmail ?? null,
         participants: {
           createMany: {
             data: (participants ?? []).map((p) => ({

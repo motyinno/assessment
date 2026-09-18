@@ -65,6 +65,21 @@ export async function getStaffDepartmentScope(
   return computeDepartmentScope(user.id);
 }
 
+/**
+ * May this person edit a unit's own settings (today: its meeting guest)?
+ * A super-admin anywhere; a plain ADMIN only inside their own units and the
+ * sub-units beneath them; nobody else. Unlike `getAdminDepartmentScope`, a
+ * non-admin gets `false` here rather than a `null` that reads as unrestricted.
+ */
+export async function canConfigureDepartment(
+  user: ScopeUser | null | undefined,
+  departmentId: string
+): Promise<boolean> {
+  if (!user || !isAdmin(user.role)) return false;
+  const scope = await getAdminDepartmentScope(user);
+  return scope === null || scope.has(departmentId);
+}
+
 /** `scope === null` means unrestricted (super-admin). */
 export async function isUserInScope(userId: string, scope: Set<string> | null): Promise<boolean> {
   if (scope === null) return true;
