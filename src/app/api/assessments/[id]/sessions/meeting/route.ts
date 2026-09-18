@@ -7,6 +7,8 @@ import {
   updateAssessmentMeeting,
   type CalendarAttendee,
 } from "@/lib/google-calendar";
+import { enableMeetAutoRecording } from "@/lib/google-meet";
+import { resolveDepartmentMeetingGuests } from "@/lib/meeting-guest";
 import { meetingScheduleSchema } from "@/lib/schemas";
 import {
   badRequest,
@@ -42,6 +44,21 @@ export async function POST(
     return badRequest("Can't schedule a meeting for a completed session");
   }
 
+  // Sessions run one at a time: no booking a call for a later session while an
+  // earlier one is still open. Mirrors the stepper, which only offers
+  // scheduling on the current session, and the same gate on closing a session.
+  const earlierOpen = await prisma.assessmentSession.findFirst({
+    where: {
+      assessmentId: sess.assessmentId,
+      order: { lt: sess.order },
+      status: { notIn: ["COMPLETED", "SKIPPED"] },
+    },
+    select: { id: true },
+  });
+  if (earlierOpen) {
+    return badRequest("Finish the earlier sessions before scheduling this one");
+  }
+
   const subject = await prisma.assessmentParticipant.findFirst({
     where: { assessmentId: sess.assessmentId, participantRole: "SUBJECT" },
     include: { user: { select: { name: true, email: true } } },
@@ -52,18 +69,17 @@ export async function POST(
   const summary = `${subject.user.name}/${me.name} ${partLabel}`;
   const durationMin = sess.durationMin || 60;
 
-  // Optional guest: assessment-level setting wins; otherwise fall back to the
-  // OPTIONAL_MEETING_GUEST_EMAIL env var (set in production deploys).
-  // Empty/null means "no guest". This replaces the old hardcoded email.
-  const optionalGuest =
-    sess.assessment.optionalGuestEmail?.trim() ||
-    process.env.OPTIONAL_MEETING_GUEST_EMAIL?.trim() ||
-    null;
+  // Optional guests: whoever the subject's department has configured in the
+  // admin screen (see lib/meeting-guest.ts) — the single source. Nothing
+  // configured means NOBODY is invited: no per-assessment override behind it
+  // and no org-wide env default, so an empty setting can't quietly keep
+  // inviting someone.
+  const optionalGuests = await resolveDepartmentMeetingGuests(subject.userId);
 
   const attendees: CalendarAttendee[] = [
     { email: subject.user.email, displayName: subject.user.name },
+    ...optionalGuests.map((email) => ({ email, optional: true })),
   ];
-  if (optionalGuest) attendees.push({ email: optionalGuest, optional: true });
 
   let meeting;
   if (sess.calendarEventId) {
@@ -96,6 +112,11 @@ export async function POST(
       "Failed to create the Google Calendar meeting. Check that you signed in with Google and granted calendar access."
     );
   }
+
+  // Turn on auto recording for the Meet space so it starts by itself when the
+  // first person joins. Idempotent, and deliberately not fatal: a session that
+  // can't be recorded still has to be schedulable.
+  await enableMeetAutoRecording(me.id, meeting.meetLink);
 
   const updated = await prisma.assessmentSession.update({
     where: { id: sessionId },

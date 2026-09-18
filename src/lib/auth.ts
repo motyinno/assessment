@@ -40,6 +40,13 @@ const GOOGLE_SCOPES = [
   // Resolve a colleague's Google account id from the Workspace directory by
   // email (People API) so we can @mention/add people who never signed in.
   "https://www.googleapis.com/auth/directory.readonly",
+  // Pre-configure auto recording on the Meet space attached to the event we
+  // just created in Calendar (see lib/google-meet.ts). Non-sensitive scope,
+  // and the only one that works on spaces another app created.
+  "https://www.googleapis.com/auth/meetings.space.settings",
+  // Read the conference record afterwards — when the call actually started
+  // and ended. The settings scope above does NOT grant this one.
+  "https://www.googleapis.com/auth/meetings.space.readonly",
 ].join(" ");
 
 const providers: Provider[] = [

@@ -82,18 +82,13 @@ export async function PATCH(
 
   const parsed = await parseJsonBody(req, patchAssessmentSchema);
   if (parsed.error) return parsed.error;
-  const { title, notes, scheduledAt, aiFeedback, status, optionalGuestEmail } =
-    parsed.data;
+  const { title, notes, scheduledAt, aiFeedback, status } = parsed.data;
 
   const data: Record<string, unknown> = {};
   if (title !== undefined) data.title = title;
   if (notes !== undefined) data.notes = notes;
   if (aiFeedback !== undefined) data.aiFeedback = aiFeedback;
   if (scheduledAt !== undefined) data.scheduledAt = scheduledAt ? new Date(scheduledAt) : null;
-  if (optionalGuestEmail !== undefined) {
-    // Empty string treated as "clear".
-    data.optionalGuestEmail = optionalGuestEmail === "" ? null : optionalGuestEmail;
-  }
   if (status !== undefined) {
     data.status = status;
     if (status === "COMPLETED") data.completedAt = new Date();

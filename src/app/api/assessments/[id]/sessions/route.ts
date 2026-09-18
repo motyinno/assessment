@@ -136,8 +136,12 @@ export async function PATCH(
     return badRequest("Can't modify a session of a cancelled assessment");
   }
 
+  // A session is closed in one move now that the Start button is gone: it
+  // runs in Meet and the assessor marks it COMPLETED afterwards. IN_PROGRESS
+  // is no longer produced, but rows that were started before the change must
+  // still be closable.
   const validTransitions: Partial<Record<typeof session.status, typeof session.status>> = {
-    NOT_STARTED: "IN_PROGRESS",
+    NOT_STARTED: "COMPLETED",
     IN_PROGRESS: "COMPLETED",
   };
 
@@ -147,7 +151,9 @@ export async function PATCH(
     );
   }
 
-  if (status === "IN_PROGRESS") {
+  // The ordering gate used to sit on Start; with one button it moves here.
+  // Skipped for an IN_PROGRESS row, which passed it when it was started.
+  if (status === "COMPLETED" && session.status === SESSION_STATUSES.NOT_STARTED) {
     const previousSessions = await prisma.assessmentSession.findMany({
       where: { assessmentId: id, order: { lt: session.order } },
     });
@@ -164,12 +170,15 @@ export async function PATCH(
   const updateData: Record<string, unknown> = {};
   if (status) {
     updateData.status = status;
-    if (status === "IN_PROGRESS") {
-      updateData.startedAt = new Date();
-      updateData.assessorId = me.id;
-      updateData.assessorName = me.name;
+    if (status === "COMPLETED") {
+      updateData.completedAt = new Date();
+      // Attribution used to be captured on Start. Whoever closes the session
+      // ran it — except for an IN_PROGRESS row that already recorded one.
+      if (!session.assessorId) {
+        updateData.assessorId = me.id;
+        updateData.assessorName = me.name;
+      }
     }
-    if (status === "COMPLETED") updateData.completedAt = new Date();
   }
   if (notes !== undefined) updateData.notes = notes;
   if (recordingLink !== undefined) updateData.recordingLink = recordingLink;
@@ -188,8 +197,13 @@ export async function PATCH(
     const allSessions = await tx.assessmentSession.findMany({
       where: { assessmentId: id },
     });
-    const hasInProgress = allSessions.some(
-      (s) => s.status === SESSION_STATUSES.IN_PROGRESS
+    // Without a Start click there is no IN_PROGRESS session to key off, so a
+    // part-finished assessment is one with at least one session closed and
+    // others still open.
+    const hasStarted = allSessions.some(
+      (s) =>
+        s.status === SESSION_STATUSES.IN_PROGRESS ||
+        s.status === SESSION_STATUSES.COMPLETED
     );
     const nonSkipped = allSessions.filter(
       (s) => s.status !== SESSION_STATUSES.SKIPPED
@@ -198,7 +212,7 @@ export async function PATCH(
       nonSkipped.length > 0 &&
       nonSkipped.every((s) => s.status === SESSION_STATUSES.COMPLETED);
 
-    if (hasInProgress && session.assessment.status === "PLANNED") {
+    if (hasStarted && !allDone && session.assessment.status === "PLANNED") {
       await tx.assessment.update({
         where: { id },
         data: { status: "IN_PROGRESS" },

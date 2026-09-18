@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useConfirm } from "@/components/confirm-dialog";
+import { MeetingGuestSetting } from "@/components/meeting-guest-setting";
 import { ASSESSMENT_TYPE_LABELS } from "@/lib/assessment-sessions";
 
 interface SessionTemplate {
@@ -96,6 +97,8 @@ export default function SessionTemplatesPage() {
   const [ownDivision, setOwnDivision] = useState<Division | null>(null);
   const [divisionId, setDivisionId] = useState<string>("");
   const [divisionsLoaded, setDivisionsLoaded] = useState(false);
+  const selectedDivisionName =
+    divisions.find((d) => d.id === divisionId)?.name ?? ownDivision?.name ?? null;
 
   useEffect(() => {
     if (status === "loading") return;
@@ -297,7 +300,12 @@ export default function SessionTemplatesPage() {
             Configure how many sessions and which types are generated for new
             assessments, per grade band. Toggle a session off to skip it without
             deleting it.
-            {ownDivision && <> — showing <strong>{ownDivision.name}</strong>.</>}
+            {/* The division actually on screen — a super-admin opens on their
+                own but may switch, and naming `ownDivision` here would then
+                caption the wrong one. */}
+            {selectedDivisionName && (
+              <> — showing <strong>{selectedDivisionName}</strong>.</>
+            )}
           </p>
           {isSuperAdmin && divisions.length > 0 && (
             <div className="mt-2">
@@ -422,6 +430,12 @@ export default function SessionTemplatesPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Division-wide meeting settings — same division the templates below
+          belong to, so the picker above drives both. */}
+      {divisionId && (
+        <MeetingGuestSetting divisionId={divisionId} divisionName={selectedDivisionName} />
+      )}
 
       {/* Grouping toggle */}
       <div className="flex items-center gap-2">

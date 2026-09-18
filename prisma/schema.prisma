@@ -165,6 +165,13 @@ model Department {
   isActive       Boolean  @default(true) // orgUnitTypeDto.lifecycleStatus != DELETED ← was the unit's own "lifecycleStatus" (no such field exists)
   syncedAt       DateTime @updatedAt
 
+  /// App-owned, never written by the HRM sync (its upserts list fields
+  /// explicitly — see lib/hrm/sync.ts#upsertDepartments). Everyone auto-invited
+  /// as an optional guest to every assessment meeting of this unit's people.
+  /// Empty means nobody is invited — there is no org-wide default behind it.
+  /// It is the only source: nothing is configurable per assessment.
+  meetingGuestEmails String[] @default([])
+
   parent           Department?       @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
   children         Department[]      @relation("depTree")
   head             User?             @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
@@ -353,10 +360,6 @@ model Assessment {
   cancellationReason   String?
   cancelledAt          DateTime?
   cancelledById        String?
-  /// Optional Google Calendar guest auto-invited to every Meet for this
-  /// assessment. Falls back to OPTIONAL_MEETING_GUEST_EMAIL env var when
-  /// unset. Empty string and null both mean "no guest".
-  optionalGuestEmail   String?
   createdAt            DateTime               @default(now())
   updatedAt            DateTime               @updatedAt
 
@@ -491,8 +494,16 @@ model AssessmentSession {
   meetingScheduledAt DateTime?
   recordingLink      String?
   recordingFileId    String?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+
+  /// When the Meet conference behind this session actually started and ended,
+  /// read back from the Meet API's conference record (lib/google-meet.ts).
+  /// `startedAt`/`completedAt` above stay the workflow timestamps — the moment
+  /// the assessor clicked Start/Complete — which is what drives status; these
+  /// two are the measured call, used for the duration the UI reports.
+  meetStartedAt DateTime?
+  meetEndedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
