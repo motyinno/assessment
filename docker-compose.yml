@@ -65,6 +65,10 @@ services:
   # Nightly scheduler: hits the secured cron endpoint at 00:05 (container TZ,
   # UTC by default) so the day's "Topic of the day" is ready before anyone logs
   # in. Uses busybox crond; installs curl on start for a reliable auth header.
+  #
+  # The HRM sync is deliberately NOT scheduled here any more. Its endpoint
+  # (/api/cron/hrm-sync) still exists and still takes the same bearer token, so
+  # it can be run by hand from the HRM Sync screen or by an external scheduler.
   cron:
     image: alpine:3
     restart: unless-stopped
@@ -80,7 +84,6 @@ services:
       - |
         apk add --no-cache curl >/dev/null
         echo '5 0 * * * curl -fsS -H "Authorization: Bearer '"$$CRON_SECRET"'" http://app:3000/api/cron/daily-topic >/proc/1/fd/1 2>&1' > /etc/crontabs/root
-        echo '${HRM_SYNC_CRON:-0 3 * * *} curl -fsS -X POST -H "Authorization: Bearer '"$$CRON_SECRET"'" http://app:3000/api/cron/hrm-sync >/proc/1/fd/1 2>&1' >> /etc/crontabs/root
         crond -f -l 8
 
   caddy:
