@@ -1,9 +1,12 @@
 import prisma from "./prisma";
 import { searchDriveFiles } from "./google-drive";
+import { fetchConferenceTiming } from "./google-meet";
 
 export interface SyncResult {
   recordingFound?: boolean;
   recordingFileName?: string;
+  /** Measured call length in minutes, when Meet had a finished conference. */
+  meetDurationMin?: number;
   error?: string;
   status?: number;
 }
@@ -21,10 +24,14 @@ interface SyncInput {
 
 /**
  * Scan the user's Drive for a recording (mp4/video) matching the session
- * subject's name and persist the hit on the AssessmentSession row.
+ * subject's name, and read back from Meet when the call actually ran. Both
+ * are persisted on the AssessmentSession row.
  *
  * Idempotent — re-runs are cheap; existing fileIds are kept if the query
- * turns up nothing newer.
+ * turns up nothing newer. The two halves are independent on purpose: the
+ * conference record is published within moments of the call ending, while the
+ * recording can take longer than the meeting itself to appear in Drive, so a
+ * sync that finds no recording still nails down the timing.
  */
 export async function syncSessionAssets(input: SyncInput): Promise<SyncResult> {
   const sess = await prisma.assessmentSession.findUnique({
@@ -68,9 +75,36 @@ export async function syncSessionAssets(input: SyncInput): Promise<SyncResult> {
     });
   }
 
+  // A conference that is still running has no endTime yet — leave both
+  // columns alone rather than writing a half-measured call, and let the next
+  // sync (or the assessor's refresh) pick it up once it's over.
+  const timing = await fetchConferenceTiming(
+    input.actorUserId,
+    sess.meetingLink,
+    sess.meetingScheduledAt ?? sess.startedAt
+  );
+  let meetDurationMin: number | undefined;
+  if (timing?.endedAt) {
+    await prisma.assessmentSession.update({
+      where: { id: sess.id },
+      data: {
+        meetStartedAt: timing.startedAt,
+        meetEndedAt: timing.endedAt,
+        // Nothing writes `startedAt` since the Start button was removed, so
+        // adopt the call's own start for the rows that have none. Sessions
+        // started before that change keep the timestamp they already have.
+        ...(sess.startedAt ? {} : { startedAt: timing.startedAt }),
+      },
+    });
+    meetDurationMin = Math.round(
+      (timing.endedAt.getTime() - timing.startedAt.getTime()) / 60_000
+    );
+  }
+
   return {
     recordingFound: recordingResult.fileId !== null,
     recordingFileName: recordingResult.fileName ?? undefined,
+    meetDurationMin,
   };
 }
 

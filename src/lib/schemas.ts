@@ -56,7 +56,6 @@ export const createAssessmentSchema = z.object({
   grade: gradeEnum,
   scheduledAt: z.string().datetime().optional().nullable(),
   notes: z.string().optional().nullable(),
-  optionalGuestEmail: z.string().email().optional().nullable(),
   participants: z.array(participantInputSchema).optional(),
 });
 
@@ -67,7 +66,22 @@ export const patchAssessmentSchema = z.object({
   scheduledAt: z.string().datetime().optional().nullable(),
   // Cancellation is admin-only and goes through POST /assessments/[id]/cancel.
   status: z.enum(["PLANNED", "IN_PROGRESS", "COMPLETED"]).optional(),
-  optionalGuestEmail: z.union([z.string().email(), z.literal(""), z.null()]).optional(),
+});
+
+/**
+ * Nobody sensible needs more than this, and it caps the invite list. Declared
+ * here rather than next to the resolver: this module is imported by client
+ * components, and lib/meeting-guest.ts pulls in Prisma.
+ */
+export const MAX_MEETING_GUESTS = 10;
+
+/**
+ * Per-unit meeting settings. The whole list is sent on every save (adding and
+ * removing a guest are the same request), and an empty array means "invite
+ * nobody" rather than "leave unchanged".
+ */
+export const patchDepartmentSchema = z.object({
+  meetingGuestEmails: z.array(z.string().email()).max(MAX_MEETING_GUESTS).optional(),
 });
 
 export const cancelAssessmentSchema = z.object({
@@ -120,7 +134,10 @@ export const roadmapProgressSchema = z.object({
 
 export const sessionPatchSchema = z.object({
   sessionId: z.string().min(1),
-  status: z.enum(["IN_PROGRESS", "COMPLETED", "SKIPPED"]).optional(),
+  // IN_PROGRESS is gone from the accepted values along with the Start button —
+  // a session is closed in one move now. Rows already in that state are still
+  // completable; see the transition table in the sessions route.
+  status: z.enum(["COMPLETED", "SKIPPED"]).optional(),
   notes: z.string().optional().nullable(),
   recordingLink: z.string().optional().nullable(),
   meetingLink: z.string().optional().nullable(),

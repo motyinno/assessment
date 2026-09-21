@@ -63,6 +63,8 @@ export default function TechMatrixEditPage() {
   const [ownDivision, setOwnDivision] = useState<{ id: string; name: string } | null>(null);
   const [divisionId, setDivisionId] = useState("");
   const [divisionsLoaded, setDivisionsLoaded] = useState(false);
+  const selectedDivisionName =
+    divisions.find((d) => d.id === divisionId)?.name ?? ownDivision?.name ?? null;
 
   const reload = useCallback(async (forDivisionId: string) => {
     if (!forDivisionId) return;
@@ -249,7 +251,12 @@ export default function TechMatrixEditPage() {
           <p className="page-subtitle mt-1">
             Add, rename, or remove sections, topics, and questions. Deleting an
             item orphans (but never deletes) users' existing progress on it.
-            {ownDivision && <> — editing <strong>{ownDivision.name}</strong>.</>}
+            {/* The division actually on screen — a super-admin opens on their
+                own but may switch, and naming `ownDivision` here would then
+                caption the wrong one. */}
+            {selectedDivisionName && (
+              <> — editing <strong>{selectedDivisionName}</strong>.</>
+            )}
           </p>
           {isSuperAdmin && divisions.length > 0 && (
             <div className="mt-2">

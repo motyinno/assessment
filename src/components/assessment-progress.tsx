@@ -36,7 +36,7 @@ interface AssessmentProgressProps {
   assessmentId: string;
   onSessionAction: (
     sessionId: string,
-    action: "start" | "complete",
+    action: "complete",
     extra?: { notes?: string }
   ) => void;
   onMeetingChange: () => void | Promise<void>;
@@ -66,7 +66,18 @@ export function AssessmentProgress({
     0
   );
 
-  function canStart(session: Session): boolean {
+  /**
+   * The one session that may be acted on: still open, with every earlier one
+   * closed. Booking a meeting and closing the session are both limited to it —
+   * the ordered stepper exists because sessions happen one at a time, and a
+   * call booked three sessions ahead invites people to something nobody is
+   * ready for. Mirrored server-side in the meeting and session routes.
+   *
+   * IN_PROGRESS rows predate the Start button's removal and passed this gate
+   * when they were started.
+   */
+  function isCurrent(session: Session): boolean {
+    if (session.status === "IN_PROGRESS") return true;
     if (session.status !== "NOT_STARTED") return false;
     return sessions
       .filter((s) => s.order < session.order)
@@ -170,36 +181,15 @@ export function AssessmentProgress({
                 )}
 
               {/* Actions */}
-              {canRunSessions && session.status === "NOT_STARTED" && (
+              {/* ScheduleMeetingControl renders its own "Open meeting" link
+                  once a meeting exists, so there is no separate one here. */}
+              {canRunSessions && isCurrent(session) && (
                 <div className="mt-2 flex flex-col gap-1 items-stretch w-full">
                   <ScheduleMeetingControl
                     assessmentId={assessmentId}
                     session={session}
                     onMeetingChange={onMeetingChange}
                   />
-                  {canStart(session) && (
-                    <button
-                      className="text-xs font-medium px-2 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      disabled={loading}
-                      onClick={() => onSessionAction(session.id, "start")}
-                    >
-                      Start
-                    </button>
-                  )}
-                </div>
-              )}
-              {canRunSessions && session.status === "IN_PROGRESS" && (
-                <div className="mt-2 flex flex-col gap-1 items-stretch w-full">
-                  {session.meetingLink && (
-                    <a
-                      href={session.meetingLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-center text-[11px] px-2 py-1 rounded-md border border-primary text-primary hover:bg-primary/5 whitespace-nowrap"
-                    >
-                      Open meeting
-                    </a>
-                  )}
                   <button
                     className="text-xs font-medium px-3 py-1.5 rounded-md bg-success text-success-foreground hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     disabled={loading}
