@@ -155,15 +155,21 @@ export async function PATCH(
   if (parsed.error) return parsed.error;
   const { name, grade, project, projects, managerId, role } = parsed.data;
 
-  // Once HRM owns a user (hrmEmployeeId set), name/project(s)/managerId come
-  // from the sync (see hrm/apply-user.ts's field policy) and manual edits
-  // would just get overwritten by the next sync anyway. `grade` and `role`
-  // stay editable — the sync never writes over a non-empty grade, and role
-  // is a product decision HRM doesn't make (S05).
-  if (current.hrmEmployeeId !== null) {
-    if (name !== undefined || project !== undefined || projects !== undefined || managerId !== undefined) {
-      return conflict("Managed by HRM: name, project(s) and manager can't be edited manually");
-    }
+  // `name` is the only field the sync genuinely owns and overwrites on every
+  // run (hrm/apply-user.ts's `buildUserWrite`), so it stays locked once HRM
+  // knows about this person.
+  //
+  // `project`/`projects` used to be locked with it, on the reasoning that the
+  // sync would overwrite them anyway. It doesn't: `buildUserWrite` never
+  // writes either field (its policy comment says so, and sync.ts doesn't
+  // mention `project` at all). The lock just made them uneditable for the
+  // 7470 of 7475 users HRM knows about, with nothing on the other side.
+  //
+  // `managerId` IS written by the sync, in `resolveManagers`, but a human
+  // override now sets `managerSetManually` below and that pass skips those
+  // rows — so the edit sticks instead of silently reverting.
+  if (current.hrmEmployeeId !== null && name !== undefined) {
+    return conflict("Managed by HRM: name can't be edited manually");
   }
 
   const data: Record<string, unknown> = {};
@@ -185,15 +191,24 @@ export async function PATCH(
       } else {
         const candidate = await prisma.user.findUnique({
           where: { id: normalized },
-          select: { id: true, role: true },
+          select: { id: true, isArchived: true },
         });
         if (!candidate) return badRequest("Manager not found");
-        if (!canManagePeople(candidate.role)) {
-          return badRequest("Manager must have role MANAGER or ADMIN");
-        }
+        if (candidate.isArchived) return badRequest("Manager has left the company");
+        // Any active person may be someone's manager. The old rule required
+        // MANAGER or ADMIN, which dates from when those roles meant "somebody's
+        // lead". They no longer do — roles come from HRM's M-ladder (see
+        // lib/hrm/roles.ts), so reporting lines and app roles are orthogonal:
+        // 1625 people's actual manager is a plain USER today and could not be
+        // picked at all. Being someone's manager grants nothing on its own —
+        // every "is this person's manager" check is `canManagePeople(role) &&
+        // managerId === me.id`, so the role gate is still there.
         data.managerId = candidate.id;
       }
     }
+    // Either direction — assigning or clearing — is a human decision the sync
+    // must stop overriding.
+    if (!unchanged) data.managerSetManually = true;
   }
 
   if (grade !== undefined) {

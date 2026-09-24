@@ -18,8 +18,13 @@ interface Props {
 /**
  * Manager picker. Options come from a server-side search (S08) instead of a
  * pre-loaded `options` prop — the directory can be thousands of rows, so we
- * ask `/api/users?role=MANAGER,ADMIN&q=...` per keystroke instead of holding
- * everything in memory and slicing it client-side.
+ * ask `/api/users?q=...` per keystroke instead of holding everything in
+ * memory and slicing it client-side.
+ *
+ * Searches EVERYONE, not just MANAGER/ADMIN. Those roles now come from HRM's
+ * managerial ladder (lib/hrm/roles.ts) and no longer mean "somebody's lead",
+ * so the old filter hid the real manager of 1625 people. The API enforces the
+ * same rule it shows here: any active person may be picked.
  */
 export function ManagerCombobox({
   value,
@@ -31,10 +36,7 @@ export function ManagerCombobox({
   const [highlighted, setHighlighted] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  const { items, loading, query, setQuery } = useUserSearch({
-    role: "MANAGER,ADMIN",
-    minQueryLength: 0,
-  });
+  const { items, loading, query, setQuery } = useUserSearch({ minQueryLength: 0 });
   const byId = useUsersByIds([value]);
   const selected = value ? byId[value] ?? null : null;
 

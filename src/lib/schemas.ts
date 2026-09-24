@@ -20,10 +20,9 @@ export const createUserSchema = z.object({
 export const patchUserSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   grade: z.union([gradeEnum, z.literal(""), z.null()]).optional(),
+  /** Legacy single-project scalar. Displayed nowhere; kept for API compatibility. */
   project: z.string().optional().nullable(),
-  // For users not managed by HRM — an HRM-managed user's `projects` is
-  // rejected by the route's guard before this schema even matters (S03:
-  // `projects` becomes an HRM-owned field once hrmEmployeeId is set).
+  /** The list every screen actually renders. Editable for everyone: the HRM sync never writes it. */
   projects: z.array(z.string()).optional(),
   managerId: z.string().nullable().optional(),
   role: roleEnum.optional(),

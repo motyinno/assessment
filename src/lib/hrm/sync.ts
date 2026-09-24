@@ -414,7 +414,16 @@ async function resolveDepartmentLinks(
   return issues;
 }
 
-/** Pass 2c: resolve User.managerId from hrmManagerId. */
+/**
+ * Pass 2c: resolve User.managerId from hrmManagerId.
+ *
+ * Skips anyone whose manager a human picked (`managerSetManually`). HRM's
+ * `employee.manager` is a lead/mentor assignment that is sometimes simply
+ * wrong or missing for a given person, and an admin correcting it by hand
+ * would otherwise see the correction reverted on the next run. Same shape as
+ * the grade policy in apply-user.ts: HRM owns the field until a human
+ * overrides it.
+ */
 async function resolveManagers(
   mapped: MappedEmployee[],
   userIdByHrmEmployeeId: Map<number, string>
@@ -423,10 +432,19 @@ async function resolveManagers(
   let managersResolved = 0;
   const updates: Promise<unknown>[] = [];
 
+  // One query rather than a per-employee check: these are the rows this pass
+  // must not touch.
+  const manualRows = await prisma.user.findMany({
+    where: { managerSetManually: true },
+    select: { id: true },
+  });
+  const manual = new Set(manualRows.map((r) => r.id));
+
   for (const emp of mapped) {
     if (emp.hrmManagerId === null) continue;
     const userId = userIdByHrmEmployeeId.get(emp.hrmEmployeeId);
     if (!userId) continue; // this employee itself wasn't written (shouldn't happen, but not this pass's job to fix)
+    if (manual.has(userId)) continue;
 
     const managerLocalId = userIdByHrmEmployeeId.get(emp.hrmManagerId) ?? null;
     if (!managerLocalId) {
