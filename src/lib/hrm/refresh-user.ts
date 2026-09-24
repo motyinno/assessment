@@ -69,7 +69,7 @@ export async function refreshEmployeeByEmail(email: string): Promise<void> {
 
     const existing = await prisma.user.findUnique({
       where: { email: mapped.email },
-      select: { id: true, grade: true },
+      select: { id: true, grade: true, managerSetManually: true },
     });
 
     const write = buildUserWrite(mapped, existing ? { grade: existing.grade } : null);
@@ -88,7 +88,12 @@ export async function refreshEmployeeByEmail(email: string): Promise<void> {
     // Manager link: resolved only if that manager already exists locally by
     // hrmEmployeeId. Full resolution (creating the link the other way round,
     // once the manager syncs later) is a second pass owned by S04.
-    if (mapped.hrmManagerId !== null) {
+    //
+    // Skipped once a human has picked the manager, same rule as the nightly
+    // sync's `resolveManagers`. This path matters more than that one: it runs
+    // on EVERY sign-in, so without the guard an admin's correction would be
+    // undone the moment that person next logs in.
+    if (mapped.hrmManagerId !== null && !existing?.managerSetManually) {
       const manager = await prisma.user.findUnique({
         where: { hrmEmployeeId: mapped.hrmManagerId },
         select: { id: true },

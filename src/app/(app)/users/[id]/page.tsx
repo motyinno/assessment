@@ -150,7 +150,7 @@ function MetaItem({
   );
 }
 
-// Shown under a field HRM sync owns (name/project/manager here — jobTitle and
+// Shown under a field HRM sync owns (`name` only now — jobTitle and
 // departments have no edit UI at all yet). Guarded server-side too (S03:
 // 409 "Managed by HRM"); this is purely so the reason doesn't surface as a
 // save error the first time someone tries to edit it.
@@ -186,13 +186,14 @@ export default function UserProfilePage() {
     name: string;
     role: string;
     grade: string;
-    project: string;
+    /** Comma-separated; split into `projects` on submit. */
+    projects: string;
     managerId: string | null;
   }>({
     name: "",
     role: "USER",
     grade: "",
-    project: "",
+    projects: "",
     managerId: null,
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -248,7 +249,7 @@ export default function UserProfilePage() {
       name: profile.name,
       role: profile.role,
       grade: profile.grade ?? "",
-      project: profile.project ?? "",
+      projects: profile.projects.join(", "),
       managerId: profile.managerId,
     });
     setEditError("");
@@ -261,16 +262,26 @@ export default function UserProfilePage() {
     setEditError("");
     setEditLoading(true);
     try {
-      // HRM-managed name/project/manager are disabled in the form above and
-      // must be left out of the body entirely — the API 409s on their mere
-      // presence, changed or not (S03's field-policy guard).
-      const body: Record<string, unknown> = { grade: editForm.grade || null };
-      if (!isHrmManaged) {
-        body.name = editForm.name;
-        body.project = editForm.project;
-        if (isAdmin) body.managerId = editForm.managerId;
+      // `name` is the only field HRM still owns: the API 409s on its mere
+      // presence for a synced person, changed or not. Project and manager are
+      // editable again — the sync never writes project, and a manual manager
+      // is now protected from it (see the API route's field-policy note).
+      const body: Record<string, unknown> = {
+        grade: editForm.grade || null,
+        // `projects`, not the legacy `project` scalar: the array is what the
+        // banner, the directory and My Team all render, and it was empty for
+        // every one of the 7475 users because nothing writes it — the sync
+        // doesn't, and this form used to write the invisible scalar instead.
+        projects: editForm.projects
+          .split(",")
+          .map((p) => p.trim())
+          .filter(Boolean),
+      };
+      if (!isHrmManaged) body.name = editForm.name;
+      if (isAdmin) {
+        body.managerId = editForm.managerId;
+        body.role = editForm.role;
       }
-      if (isAdmin) body.role = editForm.role;
 
       const res = await fetch(`/api/users/${profile.id}`, {
         method: "PATCH",
@@ -958,34 +969,27 @@ export default function UserProfilePage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Project</Label>
+                  <Label>Projects</Label>
                   <Input
-                    value={editForm.project}
-                    onChange={(e) => setEditForm({ ...editForm, project: e.target.value })}
-                    disabled={isHrmManaged}
+                    value={editForm.projects}
+                    onChange={(e) => setEditForm({ ...editForm, projects: e.target.value })}
+                    placeholder="Comma-separated"
                   />
-                  {isHrmManaged && <ManagedByHrmNote />}
                 </div>
               </div>
               {isAdmin && (
                 <div className="space-y-1.5">
                   <Label>Manager</Label>
-                  {isHrmManaged ? (
-                    <Input value={profile.manager?.name ?? "—"} disabled readOnly />
-                  ) : (
-                    <ManagerCombobox
-                      value={editForm.managerId}
-                      onChange={(id) => setEditForm({ ...editForm, managerId: id })}
-                      excludeId={profile.id}
-                    />
-                  )}
-                  {isHrmManaged ? (
-                    <ManagedByHrmNote />
-                  ) : (
-                    <p className="text-[11px] text-muted-foreground">
-                      Only Manager / Admin users can be picked.
-                    </p>
-                  )}
+                  <ManagerCombobox
+                    value={editForm.managerId}
+                    onChange={(id) => setEditForm({ ...editForm, managerId: id })}
+                    excludeId={profile.id}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {isHrmManaged
+                      ? "Start typing a name or email. Your choice is kept — the HRM sync won't overwrite it."
+                      : "Start typing a name or email."}
+                  </p>
                 </div>
               )}
               {editError && <p className="text-sm text-destructive">{editError}</p>}

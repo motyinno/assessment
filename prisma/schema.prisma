@@ -94,13 +94,18 @@ model User {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  hrmEmployeeId Int?      @unique // employee.id
-  jobTitle      String? // resolved via jobTitle dictionary; exact source field decided by S03 (see hrm-payloads/employees-search.schema.md)
-  photoFileName String? // path like "photos/<uuid>.jpeg"; source decided by S04 (two mechanisms, see hrm-payloads/photos.schema.md)
-  projects      String[]  @default([]) // legacy `project` scalar stays; sync only writes `projects`
-  hrmManagerId  Int? // raw manager id before resolution; exact source field decided by S03
-  hrmSyncedAt   DateTime? // last time this row was refreshed from HRM; null = "not found in HRM"
-  hrmDismissed  Boolean   @default(false) // employee.lifecycleStatus == DELETED (confirmed)
+  hrmEmployeeId      Int?      @unique // employee.id
+  jobTitle           String? // resolved via jobTitle dictionary; exact source field decided by S03 (see hrm-payloads/employees-search.schema.md)
+  photoFileName      String? // path like "photos/<uuid>.jpeg"; source decided by S04 (two mechanisms, see hrm-payloads/photos.schema.md)
+  projects           String[]  @default([]) // legacy `project` scalar stays; sync only writes `projects`
+  hrmManagerId       Int? // raw manager id before resolution; exact source field decided by S03
+  hrmSyncedAt        DateTime? // last time this row was refreshed from HRM; null = "not found in HRM"
+  hrmDismissed       Boolean   @default(false) // employee.lifecycleStatus == DELETED (confirmed)
+  /// A human picked this person's manager, so the sync must leave `managerId` alone.
+  /// Same shape of rule as the grade policy in hrm/apply-user.ts: HRM owns the field
+  /// until somebody overrides it by hand, and then it stops owning it. Without this
+  /// a manual reassignment silently reverts on the next run (sync.ts, resolveManagers).
+  managerSetManually Boolean   @default(false)
 
   // ---- "Position in the company" (HRM-owned, mirrors the HRM profile card) ----
   /// employee.managerialLevelId -> the `managerialLevel` dictionary, normalized to "M1".."M5".
