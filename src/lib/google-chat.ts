@@ -13,16 +13,18 @@ import { getValidAccessToken } from "@/lib/google-auth";
  * Everything here is BEST-EFFORT: a Chat failure must never break the request
  * that triggered it, so no function throws — they log and return null/false.
  *
- * Gated by ENABLE_GOOGLE_CHAT so the feature stays dark until the Chat API is
- * enabled in the GCP project and users have re-consented to the new scopes.
- * Users without a Google token (e.g. dev-login) simply no-op.
+ * On by default; set ENABLE_GOOGLE_CHAT=false to switch it off. Read at runtime
+ * — deliberately NOT a NEXT_PUBLIC_ var: those are frozen into the bundle at
+ * `next build`, and the Docker build never sees .env, so the check silently
+ * compiled to `false` in production. Users without a Google token (e.g.
+ * dev-login) simply no-op.
  */
 
 const CHAT_API = "https://chat.googleapis.com/v1";
 const PEOPLE_API = "https://people.googleapis.com/v1";
 
 export function chatEnabled(): boolean {
-  return process.env.NEXT_PUBLIC_ENABLE_GOOGLE_CHAT === "true";
+  return process.env.ENABLE_GOOGLE_CHAT !== "false";
 }
 
 type ResolvableUser = { id: string; email: string; googleId: string | null };
