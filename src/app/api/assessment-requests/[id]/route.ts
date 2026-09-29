@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdminScope } from "@/lib/auth-helpers";
+import { isSuperAdmin } from "@/lib/roles";
 import { isUserInScope } from "@/lib/admin-scope";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
 import { resolveUserDivision } from "@/lib/user-division";
@@ -180,10 +181,18 @@ export async function DELETE(
 
   if (!(await isUserInScope(request.userId, auth.scope))) return forbidden();
 
-  // Only rejected requests can be discarded. Pending ones still need a
-  // decision, and approved ones own an assessment we must not orphan.
-  if (request.status !== "REJECTED") {
-    return badRequest("Only rejected requests can be deleted");
+  // Rejected requests can be discarded by any admin in scope. A super-admin
+  // may also drop a pending one (e.g. a duplicate or a mistake) without
+  // deciding it first. Approved requests own an assessment we must not orphan.
+  const deletable =
+    request.status === "REJECTED" ||
+    (request.status === "PENDING" && isSuperAdmin(auth.session.user));
+  if (!deletable) {
+    return badRequest(
+      request.status === "PENDING"
+        ? "Only a super admin can delete a pending request"
+        : "Approved requests cannot be deleted"
+    );
   }
 
   // AssessmentRequestAssessor rows cascade on delete (see schema).

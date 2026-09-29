@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/components/confirm-dialog";
 import { Trash2 } from "lucide-react";
 import { gradeLabel, baseGrade } from "@/lib/grades";
+import { isSuperAdmin } from "@/lib/roles";
 
 interface RequestUser {
   id: string;
@@ -61,6 +62,9 @@ interface AssessmentRequest {
 
 export default function RequestsPage() {
   const { data: session, status } = useSession();
+  const superAdmin = isSuperAdmin(
+    session?.user as { role?: string; isSuperAdmin?: boolean } | undefined
+  );
   const router = useRouter();
   const [requests, setRequests] = useState<AssessmentRequest[]>([]);
   const [assessors, setAssessors] = useState<Assessor[]>([]);
@@ -214,9 +218,10 @@ export default function RequestsPage() {
   }
 
   async function handleDelete(req: AssessmentRequest) {
+    const kind = req.status === "PENDING" ? "pending" : "rejected";
     const ok = await confirm({
       title: "Delete request?",
-      description: `This permanently removes ${req.user.name}'s rejected request. This action cannot be undone.`,
+      description: `This permanently removes ${req.user.name}'s ${kind} request. This action cannot be undone.`,
       confirmLabel: "Delete request",
       destructive: true,
     });
@@ -286,7 +291,8 @@ export default function RequestsPage() {
                           Review
                         </Button>
                       )}
-                      {req.status === "REJECTED" && (
+                      {(req.status === "REJECTED" ||
+                        (req.status === "PENDING" && superAdmin)) && (
                         <Button
                           variant="ghost"
                           size="icon"
