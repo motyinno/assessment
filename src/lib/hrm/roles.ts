@@ -52,8 +52,8 @@ const ROLE_RANK: Record<Role, number> = { USER: 0, ASSESSOR: 1, MANAGER: 2, ADMI
 
 /**
  * Managerial level -> role. M1/M2 lead people (MANAGER); M3+ run departments
- * and up (ADMIN). A plain ADMIN is already confined to their own department
- * subtree by `getAdminDepartmentScope()` — org-wide reach is the separate
+ * and up (ADMIN). A plain ADMIN is already confined to their own division
+ * by `getAdminDivisionScope()` — org-wide reach is the separate
  * `isSuperAdmin` flag, which HRM sync never sets.
  */
 const ROLE_BY_MANAGERIAL_LEVEL: Record<string, Role> = {

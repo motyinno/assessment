@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdminScope } from "@/lib/auth-helpers";
+import { userInScopeWhere } from "@/lib/admin-scope";
 
 export async function GET() {
   const auth = await requireAdminScope();
@@ -11,7 +12,7 @@ export async function GET() {
   const pdps = await prisma.pdp.findMany({
     where: {
       status: "ON_REVIEW",
-      ...(scope ? { user: { departments: { some: { departmentId: { in: [...scope] } } } } } : {}),
+      user: userInScopeWhere(scope),
     },
     include: {
       user: { select: { id: true, name: true, email: true } },

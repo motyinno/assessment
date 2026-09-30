@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
 import { isAdmin } from "@/lib/roles";
-import { getAdminDepartmentScope } from "@/lib/admin-scope";
+import { getAdminDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 import { createRequestSchema } from "@/lib/schemas";
 import {
   badRequest,
@@ -16,17 +16,17 @@ export async function GET() {
   if (auth.error) return auth.error;
   const me = auth.session.user;
 
-  const scope = isAdmin(me.role) ? await getAdminDepartmentScope(me) : null;
+  const scope = isAdmin(me.role) ? await getAdminDivisionScope(me) : null;
   const where = isAdmin(me.role)
     ? scope
-      ? { user: { departments: { some: { departmentId: { in: [...scope] } } } } }
+      ? { user: userInScopeWhere(scope) }
       : {}
     : { userId: me.id };
 
   const requests = await prisma.assessmentRequest.findMany({
     where,
     include: {
-      user: { select: { id: true, name: true, email: true, grade: true } },
+      user: { select: { id: true, name: true, email: true, grade: true, divisionId: true } },
       assessors: {
         include: {
           assessor: { select: { id: true, name: true, email: true } },

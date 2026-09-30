@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { isStaff, isAdmin, canManagePeople, isSuperAdmin } from "@/lib/roles";
 import { unauthorized, forbidden, notFound } from "@/lib/api-helpers";
 import { sessionFromBearerToken } from "@/lib/api-tokens";
-import { getAdminDepartmentScope, getStaffDepartmentScope, isUserInScope } from "@/lib/admin-scope";
+import { getAdminDivisionScope, getStaffDivisionScope, isUserInScope } from "@/lib/admin-scope";
 
 type AuthOk = { error: null; session: Session };
 type AuthFail = { error: Response; session: null };
@@ -42,15 +42,15 @@ export async function requireAdmin(): Promise<AuthGuard> {
 }
 
 /**
- * Like `requireAdmin`, but also resolves the caller's department scope
+ * Like `requireAdmin`, but also resolves the caller's division scope
  * (see lib/admin-scope.ts): `null` for a super-admin (unrestricted),
- * otherwise the set of department ids (own + sub-departments) the caller
- * may see or act on.
+ * otherwise the caller's own division — the only people they may see or act
+ * on.
  */
 export async function requireAdminScope(): Promise<AuthScopeGuard> {
   const a = await requireAdmin();
   if (a.error) return { error: a.error, session: null, scope: null };
-  const scope = await getAdminDepartmentScope(a.session.user);
+  const scope = await getAdminDivisionScope(a.session.user);
   return { error: null, session: a.session, scope };
 }
 
@@ -102,7 +102,7 @@ type AssessmentGuard =
 
 /**
  * Authorize *read* of an assessment: caller must be staff (ASSESSOR/MANAGER/
- * ADMIN) whose department scope covers the assessment's subject — or a
+ * ADMIN) whose division covers the assessment's subject — or a
  * super-admin, or any staff member who is themselves a participant on it
  * (e.g. the assigned assessor), regardless of scope — or a participant of
  * the assessment (any role).
@@ -125,7 +125,7 @@ export async function requireAssessmentRead(
       return { error: notFound("Assessment not found"), session: null, assessmentId: null };
     }
 
-    const scope = await getStaffDepartmentScope(me);
+    const scope = await getStaffDivisionScope(me);
     if (scope !== null) {
       const isParticipant = assessment.participants.some((p) => p.userId === me.id);
       if (!isParticipant) {

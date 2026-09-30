@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminScope } from "@/lib/auth-helpers";
+import { isDepartmentPathInScope, userInScopeWhere } from "@/lib/admin-scope";
 import prisma from "@/lib/prisma";
 import { loadDepartmentData, pruneEmpty, rollUpDistinct, type DepartmentRow } from "@/lib/departments";
 import { GRADE_VALUES } from "@/lib/grades";
@@ -67,12 +68,14 @@ export async function GET(req: NextRequest) {
 
   const data = await loadDepartmentData(false); // non-archived member counts
   let survivors = pruneEmpty(data.all, data, true); // filterable, non-empty units only
-  if (adminScope) survivors = survivors.filter((d) => adminScope.has(d.id));
+  if (adminScope) {
+    survivors = survivors.filter((d) => isDepartmentPathInScope(d.path, adminScope));
+  }
 
   let scope: DepartmentRow[] = survivors;
   if (departmentId) {
     const target = data.all.find((d) => d.id === departmentId);
-    if (!target || (adminScope && !adminScope.has(target.id))) {
+    if (!target || !isDepartmentPathInScope(target.path, adminScope)) {
       return NextResponse.json({ items: [] });
     }
     scope = survivors.filter(
@@ -81,9 +84,13 @@ export async function GET(req: NextRequest) {
   }
   if (scope.length === 0) return NextResponse.json({ items: [] });
 
+  // Only count people of the caller's own division, even inside its units:
+  // HRM also tags a person with units of other divisions.
+  const inScope = userInScopeWhere(adminScope);
+
   // ---- coverage inputs: non-archived membership only ----
   const nonArchivedMemberships = await prisma.userDepartment.findMany({
-    where: { user: { isArchived: false } },
+    where: { user: { isArchived: false, ...inScope } },
     select: { userId: true, departmentId: true },
   });
   const deptsByUserActive = new Map<string, string[]>();
@@ -97,7 +104,7 @@ export async function GET(req: NextRequest) {
     prisma.assessmentParticipant.findMany({
       where: {
         participantRole: "SUBJECT",
-        user: { isArchived: false },
+        user: { isArchived: false, ...inScope },
         assessment: {
           status: "COMPLETED",
           ...(cutoff ? { completedAt: { gte: cutoff } } : {}),
@@ -107,7 +114,7 @@ export async function GET(req: NextRequest) {
       distinct: ["userId"],
     }),
     prisma.pdp.findMany({
-      where: { status: { in: ["ACTIVE", "COMPLETED"] }, user: { isArchived: false } },
+      where: { status: { in: ["ACTIVE", "COMPLETED"] }, user: { isArchived: false, ...inScope } },
       select: { userId: true },
       distinct: ["userId"],
     }),
@@ -135,13 +142,14 @@ export async function GET(req: NextRequest) {
 
   // ---- assessment/grade inputs: every subject, archived or not (historical) ----
   const subjectParticipants = await prisma.assessmentParticipant.findMany({
-    where: { participantRole: "SUBJECT" },
+    where: { participantRole: "SUBJECT", user: inScope },
     select: {
       userId: true,
       assessment: { select: { id: true, status: true, grade: true, completedAt: true } },
     },
   });
   const allMemberships = await prisma.userDepartment.findMany({
+    where: { user: inScope },
     select: { userId: true, departmentId: true },
   });
   const deptsByUserAll = new Map<string, string[]>();

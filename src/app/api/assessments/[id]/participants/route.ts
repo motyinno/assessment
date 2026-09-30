@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAdminScope } from "@/lib/auth-helpers";
 import { isUserInScope } from "@/lib/admin-scope";
 import { addParticipantSchema } from "@/lib/schemas";
+import { assessorsOutsidePool } from "@/lib/assessor-suggestion";
 import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 /** Resolves the assessment's SUBJECT user id, for scope checks. */
@@ -63,6 +64,9 @@ export async function POST(
   if (participantRole === "ASSESSOR") {
     if (candidate.role !== "ASSESSOR" && candidate.role !== "MANAGER") {
       return badRequest("Only assessors or managers can be added as assessors");
+    }
+    if (subjectId && (await assessorsOutsidePool(subjectId, [userId])).length > 0) {
+      return badRequest("Assessors must be from the subject's own division");
     }
     const subject = await prisma.assessmentParticipant.findFirst({
       where: { assessmentId: params.id, participantRole: "SUBJECT" },

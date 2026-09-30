@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { gradeLabel } from "@/lib/grades";
 import { DailyTopicButton } from "@/components/daily-topic-button";
+import { getAdminDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 
 type StatTone = "primary" | "success" | "warning" | "muted";
 
@@ -101,6 +102,10 @@ export default async function DashboardPage() {
   const userId = session.user.id;
 
   const role = session.user.role;
+  // Admin counters cover the admin's own division only, like the queues they
+  // link to (a super-admin's scope is everyone).
+  const adminScope = role === "ADMIN" ? await getAdminDivisionScope(session.user) : null;
+  const inScope = userInScopeWhere(adminScope);
 
   const [
     assessments,
@@ -126,10 +131,10 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
     }),
     role === "ADMIN"
-      ? prisma.assessmentRequest.count({ where: { status: "PENDING" } })
+      ? prisma.assessmentRequest.count({ where: { status: "PENDING", user: inScope } })
       : Promise.resolve(0),
     role === "ADMIN"
-      ? prisma.pdp.count({ where: { status: "ON_REVIEW" } })
+      ? prisma.pdp.count({ where: { status: "ON_REVIEW", user: inScope } })
       : Promise.resolve(0),
     role !== "ADMIN"
       ? prisma.assessmentRequest.findMany({

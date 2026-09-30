@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, requireAdmin } from "@/lib/auth-helpers";
 import { isEmailAllowed, allowedEmailDomains } from "@/lib/allowed-domains";
 import { canManagePeople, isAdmin, isStaff, ROLES } from "@/lib/roles";
-import { getStaffDepartmentScope } from "@/lib/admin-scope";
+import { getStaffDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 import { createUserSchema } from "@/lib/schemas";
 import {
   badRequest,
@@ -159,10 +159,10 @@ export async function GET(req: NextRequest) {
   }
 
   // Staff (ASSESSOR/MANAGER/ADMIN, not super-admin) only ever see the
-  // directory within their own department(s) + sub-departments — see
-  // lib/admin-scope.ts. A staff member with no department membership at all
+  // directory within their own division — see lib/admin-scope.ts.
+  // A staff member with no division at all
   // sees nobody, rather than falling back to everyone.
-  const staffScope = isStaff(me.role) ? await getStaffDepartmentScope(me) : null;
+  const staffScope = isStaff(me.role) ? await getStaffDivisionScope(me) : null;
   if (staffScope && staffScope.size === 0) {
     return NextResponse.json({ items: [], total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE });
   }
@@ -230,7 +230,7 @@ export async function GET(req: NextRequest) {
   // outside their scope correctly yields nothing rather than silently
   // widening back out to their whole scope.
   if (staffScope) {
-    andConditions.push({ departments: { some: { departmentId: { in: [...staffScope] } } } });
+    andConditions.push(userInScopeWhere(staffScope));
   }
   if (andConditions.length > 0) where.AND = andConditions;
 

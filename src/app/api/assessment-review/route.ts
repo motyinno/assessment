@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAdminScope } from "@/lib/auth-helpers";
+import { userInScopeWhere } from "@/lib/admin-scope";
 
 /** Admin queue: assessments the assessor ended and submitted for review. */
 export async function GET() {
@@ -17,7 +18,7 @@ export async function GET() {
             participants: {
               some: {
                 participantRole: "SUBJECT",
-                user: { departments: { some: { departmentId: { in: [...scope] } } } },
+                user: userInScopeWhere(scope),
               },
             },
           }

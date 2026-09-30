@@ -1,5 +1,51 @@
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { gradeRank } from "@/lib/grades";
+
+/** Who can be put on an assessment as an assessor. */
+export const ASSESSOR_ROLES = ["ASSESSOR", "MANAGER"] as const;
+
+/**
+ * The people who may assess `subject`: assessors and managers of the subject's
+ * own division, never the subject themself, never archived. Everything
+ * happens inside a division, so this holds for a super-admin too — they see
+ * every division, but an assessment is still staffed from the subject's.
+ * A subject with no division (only a super-admin can reach one) isn't
+ * narrowed, since there is no division to narrow to.
+ */
+export function assessorPoolWhere(subject: {
+  id: string;
+  divisionId: string | null;
+}): Prisma.UserWhereInput {
+  return {
+    role: { in: [...ASSESSOR_ROLES] },
+    id: { not: subject.id },
+    isArchived: false,
+    ...(subject.divisionId ? { divisionId: subject.divisionId } : {}),
+  };
+}
+
+/**
+ * The ids from `candidateIds` that are NOT allowed to assess `subjectId`
+ * (see `assessorPoolWhere`) — for rejecting a hand-built roster server-side.
+ */
+export async function assessorsOutsidePool(
+  subjectId: string,
+  candidateIds: string[]
+): Promise<string[]> {
+  if (candidateIds.length === 0) return [];
+  const subject = await prisma.user.findUnique({
+    where: { id: subjectId },
+    select: { id: true, divisionId: true },
+  });
+  if (!subject) return candidateIds;
+  const allowed = await prisma.user.findMany({
+    where: { ...assessorPoolWhere(subject), id: { in: candidateIds, not: subject.id } },
+    select: { id: true },
+  });
+  const ok = new Set(allowed.map((u) => u.id));
+  return candidateIds.filter((id) => !ok.has(id));
+}
 
 export interface AssessorCandidate {
   id: string;
@@ -90,6 +136,7 @@ export function rankCandidates(
 
 /**
  * Pick candidate assessors for a given subject user, following the rules:
+ *  0. Only assessors/managers of the subject's own division (assessorPoolWhere).
  *  1. Candidate's `managerId` must not match the subject's `manager` field.
  *  2. Candidate's grade rank must be >= subject's grade rank.
  *  3. Prefer candidates organizationally close to the subject (shared unit,
@@ -107,16 +154,12 @@ export async function suggestAssessors(opts: {
 
   const subject = await prisma.user.findUnique({
     where: { id: subjectId },
-    select: { id: true, managerId: true },
+    select: { id: true, managerId: true, divisionId: true },
   });
   const managerId = subject?.managerId ?? null;
 
   const assessors = await prisma.user.findMany({
-    where: {
-      role: { in: ["ASSESSOR", "MANAGER", "ADMIN"] },
-      id: { not: subjectId },
-      isArchived: false,
-    },
+    where: assessorPoolWhere({ id: subjectId, divisionId: subject?.divisionId ?? null }),
     select: { id: true, name: true, email: true, grade: true },
   });
 

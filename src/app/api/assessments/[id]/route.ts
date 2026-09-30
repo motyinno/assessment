@@ -28,6 +28,7 @@ export async function GET(
               grade: true,
               project: true,
               managerId: true,
+              divisionId: true,
               manager: { select: { id: true, name: true, email: true } },
               isArchived: true,
               photoFileName: true,

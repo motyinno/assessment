@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireAuth, requireAssessor } from "@/lib/auth-helpers";
 import { isStaff } from "@/lib/roles";
-import { getStaffDepartmentScope } from "@/lib/admin-scope";
+import { getStaffDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
 import { resolveUserDivision } from "@/lib/user-division";
 import { createAssessmentSchema } from "@/lib/schemas";
@@ -14,14 +14,14 @@ export async function GET() {
   if (auth.error) return auth.error;
   const me = auth.session.user;
 
-  const scope = isStaff(me.role) ? await getStaffDepartmentScope(me) : null;
+  const scope = isStaff(me.role) ? await getStaffDivisionScope(me) : null;
   const where = isStaff(me.role)
     ? scope
       ? {
           participants: {
             some: {
               participantRole: "SUBJECT" as const,
-              user: { departments: { some: { departmentId: { in: [...scope] } } } },
+              user: userInScopeWhere(scope),
             },
           },
         }

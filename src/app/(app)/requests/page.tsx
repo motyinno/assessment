@@ -31,6 +31,7 @@ interface RequestUser {
   name: string;
   email: string;
   grade?: string | null;
+  divisionId?: string | null;
 }
 
 interface Assessor {
@@ -92,7 +93,6 @@ export default function RequestsPage() {
       return;
     }
     fetchRequests();
-    fetchAssessors();
   }, [session, status, router]);
 
   async function fetchRequests() {
@@ -100,12 +100,15 @@ export default function RequestsPage() {
     if (res.ok) setRequests(await res.json());
   }
 
-  async function fetchAssessors() {
-    // Filter server-side instead of pulling the whole directory and trimming
-    // it in the browser. pageSize is set high because this list is staff-only
-    // (small even at 3600 total users) and the UI renders it as one checklist,
-    // not a picker — but it still opts into the paginated envelope response.
-    const res = await fetch("/api/users?role=ASSESSOR,ADMIN,MANAGER&pageSize=100");
+  async function fetchAssessors(divisionId: string | null | undefined) {
+    // Assessors and managers of the requester's own division only — an
+    // assessment is always staffed from within the division (the server
+    // enforces the same rule on approve, see assessorPoolWhere). A requester
+    // with no division (reachable by a super-admin only) isn't narrowed.
+    // pageSize is set high because the UI renders this as one checklist.
+    const params = new URLSearchParams({ role: "ASSESSOR,MANAGER", pageSize: "100" });
+    if (divisionId) params.set("division", divisionId);
+    const res = await fetch(`/api/users?${params}`);
     if (res.ok) {
       const data = await res.json();
       setAssessors(data.items ?? data);
@@ -118,7 +121,9 @@ export default function RequestsPage() {
     setAdminNotes("");
     setAssessmentType("GENERAL");
     setSuggestion(null);
+    setAssessors([]);
     setOpen(true);
+    void fetchAssessors(req.user.divisionId);
     void loadSuggestion(req.id, "GENERAL", true);
   }
 

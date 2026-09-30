@@ -38,6 +38,8 @@ function unwrap(data: UsersEnvelope | UserSearchItem[] | null): UserSearchItem[]
 export interface UseUserSearchOptions {
   /** Comma-separated role list, e.g. "MANAGER,ADMIN". */
   role?: string;
+  /** Only people of this division (`/api/users?division=`). */
+  division?: string | null;
   pageSize?: number;
   /** Below this many trimmed characters, `items` stays empty and nothing is fetched. */
   minQueryLength?: number;
@@ -52,6 +54,7 @@ export interface UseUserSearchOptions {
  */
 export function useUserSearch({
   role,
+  division,
   pageSize = 20,
   minQueryLength = 2,
   debounceMs = 250,
@@ -78,6 +81,7 @@ export function useUserSearch({
 
       const params = new URLSearchParams({ q, pageSize: String(pageSize) });
       if (role) params.set("role", role);
+      if (division) params.set("division", division);
 
       fetch(`/api/users?${params.toString()}`, { signal: controller.signal })
         .then((res) => (res.ok ? res.json() : null))
@@ -90,7 +94,7 @@ export function useUserSearch({
     }, debounceMs);
 
     return () => clearTimeout(timer);
-  }, [query, role, pageSize, minQueryLength, debounceMs]);
+  }, [query, role, division, pageSize, minQueryLength, debounceMs]);
 
   return { items, loading, query, setQuery };
 }

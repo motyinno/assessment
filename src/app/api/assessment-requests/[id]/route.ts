@@ -4,6 +4,7 @@ import { requireAdminScope } from "@/lib/auth-helpers";
 import { isSuperAdmin } from "@/lib/roles";
 import { isUserInScope } from "@/lib/admin-scope";
 import { buildSessionsForGrade } from "@/lib/assessment-sessions";
+import { assessorsOutsidePool } from "@/lib/assessor-suggestion";
 import { resolveUserDivision } from "@/lib/user-division";
 import { patchRequestSchema } from "@/lib/schemas";
 import {
@@ -60,6 +61,11 @@ export async function PATCH(
   if (status === "APPROVED") {
     if (allAssessorIds.length === 0) {
       return badRequest("At least one assessor must be assigned");
+    }
+    if ((await assessorsOutsidePool(request.userId, allAssessorIds)).length > 0) {
+      return badRequest(
+        "Assessors must be assessors or managers from the employee's own division"
+      );
     }
 
     const division = await resolveUserDivision(request.userId);
