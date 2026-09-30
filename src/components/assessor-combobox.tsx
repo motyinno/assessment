@@ -21,6 +21,7 @@ const roleLabels: Record<string, string> = {
  */
 export function AssessorCombobox({
   role = "ASSESSOR,MANAGER,ADMIN",
+  division,
   excludeIds,
   onSelect,
   disabled,
@@ -28,6 +29,8 @@ export function AssessorCombobox({
   triggerLabel = "Add an assessor",
 }: {
   role?: string;
+  /** Only offer people of this division (the subject's). */
+  division?: string | null;
   excludeIds?: Set<string>;
   onSelect: (user: UserSearchItem) => void;
   disabled?: boolean;
@@ -38,7 +41,7 @@ export function AssessorCombobox({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { items, loading, query, setQuery } = useUserSearch({ role, minQueryLength: 0 });
+  const { items, loading, query, setQuery } = useUserSearch({ role, division, minQueryLength: 0 });
   const filtered = excludeIds ? items.filter((o) => !excludeIds.has(o.id)) : items;
 
   useEffect(() => {

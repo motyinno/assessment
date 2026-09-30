@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { isAdmin } from "@/lib/roles";
-import { getAdminDepartmentScope } from "@/lib/admin-scope";
+import { getAdminDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 import {
   AssessmentStatisticsView,
   type AssessmentRow,
@@ -13,7 +13,7 @@ export default async function AssessmentStatisticsPage() {
   if (!session?.user) redirect("/login");
   if (!isAdmin(session.user.role)) redirect("/dashboard");
 
-  const scope = await getAdminDepartmentScope(session.user);
+  const scope = await getAdminDivisionScope(session.user);
   if (scope && scope.size === 0) {
     return (
       <div className="space-y-6">
@@ -21,7 +21,7 @@ export default async function AssessmentStatisticsPage() {
           <div>
             <h1 className="page-title">Assessment statistics</h1>
             <p className="page-subtitle mt-1">
-              You're not currently assigned to a department, so there's nothing to show.
+              You're not currently assigned to a division, so there's nothing to show.
             </p>
           </div>
         </div>
@@ -36,7 +36,7 @@ export default async function AssessmentStatisticsPage() {
           participants: {
             some: {
               participantRole: "SUBJECT",
-              user: { departments: { some: { departmentId: { in: [...scope] } } } },
+              user: userInScopeWhere(scope),
             },
           },
         }

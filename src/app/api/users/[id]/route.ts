@@ -4,7 +4,7 @@ import {
   requireAuth,
   requireAdmin,
 } from "@/lib/auth-helpers";
-import { getAdminDepartmentScope, getStaffDepartmentScope, isUserInScope } from "@/lib/admin-scope";
+import { getAdminDivisionScope, getStaffDivisionScope, isUserInScope } from "@/lib/admin-scope";
 import { isValidGrade } from "@/lib/grades";
 import { ROLES, canManagePeople, isAdmin, isStaff } from "@/lib/roles";
 import { patchUserSchema } from "@/lib/schemas";
@@ -108,10 +108,10 @@ export async function GET(
   if (!user) return notFound("Not found");
 
   // Staff viewing someone else's profile (not their own, not a direct
-  // report) only ever see people within their own department scope — same
+  // report) only ever see people within their own division — same
   // rule as the directory list and the PATCH/DELETE guards below.
   if (isStaffViewer && me.id !== id && user.managerId !== me.id) {
-    const scope = await getStaffDepartmentScope(me);
+    const scope = await getStaffDivisionScope(me);
     if (!(await isUserInScope(id, scope))) return forbidden();
   }
 
@@ -144,10 +144,9 @@ export async function PATCH(
   if (!isAdminCaller && !isSelf && !isManagerOfTarget) return forbidden();
 
   // A plain ADMIN (not self, not the target's manager) may only reach here
-  // via isAdminCaller — restrict that path to the target's own department
-  // scope; self-edits and manager-of-target edits are unaffected.
+  // via isAdminCaller — restrict that path to the admin's own division; self-edits and manager-of-target edits are unaffected.
   if (isAdminCaller && !isSelf && !isManagerOfTarget) {
-    const scope = await getAdminDepartmentScope(me);
+    const scope = await getAdminDivisionScope(me);
     if (!(await isUserInScope(id, scope))) return forbidden();
   }
 
@@ -310,7 +309,7 @@ export async function DELETE(
   });
   if (!target) return notFound("User not found");
 
-  const scope = await getAdminDepartmentScope(me);
+  const scope = await getAdminDivisionScope(me);
   if (!(await isUserInScope(id, scope))) return forbidden();
 
   if (target.hrmEmployeeId !== null) {

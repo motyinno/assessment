@@ -137,6 +137,7 @@ interface Assessment {
       name: string;
       email: string;
       managerId?: string | null;
+      divisionId?: string | null;
       isArchived?: boolean;
       jobTitle?: string | null;
     };
@@ -602,13 +603,14 @@ export default function AssessmentDetailPage() {
                   <div className="mt-3">
                     <AssessorCombobox
                       role="ASSESSOR,MANAGER"
+                      division={subjects[0]?.user.divisionId}
                       excludeIds={excludedAssessorIds}
                       onSelect={(u) => addAssessor(u.id)}
                       disabled={rosterLoading}
                     />
                     <p className="mt-1.5 text-[11px] text-muted-foreground">
-                      Only assessors and managers can be added. The subject&apos;s
-                      own manager isn&apos;t shown.
+                      Only assessors and managers of the subject&apos;s division can be
+                      added. The subject&apos;s own manager isn&apos;t shown.
                     </p>
                   </div>
                 )}

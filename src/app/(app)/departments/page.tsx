@@ -7,7 +7,7 @@ import { DepartmentTree } from "@/components/department-tree";
 /**
  * S10 — org structure tree. This is the company org chart, so every signed-in
  * person sees all of it: it used to be ADMIN-only and, for a plain ADMIN,
- * narrowed to their own subtree by `getAdminDepartmentScope` — which would now
+ * narrowed to their own subtree by the admin scope — which would now
  * mean an ADMIN sees LESS of the chart than a regular user. Nothing sensitive
  * is on it either way: department pages only ever expose DEPARTMENT_MEMBER_SLIM
  * (name, email, job title, photo) to every role alike — grade, projects and
