@@ -30,7 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { gradeLabel, GRADE_VALUES, gradeRank, isValidGrade } from "@/lib/grades";
+import { gradeLabel, GRADE_VALUES, isValidGrade, nextGrade } from "@/lib/grades";
 import { MASTERY_THRESHOLD, ASSESSED_THRESHOLD } from "@/lib/roadmap-types";
 import { cn } from "@/lib/utils";
 
@@ -101,7 +101,7 @@ function recommendedGradeFor(a: ReviewAssessment): string {
   const { avg, needsWork } = summarizeResults(a.results);
   const passed = avg !== null && avg >= PASS_THRESHOLD && needsWork === 0;
   if (passed && isValidGrade(currentGrade)) {
-    const next = GRADE_VALUES[gradeRank(currentGrade) + 1];
+    const next = nextGrade(currentGrade);
     if (next) return next;
   }
   return currentGrade ?? "";

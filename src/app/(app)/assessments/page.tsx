@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { gradeLabel } from "@/lib/grades";
+import { gradeLabel, targetGradeLabel } from "@/lib/grades";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -135,7 +135,7 @@ export default function AssessmentsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
-                  <TableHead>Grade</TableHead>
+                  <TableHead>Target grade</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Assessors</TableHead>
                   <TableHead>Date</TableHead>
@@ -155,7 +155,9 @@ export default function AssessmentsPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{gradeLabel(a.grade)}</Badge>
+                        <Badge variant="outline" title={`Current grade: ${gradeLabel(a.grade)}`}>
+                          {targetGradeLabel(a.grade)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={statusVariants[a.status]}>

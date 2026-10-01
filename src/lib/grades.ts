@@ -60,3 +60,18 @@ export function gradeRank(grade: string | null | undefined): number {
   if (!grade) return -1;
   return (GRADE_VALUES as readonly string[]).indexOf(grade);
 }
+
+/** The grade one step above, e.g. "mid" -> "mid+". Null at the top or for an unknown grade. */
+export function nextGrade(grade: string | null | undefined): Grade | null {
+  const rank = gradeRank(grade);
+  return rank >= 0 ? GRADE_VALUES[rank + 1] ?? null : null;
+}
+
+/**
+ * The grade an assessment is going for. `Assessment.grade` is the subject's
+ * grade when it was requested, so the target is one step above; at the top
+ * grade (or an unknown one) there's nothing above, so it's the grade itself.
+ */
+export function targetGradeLabel(grade: string | null | undefined): string {
+  return gradeLabel(nextGrade(grade) ?? grade);
+}

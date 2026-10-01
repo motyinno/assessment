@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { gradeLabel } from "@/lib/grades";
+import { gradeLabel, targetGradeLabel } from "@/lib/grades";
 import {
   SESSION_TYPE_LABELS,
   SESSION_STATUS_LABELS,
@@ -268,7 +268,9 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                 <Badge variant={assessmentStatusVariants[log.status]}>
                   {assessmentStatusLabels[log.status] || log.status}
                 </Badge>
-                <Badge variant="outline">{gradeLabel(log.grade)}</Badge>
+                <Badge variant="outline" title={`Current grade: ${gradeLabel(log.grade)}`}>
+                  Target: {targetGradeLabel(log.grade)}
+                </Badge>
                 <Badge variant="secondary">
                   {ASSESSMENT_TYPE_LABELS[log.assessmentType] || log.assessmentType}
                 </Badge>
