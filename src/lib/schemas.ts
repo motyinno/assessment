@@ -115,10 +115,6 @@ export const selfAssessmentSchema = z.object({
   ),
 });
 
-export const updateCertificateSchema = z.object({
-  pinned: z.boolean(),
-});
-
 export const roadmapProgressSchema = z.object({
   items: z.array(
     z.object({

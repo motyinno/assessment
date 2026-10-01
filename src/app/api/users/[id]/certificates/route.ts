@@ -8,10 +8,9 @@ import { certVerifyUrl, verifyCertificateExists } from "@/lib/certificates";
 export const runtime = "nodejs";
 
 /**
- * Read a user's *pinned* certificates. Restricted to those who can view the
- * user's profile — staff (assessor/manager/admin) or the user themselves.
- * Only pinned certificates are exposed; unpinned ones stay private to the
- * owner. Each is checked live against the public registry for current
+ * Read a user's certificates. Restricted to those who can view the user's
+ * profile — staff (assessor/manager/admin) or the user themselves. Each is
+ * checked live against the public registry for current
  * validity + details.
  */
 export async function GET(
@@ -32,7 +31,7 @@ export async function GET(
   if (!user) return notFound("User not found");
 
   const rows = await prisma.certificate.findMany({
-    where: { userId: id, pinned: true },
+    where: { userId: id },
     orderBy: { createdAt: "desc" },
     select: { id: true, code: true, createdAt: true },
   });

@@ -310,10 +310,6 @@ model Certificate {
   id        String   @id @default(cuid())
   userId    String
   code      String
-  /// When true, this certificate is shown on the owner's user profile page
-  /// (visible to anyone who can view that profile). Off by default — a private
-  /// certificate the owner has added but not published.
-  pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

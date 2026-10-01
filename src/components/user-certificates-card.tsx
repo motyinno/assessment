@@ -84,7 +84,7 @@ export function UserCertificatesCard({ userId }: { userId: string }) {
       <CardHeader>
         <CardTitle>Certificates</CardTitle>
         <p className="mt-1 text-sm text-muted-foreground">
-          Pinned certificates, verified live against the public registry.
+          Verified live against the public registry.
         </p>
       </CardHeader>
       <CardContent>
