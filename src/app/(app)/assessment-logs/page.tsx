@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { gradeLabel } from "@/lib/grades";
+import { assessmentTargetGrade } from "@/lib/grades";
 import {
   SESSION_TYPE_LABELS,
   SESSION_STATUS_LABELS,
@@ -231,6 +231,7 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
 
   const subjects = log.participants.filter((p) => p.participantRole === "SUBJECT");
   const assessors = log.participants.filter((p) => p.participantRole === "ASSESSOR");
+  const targetGrade = assessmentTargetGrade(log);
 
   const sessionStats = log.sessions.reduce(
     (acc, s) => {
@@ -268,7 +269,12 @@ function AssessmentLogCard({ log }: { log: AssessmentLog }) {
                 <Badge variant={assessmentStatusVariants[log.status]}>
                   {assessmentStatusLabels[log.status] || log.status}
                 </Badge>
-                <Badge variant="outline">{gradeLabel(log.grade)}</Badge>
+                <Badge
+                  variant="outline"
+                  title={targetGrade.current ? `Current grade: ${targetGrade.current}` : undefined}
+                >
+                  Target: {targetGrade.target}
+                </Badge>
                 <Badge variant="secondary">
                   {ASSESSMENT_TYPE_LABELS[log.assessmentType] || log.assessmentType}
                 </Badge>
