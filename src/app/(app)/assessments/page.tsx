@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { gradeLabel, targetGradeLabel } from "@/lib/grades";
+import { assessmentTargetGrade } from "@/lib/grades";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -144,6 +144,7 @@ export default function AssessmentsPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((a) => {
+                  const grade = assessmentTargetGrade(a);
                   const assessors = a.participants
                     .filter((p) => p.participantRole === "ASSESSOR")
                     .map((p) => p.user.name);
@@ -155,8 +156,11 @@ export default function AssessmentsPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" title={`Current grade: ${gradeLabel(a.grade)}`}>
-                          {targetGradeLabel(a.grade)}
+                        <Badge
+                          variant="outline"
+                          title={grade.current ? `Current grade: ${grade.current}` : undefined}
+                        >
+                          {grade.target}
                         </Badge>
                       </TableCell>
                       <TableCell>

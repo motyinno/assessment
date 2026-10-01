@@ -68,10 +68,26 @@ export function nextGrade(grade: string | null | undefined): Grade | null {
 }
 
 /**
- * The grade an assessment is going for. `Assessment.grade` is the subject's
- * grade when it was requested, so the target is one step above; at the top
- * grade (or an unknown one) there's nothing above, so it's the grade itself.
+ * Assessments imported from the old Excel log (fixed `legacy_*` ids, see
+ * migration 20260612135718_import_legacy_assessments) store the grade the
+ * person was going for, not the one they had.
  */
-export function targetGradeLabel(grade: string | null | undefined): string {
-  return gradeLabel(nextGrade(grade) ?? grade);
+function isLegacyAssessment(id: string): boolean {
+  return id.startsWith("legacy_");
+}
+
+/**
+ * The grade an assessment is going for, plus the subject's grade at the time
+ * when we know it (for a tooltip). `Assessment.grade` is the subject's grade
+ * when it was requested, so the target is one step above; at the top grade
+ * (or an unknown one) there's nothing above, so it's the grade itself. Legacy
+ * assessments already store the target, and their starting grade is unknown.
+ */
+export function assessmentTargetGrade(assessment: {
+  id: string;
+  grade: string | null | undefined;
+}): { target: string; current: string | null } {
+  const { id, grade } = assessment;
+  if (isLegacyAssessment(id)) return { target: gradeLabel(grade), current: null };
+  return { target: gradeLabel(nextGrade(grade) ?? grade), current: gradeLabel(grade) };
 }
