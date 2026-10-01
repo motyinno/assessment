@@ -39,8 +39,8 @@ interface SubjectUser {
   name: string;
   email: string;
   grade: string | null;
-  // Number of certificates the subject has pinned to their profile. A grade
-  // upgrade is blocked until at least one is pinned.
+  // Number of certificates on the subject's profile. A grade upgrade is
+  // blocked until there is at least one.
   _count: { certificates: number };
 }
 
@@ -189,9 +189,9 @@ export default function AssessmentReviewPage() {
   const summary = selected ? summarizeResults(selected.results) : null;
   const recommendedGrade = selected ? recommendedGradeFor(selected) : "";
   const sameAsCurrent = !!newGrade && newGrade === currentGrade;
-  const hasPinnedCertificate = (selectedSubject?._count.certificates ?? 0) > 0;
+  const hasCertificate = (selectedSubject?._count.certificates ?? 0) > 0;
   const upgradeDisabled =
-    upgrading || declining || !newGrade || sameAsCurrent || !hasPinnedCertificate;
+    upgrading || declining || !newGrade || sameAsCurrent || !hasCertificate;
 
   return (
     <div className="space-y-6">
@@ -435,7 +435,7 @@ export default function AssessmentReviewPage() {
                 />
               </div>
 
-              {!hasPinnedCertificate && (
+              {!hasCertificate && (
                 <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-[13px] text-warning-foreground dark:text-warning">
                   <svg
                     className="mt-0.5 h-4 w-4 shrink-0"
@@ -451,15 +451,15 @@ export default function AssessmentReviewPage() {
                     <line x1="12" y1="17" x2="12.01" y2="17" />
                   </svg>
                   <p>
-                    No certificate is pinned to{" "}
+                    No certificate on{" "}
                     <Link
                       href={`/users/${selectedSubject.id}`}
                       className="font-medium underline"
                     >
                       {selectedSubject.name}
                     </Link>
-                    ’s profile. Grade upgrades are blocked until a certificate is
-                    pinned. You can still record “No upgrade”.
+                    ’s profile. Grade upgrades are blocked until they add one. You
+                    can still record “No upgrade”.
                   </p>
                 </div>
               )}

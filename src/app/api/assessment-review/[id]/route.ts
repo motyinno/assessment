@@ -31,7 +31,7 @@ export async function PATCH(
             select: {
               id: true,
               grade: true,
-              _count: { select: { certificates: { where: { pinned: true } } } },
+              _count: { select: { certificates: true } },
             },
           },
         },
@@ -49,12 +49,11 @@ export async function PATCH(
 
   const upgrading = action === "upgrade";
 
-  // A grade upgrade requires proof of certification pinned to the subject's
-  // profile. Without a pinned certificate the promotion is blocked until the
-  // subject pins one.
+  // A grade upgrade requires proof of certification on the subject's profile.
+  // Without a certificate the promotion is blocked until the subject adds one.
   if (upgrading && subject._count.certificates === 0) {
     return badRequest(
-      "Cannot upgrade grade: the subject has no certificate pinned to their profile. Ask them to pin a certificate before promoting."
+      "Cannot upgrade grade: the subject has no certificate on their profile. Ask them to add a certificate before promoting."
     );
   }
   const previousGrade = subject.grade ?? null;

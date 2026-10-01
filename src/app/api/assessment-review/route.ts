@@ -34,7 +34,7 @@ export async function GET() {
               name: true,
               email: true,
               grade: true,
-              _count: { select: { certificates: { where: { pinned: true } } } },
+              _count: { select: { certificates: true } },
             },
           },
         },
