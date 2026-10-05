@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { deleteInterviewPreps } from "@/lib/interview-prep";
 import {
   requireAssessmentRead,
   requireAssessmentAssessor,
@@ -95,14 +96,19 @@ export async function PATCH(
     if (status === "COMPLETED") data.completedAt = new Date();
   }
 
-  const assessment = await prisma.assessment.update({
-    where: { id: params.id },
-    data,
-    include: {
-      participants: {
-        include: { user: { select: { id: true, name: true, email: true } } },
+  const assessment = await prisma.$transaction(async (tx) => {
+    const updated = await tx.assessment.update({
+      where: { id: params.id },
+      data,
+      include: {
+        participants: {
+          include: { user: { select: { id: true, name: true, email: true } } },
+        },
       },
-    },
+    });
+    // Interview questions are only useful until the interview is over.
+    if (status === "COMPLETED") await deleteInterviewPreps(tx, params.id);
+    return updated;
   });
 
   return NextResponse.json(assessment);

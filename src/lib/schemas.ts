@@ -282,3 +282,19 @@ export const generateBodySchema = z.object({
   useAI: z.boolean().optional().default(false),
   assessmentId: z.string().optional(),
 });
+
+// Interview prep (lib/interview-prep.ts). The 15-topic cap mirrors MAX_PREP_TOPICS.
+export const interviewPrepGenerateSchema = z.object({
+  topicIds: z.array(z.string().min(1)).min(1, "Pick at least one topic").max(15, "Pick at most 15 topics"),
+  language: z.enum(["ru", "en"]).default("ru"),
+});
+
+export const interviewPrepAskedSchema = z.object({
+  questionId: z.string().min(1),
+  asked: z.boolean(),
+});
+
+export const interviewPrepTopicSchema = z.object({
+  topicId: z.string().min(1),
+  action: z.enum(["more", "task"]),
+});
