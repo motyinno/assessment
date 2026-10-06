@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { normalizeCategory, ensureCategoryMapping } from "./category-mapper";
+import type { PrepCandidateTopic } from "./interview-prep";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -27,7 +28,7 @@ async function withGeminiRetry<T>(
         status === 503 ||
         status === 429 ||
         status === 500 ||
-        /50\d|overloaded|high demand|unavailable|rate limit/i.test(String(e));
+        /50\d|overloaded|high demand|unavailable|rate limit|fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e));
       if (!transient || i === attempts - 1) throw e;
       await new Promise((r) => setTimeout(r, baseMs * 2 ** i));
     }
@@ -382,4 +383,189 @@ Respond ONLY with valid JSON:
       "Failed to generate PDP via AI. Check GEMINI_API_KEY / GEMINI_MODEL and try again."
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Interview prep (lib/interview-prep.ts normalizes what these return)
+// ---------------------------------------------------------------------------
+
+export interface InterviewPrepRequest {
+  targetGradeLabel: string;
+  band: "jun" | "mid" | "sen";
+  assessmentType: string;
+  language: "ru" | "en";
+  topics: PrepCandidateTopic[];
+  /** Titles already prepared earlier — no questions needed, but the focus line should cover them. */
+  alreadyPrepared?: string[];
+}
+
+const PREP_LANGUAGE_NAMES = { ru: "RUSSIAN", en: "ENGLISH" } as const;
+
+function describePrepTopic(t: PrepCandidateTopic): string {
+  const s = t.signals;
+  const lines = [`- topicId: ${t.id}`, `  title: ${t.title} (section: ${t.sectionTitle})`];
+  lines.push(`  expected skills: ${t.skills.length ? t.skills.join("; ") : "not specified — use common expectations for the grade"}`);
+  if (s.pastScore !== null || s.pastComment) {
+    lines.push(`  previous assessment: score ${s.pastScore ?? "n/a"}/10${s.pastComment ? `, assessor comment: "${s.pastComment}"` : ""}`);
+  }
+  if (s.inPdp) {
+    lines.push(`  in the candidate's development plan (PDP)${s.pdpQuestions.length ? `, studied: ${s.pdpQuestions.join("; ")}` : ""}`);
+  }
+  if (s.selfScore !== null) {
+    lines.push(`  self-assessment: ${s.selfScore}/10${s.selfComment ? ` ("${s.selfComment}")` : ""}`);
+  }
+  return lines.join("\n");
+}
+
+const PREP_QUESTION_SHAPE = `{
+  "text": "The question exactly as the assessor would ask it",
+  "level": "jun" | "mid" | "sen",
+  "reason": "past_gap" | "pdp" | "self_check" | "coverage",
+  "keyPoints": ["What a good answer must contain", "..."],
+  "redFlags": ["Answer that signals a gap", "..."],
+  "followUp": "One deeper follow-up question, or null"
+}`;
+
+const PREP_TASK_SHAPE = `{ "title": "Short title", "description": "The task, solvable in 10-15 minutes during the call", "expectations": ["What a good solution shows", "..."] }`;
+
+function prepPreamble(req: InterviewPrepRequest): string {
+  const pdpReview = req.assessmentType === "PDP_CHECK";
+  return `You are a senior engineer preparing to interview a candidate in an internal technical assessment.
+Target grade: ${req.targetGradeLabel} (band "${req.band}").
+${pdpReview ? "This is a PDP review: the goal is to verify the candidate actually mastered the topics of their development plan." : "The goal is to decide whether the candidate meets the target grade."}
+
+How to use the context per topic:
+- "expected skills" are the PRIMARY basis — questions must check these at the target grade.
+- A previous low score or comment marks a known gap: include a question that checks whether it is closed (reason "past_gap").
+- PDP topics: check that the studied material was really learned, not memorized (reason "pdp").
+- Self-assessment is OPTIONAL and often missing or unreliable — use it only as a hint; a high self-score on a topic deserves one probing question (reason "self_check").
+- Otherwise use reason "coverage".
+
+Question quality:
+- Prefer "why / how does it work / what happens if / how would you design" over definitions.
+- Practical, scenario-based, answerable verbally in 3-5 minutes. No trivia, no trick questions.
+- Mix levels around the target band so the assessor can find the ceiling.
+
+All text values MUST be in ${PREP_LANGUAGE_NAMES[req.language]}. Keep technical terms, API and code identifiers in their original form.`;
+}
+
+async function runPrepPrompt(prompt: string, retry = { attempts: 3, baseMs: 800 }): Promise<unknown> {
+  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
+  const result = await withGeminiRetry(
+    () =>
+      model.generateContent({
+        contents: [{ role: "user", parts: [{ text: "Always respond with valid JSON only." }, { text: prompt }] }],
+        generationConfig: { temperature: 0.6, responseMimeType: "application/json" },
+      }),
+    retry.attempts,
+    retry.baseMs
+  );
+  const text = result.response.text();
+  if (!text) throw new Error("No response content from Gemini");
+  return JSON.parse(text);
+}
+
+/** Questions for every requested topic, plus an overall focus line. */
+export async function generateInterviewPrep(req: InterviewPrepRequest): Promise<unknown> {
+  if (process.env.AI_MOCK === "true") return mockInterviewPrep(req);
+
+  const prompt = `${prepPreamble(req)}
+
+Topics:
+${req.topics.map(describePrepTopic).join("\n")}
+
+For EACH topic produce 2-3 questions. Use the exact topicId given above.
+${req.alreadyPrepared?.length ? `These topics are also part of the interview but already have questions — do NOT produce questions for them: ${req.alreadyPrepared.join("; ")}.\n` : ""}Also write "focus": 1-2 sentences telling the assessor where to dig hardest across the whole interview and why.
+
+Respond ONLY with JSON:
+{
+  "focus": "...",
+  "topics": [
+    { "topicId": "...", "questions": [${PREP_QUESTION_SHAPE}] }
+  ]
+}`;
+  try {
+    // Runs in the background (lib/interview-prep runPrepGeneration), so it can
+    // afford to wait out Gemini's frequent 503 "high demand" spikes (~30s).
+    return await runPrepPrompt(prompt, { attempts: 5, baseMs: 2000 });
+  } catch (error) {
+    console.error("Error generating interview prep:", error);
+    throw new Error("Failed to generate interview questions.");
+  }
+}
+
+/** Extra questions for one topic, avoiding the ones already prepared. */
+export async function generateMorePrepQuestions(
+  req: InterviewPrepRequest,
+  existing: string[]
+): Promise<unknown> {
+  if (process.env.AI_MOCK === "true") return { questions: mockQuestions(req.topics[0], 2, existing.length) };
+
+  const prompt = `${prepPreamble(req)}
+
+Topic:
+${req.topics.map(describePrepTopic).join("\n")}
+
+Already prepared (do NOT repeat or rephrase these):
+${existing.map((q) => `- ${q}`).join("\n") || "- none"}
+
+Produce 2 NEW questions covering different skills or angles.
+Respond ONLY with JSON: { "questions": [${PREP_QUESTION_SHAPE}] }`;
+  try {
+    return await runPrepPrompt(prompt);
+  } catch (error) {
+    console.error("Error generating more interview questions:", error);
+    throw new Error("Failed to generate more questions.");
+  }
+}
+
+/** A short live-coding / design task for one topic. */
+export async function generatePrepTask(req: InterviewPrepRequest): Promise<unknown> {
+  if (process.env.AI_MOCK === "true") return { task: mockTask(req.topics[0]) };
+
+  const prompt = `${prepPreamble(req)}
+
+Topic:
+${req.topics.map(describePrepTopic).join("\n")}
+
+Produce ONE practical task for this topic at the target grade.
+Respond ONLY with JSON: { "task": ${PREP_TASK_SHAPE} }`;
+  try {
+    return await runPrepPrompt(prompt);
+  } catch (error) {
+    console.error("Error generating interview task:", error);
+    throw new Error("Failed to generate a practical task.");
+  }
+}
+
+// Local development only (AI_MOCK=true): Gemini is geo-blocked from some dev
+// machines, and the UI still needs realistic data to be built against.
+function mockQuestions(topic: PrepCandidateTopic | undefined, count: number, offset = 0) {
+  const title = topic?.title ?? "Topic";
+  const reason = topic?.signals.pastScore != null && topic.signals.pastScore <= 6
+    ? "past_gap"
+    : topic?.signals.inPdp ? "pdp" : "coverage";
+  return Array.from({ length: count }, (_, i) => ({
+    text: `[mock] Вопрос ${offset + i + 1} по теме «${title}»: как это работает под капотом и где это ломается?`,
+    level: i === 0 ? "mid" : "sen",
+    reason: i === 0 ? reason : "coverage",
+    keyPoints: [`Ключевая идея ${title}`, "Компромиссы и ограничения"],
+    redFlags: ["Отвечает определением без понимания"],
+    followUp: i === 0 ? "А что изменится под высокой нагрузкой?" : null,
+  }));
+}
+
+function mockTask(topic: PrepCandidateTopic | undefined) {
+  return {
+    title: `[mock] Задача: ${topic?.title ?? "Topic"}`,
+    description: "Опишите решение и обсудите альтернативы.",
+    expectations: ["Рабочее решение", "Осознанные компромиссы"],
+  };
+}
+
+function mockInterviewPrep(req: InterviewPrepRequest) {
+  return {
+    focus: "[mock] Сфокусируйтесь на темах с прошлыми пробелами и проверьте глубину понимания, а не определения.",
+    topics: req.topics.map((t) => ({ topicId: t.id, questions: mockQuestions(t, 2) })),
+  };
 }

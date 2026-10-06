@@ -40,15 +40,19 @@ export async function POST(
     return badRequest("A completed assessment can't be cancelled");
   }
 
-  const updated = await prisma.assessment.update({
-    where: { id: params.id },
-    data: {
-      status: "CANCELLED",
-      cancellationReason: reason,
-      cancelledAt: new Date(),
-      cancelledById: me.id,
-    },
-  });
+  const [updated] = await prisma.$transaction([
+    prisma.assessment.update({
+      where: { id: params.id },
+      data: {
+        status: "CANCELLED",
+        cancellationReason: reason,
+        cancelledAt: new Date(),
+        cancelledById: me.id,
+      },
+    }),
+    // Interview questions are only useful until the interview is over.
+    prisma.interviewPrep.deleteMany({ where: { assessmentId: params.id } }),
+  ]);
 
   return NextResponse.json(updated);
 }

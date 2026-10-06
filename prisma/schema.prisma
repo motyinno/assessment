@@ -137,6 +137,7 @@ model User {
   notifications        Notification[]
   certificates         Certificate[]
   roadmapProgress      RoadmapProgress[]
+  interviewPreps       InterviewPrep[]
   departments          UserDepartment[]
   division             Department?                 @relation("divisionMembers", fields: [divisionId], references: [id], onDelete: SetNull)
   managerLinks         UserManagerLink[]           @relation("managerLinkSubject")
@@ -369,6 +370,7 @@ model Assessment {
   participants    AssessmentParticipant[]
   results         AssessmentResult[]
   selfAssessments SelfAssessment[]
+  interviewPreps  InterviewPrep[]
   pdps            Pdp[]
   sessions        AssessmentSession[]
   request         AssessmentRequest?
@@ -708,4 +710,35 @@ model PdpItem {
   goal PdpGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
 
   @@index([goalId])
+}
+
+/// AI-prepared interview questions for one assessor of one assessment. Private
+/// to that assessor: the subject must never see it, and neither do admins or
+/// managers who aren't running the interview (lib/auth-helpers
+/// requireAssessmentInterviewer). `content` is an InterviewPrepContent
+/// (lib/interview-prep.ts), including the per-question "asked" ticks.
+model InterviewPrep {
+  id                  String    @id @default(cuid())
+  assessmentId        String
+  assessorId          String
+  language            String    @default("ru") // "ru" | "en"
+  topicIds            String[]  @default([])
+  content             Json
+  /// "READY" | "GENERATING" | "FAILED". Generation runs in the background
+  /// (lib/interview-prep runPrepGeneration); the card polls while GENERATING.
+  status              String    @default("READY")
+  error               String?
+  /// Topics the running (or failed) generation is producing questions for.
+  pendingTopicIds     String[]  @default([])
+  /// Token of the latest generation; a background job only writes its result
+  /// while it still matches, so a superseded job can't clobber a newer one.
+  generationId        String?
+  generationStartedAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessor   User       @relation(fields: [assessorId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, assessorId])
 }

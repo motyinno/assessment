@@ -26,6 +26,7 @@ import {
 import { gradeLabel } from "@/lib/grades";
 import { apiErrorMessage } from "@/lib/api-error";
 import { AssessmentMatrix } from "@/components/assessment-matrix";
+import { InterviewPrepCard } from "@/components/interview-prep-card";
 import { cn } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
@@ -374,6 +375,9 @@ export default function AssessmentDetailPage() {
   const excludedAssessorIds = new Set([...participantUserIds, ...subjectManagerIds]);
 
   const isSubject = subjects.some((p) => p.user.id === session?.user?.id);
+  // Interview prep is private to the people actually interviewing — not admins
+  // or managers (the API enforces the same, see requireAssessmentInterviewer).
+  const isInterviewer = assessors.some((p) => p.user.id === session?.user?.id);
 
   const hasSessions = assessment.sessions && assessment.sessions.length > 0;
   const activeSession = hasSessions
@@ -840,6 +844,11 @@ export default function AssessmentDetailPage() {
               })}
           </CardContent>
         </Card>
+      )}
+
+      {/* Questions are deleted once the assessment is over (lib/interview-prep deleteInterviewPreps). */}
+      {isInterviewer && assessment.status !== "CANCELLED" && assessment.status !== "COMPLETED" && (
+        <InterviewPrepCard assessmentId={assessment.id} />
       )}
 
       {/* Tech Matrix with Self-Assessment — hidden for PDP check, collapsed by default */}
