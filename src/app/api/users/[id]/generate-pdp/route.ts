@@ -1,72 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
-import { requireUserAccess } from "@/lib/auth-helpers";
-import { gradeLabel } from "@/lib/grades";
-import { getValidAccessToken } from "@/lib/google-auth";
+import { requireAuth } from "@/lib/auth-helpers";
 import { generatePdpSchema } from "@/lib/schemas";
-import { resolveSelectedTopics, runPdpGeneration } from "@/lib/pdp-generation";
-import { resolveUserDivision } from "@/lib/user-division";
-import { badRequest, notFound, parseJsonBody } from "@/lib/api-helpers";
+import { canComposePdp, runDraftGeneration, type PdpGenerationInputs } from "@/lib/pdp-plan";
+import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id: targetUserId } = await params;
-
-  // Caller must be ADMIN, the user themselves, or the user's manager.
-  const guard = await requireUserAccess(targetUserId);
-  if (guard.error) return guard.error;
-  const me = guard.session.user;
+/**
+ * Start a PDP draft: the AI writes a first pass in the background, then the
+ * plan opens in the builder (status DRAFT) for the manager to arrange and
+ * approve. Nothing goes to Google Drive until approval.
+ */
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const me = auth.session.user;
 
   const parsed = await parseJsonBody(req, generatePdpSchema);
   if (parsed.error) return parsed.error;
-  const { topicIds, customTopics = [] } = parsed.data;
+  const { topicIds, customTopics = [], assessmentId = null } = parsed.data;
 
   const user = await prisma.user.findUnique({
-    where: { id: targetUserId },
-    include: { manager: { select: { name: true } } },
+    where: { id: params.id },
+    select: { id: true, name: true, grade: true, managerId: true },
   });
   if (!user) return notFound("User not found");
+  if (!(await canComposePdp(me, user))) {
+    return forbidden("Only the employee's direct manager or an admin can create their PDP");
+  }
   if (!user.grade) return badRequest("User profile has no grade set");
 
-  const driveToken = await getValidAccessToken(me.id);
-  if (!driveToken) {
-    return badRequest("Connect Google Drive in your profile — PDPs need somewhere to be saved");
+  if (assessmentId) {
+    const ok = await prisma.assessmentParticipant.findFirst({
+      where: { assessmentId, userId: user.id, participantRole: "SUBJECT" },
+      select: { id: true },
+    });
+    if (!ok) return badRequest("That assessment isn't this employee's");
   }
 
-  const division = await resolveUserDivision(targetUserId);
-  const selected = await resolveSelectedTopics({ topicIds, customTopics }, user.grade, division?.id ?? null);
-  if (selected.length === 0) {
-    return badRequest("None of the selected topics match the grade");
-  }
-
-  const fileName = `PDP - ${user.name} - ${new Date().toISOString().slice(0, 10)}.docx`;
+  const inputs: PdpGenerationInputs = { topicIds, customTopics, assessmentId };
   const pdp = await prisma.pdp.create({
     data: {
       userId: user.id,
       createdById: me.id,
-      fileName,
+      assessmentId,
+      fileName: `PDP - ${user.name} - ${new Date().toISOString().slice(0, 10)}.docx`,
       status: "GENERATING",
       topicsJson: [],
-      // Persist the inputs so a FAILED plan can be retried in place.
-      generationInputs: { topicIds, customTopics },
+      generationInputs: inputs as unknown as Prisma.InputJsonValue,
     },
   });
 
-  void runPdpGeneration({
-    pdpId: pdp.id,
-    assessorId: me.id,
-    userName: user.name,
-    userManager: user.manager?.name ?? "",
-    userGradeLabel: gradeLabel(user.grade),
-    selected,
-    fileName,
-    departmentId: division?.id ?? null,
-  });
-
-  return NextResponse.json(pdp, { status: 202 });
+  void runDraftGeneration(pdp.id);
+  return NextResponse.json({ id: pdp.id }, { status: 202 });
 }

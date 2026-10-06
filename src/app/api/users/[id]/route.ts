@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { SUBJECT_VISIBLE_STATUSES } from "@/lib/pdp-plan";
 import {
   requireAuth,
   requireAdmin,
@@ -97,10 +98,13 @@ export async function GET(
         },
       },
       pdps: {
-        where: isStaffViewer ? undefined : { status: { not: "ON_REVIEW" } },
+        // Drafts stay with whoever composes them — never shown to the employee,
+        // even when the employee is staff themselves.
+        where: isStaffViewer && me.id !== id ? undefined : { status: { in: [...SUBJECT_VISIBLE_STATUSES] } },
         orderBy: { createdAt: "desc" },
         include: {
           assessment: { select: { id: true, title: true } },
+          goals: { select: { items: { select: { doneAt: true } } } },
         },
       },
     },

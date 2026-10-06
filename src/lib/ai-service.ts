@@ -63,6 +63,9 @@ export interface TechMatrixTopicInput {
   // Mentor-requested technology that MUST appear in the PDP, even if it isn't
   // part of the grade matrix.
   priority?: boolean;
+  // From the assessment the PDP is based on, when there is one.
+  previousScore?: number | null;
+  assessorComment?: string | null;
 }
 
 export interface DailyTopicResource {
@@ -271,9 +274,24 @@ export async function generateStandalonePDP(
   if (topics.length === 0) {
     return { pdpTopics: [] };
   }
+  // Local development only: Gemini is geo-blocked from some dev machines.
+  if (process.env.AI_MOCK === "true") {
+    return {
+      pdpTopics: topics.map((t) => ({
+        category: t.title,
+        questions: [`[mock] How does ${t.title} work under the hood?`, `[mock] When would you not use ${t.title}?`],
+        practicalTask: `[mock] Build a small project that uses ${t.title} and explain the trade-offs.`,
+      })),
+    };
+  }
 
-  const formatTopic = (t: TechMatrixTopicInput) =>
-    `- ${t.title} (grade-relevant skills: ${t.skills.length ? t.skills.join("; ") : "general fundamentals"})`;
+  const formatTopic = (t: TechMatrixTopicInput) => {
+    let line = `- ${t.title} (grade-relevant skills: ${t.skills.length ? t.skills.join("; ") : "general fundamentals"})`;
+    if (t.previousScore != null || t.assessorComment) {
+      line += `\n  assessment result: ${t.previousScore ?? "n/a"}/10${t.assessorComment ? `, assessor's comment: "${t.assessorComment}"` : ""} — target the gaps this reveals`;
+    }
+    return line;
+  };
 
   const matrixTopics = topics.filter((t) => !t.priority);
   const priorityTopics = topics.filter((t) => t.priority);
@@ -364,108 +382,6 @@ Respond ONLY with valid JSON:
     throw new Error(
       "Failed to generate PDP via AI. Check GEMINI_API_KEY / GEMINI_MODEL and try again."
     );
-  }
-}
-
-/**
- * Generate PDP topics (questions and practical tasks) based on assessment results
- * Results are cached per assessment to avoid regenerating
- */
-export async function generatePDPTopics(
-  results: AssessmentResult[],
-  employeeName: string,
-  grade: string,
-  departmentId: string | null,
-  assessmentId?: string
-): Promise<AIGeneratedPDPTopics> {
-  // Prepare the assessment data for AI
-  const assessmentData = results
-    .map((r) => {
-      return `- ${r.category}: Score ${r.score !== null ? r.score : "N/A"}/10. Comment: ${r.comment || "No comment"}. Subtopics: ${r.subtopics.join(", ") || "None"}`;
-    })
-    .join("\n");
-
-  const prompt = `You are an expert technical assessor helping create a Professional Development Plan (PDP) for an employee.
-
-Employee Name: ${employeeName}
-Grade: ${grade}
-
-Assessment Results:
-${assessmentData}
-
-Please generate for each category that needs improvement (scores below 7):
-   - 2-3 specific questions the employee should study/learn
-   - 1 practical task that demonstrates mastery of the topic
-
-IMPORTANT: 
-- All questions and practical tasks must be in ENGLISH language.
-- Use the EXACT same category name as shown in the Assessment Results above (maintain the original capitalization and formatting, e.g., "TypeScript Fundamentals" not "typescript-fundamentals").
-
-Format your response as JSON with this structure:
-{
-  "pdpTopics": [
-    {
-      "category": "Category Name",
-      "questions": ["Question 1", "Question 2", "Question 3"],
-      "practicalTask": "Description of practical task"
-    }
-  ]
-}
-
-Only include categories in pdpTopics that have scores below 7 or need improvement. If all scores are good, focus on advanced growth areas. Respond ONLY with valid JSON, no other text.`;
-
-  try {
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "You are an expert technical assessor and mentor. You provide constructive, actionable feedback and create effective professional development plans. Always respond with valid JSON only.",
-            },
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.7,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const responseContent = result.response.text();
-    if (!responseContent) {
-      throw new Error("No response content from Gemini");
-    }
-
-    const parsed = JSON.parse(responseContent) as AIGeneratedPDPTopics;
-    console.log("AI Response:", JSON.stringify(parsed, null, 2));
-
-    // Normalize category names to match tech matrix titles
-    if (departmentId) await ensureCategoryMapping(departmentId);
-    parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
-      ...topic,
-      category: departmentId ? normalizeCategory(topic.category, departmentId) : topic.category,
-    }));
-
-    // Save to database for caching if assessmentId is provided
-    if (assessmentId) {
-      const { default: prisma } = await import("@/lib/prisma");
-      await prisma.assessment.update({
-        where: { id: assessmentId },
-        data: { pdpTopics: JSON.stringify(parsed) },
-      });
-      console.log("PDP topics cached to database");
-    }
-
-    return parsed;
-  } catch (error) {
-    console.error("Error generating AI feedback:", error);
-    throw new Error("Failed to generate AI feedback. Please check your Gemini API key and try again.");
   }
 }
 

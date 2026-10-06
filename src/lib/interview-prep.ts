@@ -447,15 +447,27 @@ export async function loadPrepContext(assessmentId: string, assessorId: string):
       },
       orderBy: [{ assessment: { completedAt: "desc" } }, { createdAt: "desc" }],
     }),
+    // Only plans the employee actually has: drafts are still the manager's.
     prisma.pdp.findMany({
-      where: { userId: subjectId, status: { in: ["ACTIVE", "ON_REVIEW", "DRAFT", "COMPLETED"] } },
+      where: { userId: subjectId, status: { in: ["ACTIVE", "COMPLETED"] } },
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: { status: true, topicsJson: true },
+      select: {
+        status: true,
+        topicsJson: true,
+        goals: {
+          orderBy: { order: "asc" },
+          select: { title: true, items: { where: { type: "THEORY" }, orderBy: { order: "asc" }, select: { text: true } } },
+        },
+      },
     }),
   ]);
   // The PDP being worked on: the newest ACTIVE one, else simply the newest.
   const pdp = pdps.find((p) => p.status === "ACTIVE") ?? pdps[0];
+  // Builder plans keep topics as goals; older plans only have topicsJson.
+  const pdpTopics = pdp?.goals.length
+    ? pdp.goals.map((g) => ({ title: g.title, questions: g.items.map((i) => i.text) }))
+    : parsePdpTopics(pdp?.topicsJson);
 
   const sections = buildCandidateSections({
     matrix,
@@ -467,7 +479,7 @@ export async function loadPrepContext(assessmentId: string, assessorId: string):
       comment: r.comment,
       date: r.assessment.completedAt ?? r.assessment.createdAt,
     })),
-    pdpTopics: parsePdpTopics(pdp?.topicsJson),
+    pdpTopics,
   });
 
   return {

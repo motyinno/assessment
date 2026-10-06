@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
+import { SUBJECT_VISIBLE_STATUSES } from "@/lib/pdp-plan";
+import { planProgress, progressPercent } from "@/lib/pdp-progress";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,8 +91,6 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
 };
 
 const pdpStatusLabels: Record<string, string> = {
-  DRAFT: "Draft",
-  ON_REVIEW: "In review",
   ACTIVE: "Active",
   COMPLETED: "Completed",
 };
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
     assessments,
     pdps,
     pendingRequestsCount,
-    pendingPdpReviewCount,
+    pdpDrafts,
     myRequests,
   ] = await Promise.all([
     prisma.assessmentParticipant.findMany({
@@ -126,16 +126,23 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.pdp.findMany({
-      where: { userId, status: { not: "ON_REVIEW" } },
-      include: { assessment: true },
+      where: { userId, status: { in: [...SUBJECT_VISIBLE_STATUSES] } },
+      include: { assessment: true, goals: { select: { items: { select: { doneAt: true } } } } },
       orderBy: { createdAt: "desc" },
     }),
     role === "ADMIN"
       ? prisma.assessmentRequest.count({ where: { status: "PENDING", user: inScope } })
       : Promise.resolve(0),
-    role === "ADMIN"
-      ? prisma.pdp.count({ where: { status: "ON_REVIEW", user: inScope } })
-      : Promise.resolve(0),
+    // Drafts waiting on me: plans I'm composing for my direct reports.
+    prisma.pdp.findMany({
+      where: {
+        status: { in: ["GENERATING", "DRAFT", "FAILED"] },
+        userId: { not: userId },
+        OR: [{ user: { managerId: userId } }, { createdById: userId }],
+      },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    }),
     role !== "ADMIN"
       ? prisma.assessmentRequest.findMany({
           where: { userId },
@@ -220,11 +227,11 @@ export default async function DashboardPage() {
             }
           />
         )}
-        {role === "ADMIN" && (
+        {pdpDrafts.length > 0 && (
           <StatCard
-            label="PDPs in review"
-            value={pendingPdpReviewCount}
-            tone={pendingPdpReviewCount > 0 ? "warning" : "muted"}
+            label="PDP drafts to finish"
+            value={pdpDrafts.length}
+            tone="warning"
             icon={
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -233,11 +240,9 @@ export default async function DashboardPage() {
               </svg>
             }
             footer={
-              pendingPdpReviewCount > 0 ? (
-                <Link href="/pdp-review" className="text-xs font-medium text-primary hover:underline">
-                  Go to review →
-                </Link>
-              ) : null
+              <Link href={`/pdps/${pdpDrafts[0].id}`} className="text-xs font-medium text-primary hover:underline">
+                Open draft →
+              </Link>
             }
           />
         )}
@@ -422,13 +427,20 @@ export default async function DashboardPage() {
               <TableBody>
                 {pdps.map((pdp) => (
                   <TableRow key={pdp.id}>
-                    <TableCell className="font-medium">{pdp.fileName}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link href={`/pdps/${pdp.id}`} className="hover:underline">
+                        {pdp.fileName.replace(/\.docx$/i, "")}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {pdp.assessment?.title || "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">
+                      <Badge variant={pdp.status === "COMPLETED" ? "success" : "outline"}>
                         {pdpStatusLabels[pdp.status]}
+                        {pdp.status === "ACTIVE" && pdp.goals.length > 0
+                          ? ` · ${progressPercent(planProgress(pdp.goals))}%`
+                          : ""}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
