@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { deleteInterviewPreps } from "@/lib/interview-prep";
 import {
   requireAssessmentRead,
   requireAssessmentAssessor,
@@ -223,6 +224,8 @@ export async function PATCH(
         where: { id },
         data: { status: "COMPLETED", completedAt: new Date() },
       });
+      // Interview questions are only useful until the interview is over.
+      await deleteInterviewPreps(tx, id);
     }
 
     return updated;

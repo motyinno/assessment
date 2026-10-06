@@ -274,3 +274,30 @@ export async function requireAssessmentSubject(
   }
   return { error: null, session: a.session, assessmentId };
 }
+
+/**
+ * Authorize access to an assessment's interview prep (AI-prepared questions).
+ * Stricter than requireAssessmentAssessor on purpose: ONLY an ASSESSOR
+ * participant — the people actually interviewing the candidate. No admin or
+ * manager bypass, since anyone who can read the questions could leak them.
+ */
+export async function requireAssessmentInterviewer(
+  assessmentId: string
+): Promise<AssessmentGuard> {
+  const a = await requireAuth();
+  if (a.error) {
+    return { error: a.error, session: null, assessmentId: null };
+  }
+  const participant = await prisma.assessmentParticipant.findFirst({
+    where: {
+      assessmentId,
+      userId: a.session.user.id,
+      participantRole: "ASSESSOR",
+    },
+    select: { id: true },
+  });
+  if (!participant) {
+    return { error: forbidden("Only the assessors of this assessment can see interview prep"), session: null, assessmentId: null };
+  }
+  return { error: null, session: a.session, assessmentId };
+}
