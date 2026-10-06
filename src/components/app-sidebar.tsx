@@ -56,7 +56,6 @@ const peopleItems: Array<{
 const adminItems = [
   { href: "/requests", label: "Assessment Requests", icon: "inbox" },
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
-  { href: "/pdp-review", label: "PDP Review", icon: "file-text" },
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
 ];
 

@@ -5,18 +5,43 @@ import { escXml, mkP, mkBullet, mkRow, resetParaIdCounter } from "./xml-helpers"
 
 export interface PdpDocInfo {
   employee: string;
-  manager?: string;
-  next_date?: string;
+  /** The employee's direct manager ("Непосредственный руководитель"). */
+  manager?: string | null;
+  /** Who composed and approved the plan ("Карту составил", footer). */
+  composer?: string | null;
+  composedOn?: Date | null;
+  /** Date of the assessment the plan is based on (page header), if any. */
+  assessedOn?: Date | null;
 }
 
 export interface PdpRow {
   category: string;
   questions: string[];
-  practicalTask: string;
+  practicalTasks: string[];
 }
 
-export interface BuildPdpOptions {
-  includeTasks?: boolean;
+/**
+ * Placeholder for people/dates the app can't know. The template used to carry
+ * hardcoded reviewer/approver names; with per-department reviewers there's no
+ * single right name, so those lines get a dash.
+ */
+export const PDP_DOC_DASH = "—";
+
+function formatDate(d: Date | null | undefined): string {
+  if (!d) return PDP_DOC_DASH;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+
+/** Replace template text, matching both the raw and XML-escaped form. */
+function replaceAll(xml: string, pairs: [string, string][]): string {
+  // Longest first so "M’s NAME SURNAME" wins over "NAME SURNAME".
+  for (const [old, nw] of [...pairs].sort((a, b) => b[0].length - a[0].length)) {
+    xml = xml.split(escXml(old)).join(escXml(nw));
+    xml = xml.split(old).join(escXml(nw));
+  }
+  return xml;
 }
 
 /**
@@ -89,15 +114,9 @@ function locateTableBoundaries(xml: string): {
 }
 
 /**
- * Build a PDP .docx file from a template.
+ * Build a PDP .docx from the template: header fields, one table row per goal.
  */
-export async function buildPdpDocx(
-  info: PdpDocInfo,
-  pdpData: PdpRow[],
-  options: BuildPdpOptions = {}
-): Promise<Buffer> {
-  const includeTasks = options.includeTasks ?? true;
-
+export async function buildPdpDocx(info: PdpDocInfo, pdpData: PdpRow[]): Promise<Buffer> {
   resetParaIdCounter();
 
   const templateBuf = loadTemplate();
@@ -106,19 +125,30 @@ export async function buildPdpDocx(
   if (!docXmlFile) throw new Error("Template document.xml not found");
   let docXml = await docXmlFile.async("string");
 
-  const replacements: [string, string][] = (
-    [
-      ["’s NAME SURNAME", info.manager || ""],
-      ["M’s NAME SURNAME", info.manager || ""],
-      ["M&#x2019;s NAME SURNAME", info.manager || ""],
-      ["NAME SURNAME", info.employee || ""],
-      ["05.12.2022", info.next_date || ""],
-    ] as [string, string][]
-  ).sort((a, b) => b[0].length - a[0].length);
+  const manager = info.manager?.trim() || PDP_DOC_DASH;
+  const composer = info.composer?.trim() || PDP_DOC_DASH;
+  docXml = replaceAll(docXml, [
+    ["’s NAME SURNAME", manager],
+    ["M’s NAME SURNAME", manager],
+    ["M&#x2019;s NAME SURNAME", manager],
+    ["NAME SURNAME", info.employee || PDP_DOC_DASH],
+    ["05.12.2022", PDP_DOC_DASH], // next assessment date — not planned here
+    ["SURNAME N.LN.", composer],
+    ["Карту проверил Шатило М.И.", `Карту проверил: ${PDP_DOC_DASH}`],
+    ["Карту утвердил: Вербовиков Н.", `Карту утвердил: ${PDP_DOC_DASH}`],
+    ["30.12.1898", PDP_DOC_DASH],
+    ["31.12.1898", PDP_DOC_DASH],
+  ]);
 
-  for (const [old, nw] of replacements) {
-    docXml = docXml.split(escXml(old)).join(escXml(nw));
-    docXml = docXml.split(old).join(escXml(nw));
+  // Header: "Дата проведения оценки навыков  <date>"; footer: "Составитель: <name> <date>".
+  for (const file of Object.keys(zip.files)) {
+    if (!/^word\/(header|footer)\d*\.xml$/.test(file)) continue;
+    const xml = await zip.file(file)!.async("string");
+    const next = replaceAll(xml, [
+      ["SURNAME N.LN. 31.12.1898", `${composer} ${formatDate(info.composedOn)}`],
+      ["31.12.1898", formatDate(info.assessedOn)],
+    ]);
+    if (next !== xml) zip.file(file, next);
   }
 
   const { tblStart, tblEnd, firstTrStart, firstTrEnd } =
@@ -131,15 +161,12 @@ export async function buildPdpDocx(
   const rows = pdpData.map((data) => {
     let content = mkP("Topics to study:") + mkP("");
     for (const q of data.questions) content += mkBullet(q);
-    if (data.practicalTask && includeTasks) {
+    const tasks = data.practicalTasks.filter((t) => t.trim());
+    if (tasks.length > 0) {
       content += mkP("");
-      content += mkP("Practical task:", { italic: true, underline: true });
-      content += mkP(
-        data.practicalTask.length > 250
-          ? data.practicalTask.slice(0, 250) + "..."
-          : data.practicalTask,
-        { size: 22 }
-      );
+      content += mkP(tasks.length > 1 ? "Practical tasks:" : "Practical task:", { italic: true, underline: true });
+      // Full text: the manager wrote/edited it in the builder, so never truncate.
+      for (const task of tasks) content += mkP(task, { size: 22 });
     }
     return mkRow(data.category, "", content);
   });

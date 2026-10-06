@@ -102,3 +102,64 @@ export async function searchDriveFiles(
   return data.files ?? [];
 }
 
+
+/**
+ * Replace the content of an existing Google Doc with a .docx, keeping its id
+ * and link. Returns false when the caller can't write to that file (e.g. it
+ * lives in someone else's Drive) so the caller can fall back to a new file.
+ */
+export async function replaceDriveDocContent(
+  userId: string,
+  fileId: string,
+  buffer: Buffer,
+  mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+): Promise<UploadResult | null> {
+  const accessToken = await getValidAccessToken(userId);
+  if (!accessToken) return null;
+
+  const res = await fetch(
+    `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media&supportsAllDrives=true&fields=id,webViewLink`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": mimeType,
+        "Content-Length": buffer.length.toString(),
+      },
+      body: new Uint8Array(buffer),
+    }
+  );
+  if (!res.ok) {
+    console.error("Google Drive content update failed:", res.status, await res.text());
+    return null;
+  }
+  const data = (await res.json()) as { id: string; webViewLink: string };
+  return { fileId: data.id, webViewLink: data.webViewLink };
+}
+
+/**
+ * Give someone access to a Drive file without emailing them (the app sends its
+ * own notification). Best-effort: returns false instead of throwing.
+ */
+export async function shareDriveFile(
+  userId: string,
+  fileId: string,
+  email: string,
+  role: "reader" | "commenter" | "writer" = "commenter"
+): Promise<boolean> {
+  const accessToken = await getValidAccessToken(userId);
+  if (!accessToken) return false;
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/permissions?sendNotificationEmail=false&supportsAllDrives=true`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ type: "user", role, emailAddress: email }),
+    }
+  );
+  if (!res.ok) {
+    console.error("Google Drive share failed:", res.status, await res.text());
+    return false;
+  }
+  return true;
+}

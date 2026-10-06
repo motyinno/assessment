@@ -46,6 +46,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { planProgress, progressPercent } from "@/lib/pdp-progress";
 import { UserAvatar } from "@/components/user-avatar";
 import type { HrmUserFields, ManagerLinkRef } from "@/lib/types";
 
@@ -74,6 +75,7 @@ interface Pdp {
   error: string | null;
   reviewNotes: string | null;
   assessment: { id: string; title: string } | null;
+  goals: Array<{ items: Array<{ doneAt: string | null }> }>;
 }
 
 interface ManagerRef {
@@ -213,6 +215,10 @@ export default function UserProfilePage() {
     (currentRole === "MANAGER" || currentRole === "ADMIN") &&
     profile?.managerId === currentUserId;
   const canEdit = isAdmin || isManagerOfThisUser;
+  // PDPs are composed and approved by the direct manager (any role) or an
+  // admin; the API enforces the admin's division scope.
+  const isDirectManager = !!currentUserId && profile?.managerId === currentUserId;
+  const canComposePdp = (isAdmin || isDirectManager) && currentUserId !== profile?.id;
 
   useEffect(() => {
     if (status === "loading") return;
@@ -504,22 +510,22 @@ export default function UserProfilePage() {
             </div>
 
             <div className="flex flex-wrap gap-1.5 lg:flex-col lg:items-stretch lg:w-56 lg:shrink-0">
-              {!profile.isArchived && profile.grade ? (
+              {!profile.isArchived && canComposePdp && profile.grade ? (
                 <Link
                   href={`/users/${profile.id}/generate-pdp`}
                   className={cn(buttonVariants({ size: "sm" }), "justify-start")}
                 >
                   <FileText />
-                  Generate PDP
+                  Create PDP
                 </Link>
-              ) : !profile.isArchived ? (
+              ) : !profile.isArchived && canComposePdp ? (
                 <p className="px-1 py-1 text-[11px] text-muted-foreground">
-                  No grade — PDP generation unavailable
+                  No grade — PDP creation unavailable
                 </p>
               ) : null}
-              {!profile.isArchived && latestCompletedAssessment && (
+              {!profile.isArchived && isDirectManager && profile.grade && latestCompletedAssessment && (
                 <Link
-                  href={`/assessments/${latestCompletedAssessment.id}/generate`}
+                  href={`/users/${profile.id}/generate-pdp?assessmentId=${latestCompletedAssessment.id}`}
                   className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start")}
                 >
                   <ClipboardList />
@@ -696,7 +702,7 @@ export default function UserProfilePage() {
                           pdp.id === latestActiveId && activeCount > 1;
                         const isGenerating = pdp.status === "GENERATING";
                         const isFailed = pdp.status === "FAILED";
-                        const isOnReview = pdp.status === "ON_REVIEW";
+                        const isDraft = pdp.status === "DRAFT";
                         return (
                           <li
                             key={pdp.id}
@@ -709,7 +715,7 @@ export default function UserProfilePage() {
                                   ? "bg-destructive/10 text-destructive"
                                   : isGenerating
                                     ? "bg-info/15 text-info"
-                                    : isOnReview
+                                    : isDraft
                                       ? "bg-warning/20 text-warning-foreground"
                                       : "bg-primary/10 text-primary")
                               }
@@ -742,9 +748,13 @@ export default function UserProfilePage() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start gap-2">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-medium truncate" title={pdp.fileName}>
-                                    {pdp.fileName}
-                                  </p>
+                                  <Link
+                                    href={`/pdps/${pdp.id}`}
+                                    className="block text-sm font-medium truncate hover:underline"
+                                    title={pdp.fileName}
+                                  >
+                                    {pdp.fileName.replace(/\.docx$/i, "")}
+                                  </Link>
                                   <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                                     {isGenerating ? (
                                       <Badge variant="info" className="shrink-0">
@@ -754,9 +764,17 @@ export default function UserProfilePage() {
                                       <Badge variant="destructive" className="shrink-0">
                                         Failed
                                       </Badge>
-                                    ) : isOnReview ? (
+                                    ) : isDraft ? (
                                       <Badge variant="warning" className="shrink-0">
-                                        In review
+                                        Draft
+                                      </Badge>
+                                    ) : pdp.status === "COMPLETED" ? (
+                                      <Badge variant="success" className="shrink-0">
+                                        Completed
+                                      </Badge>
+                                    ) : pdp.status === "ACTIVE" && pdp.goals.length > 0 ? (
+                                      <Badge variant="secondary" className="shrink-0" title="Items done">
+                                        {progressPercent(planProgress(pdp.goals))}% done
                                       </Badge>
                                     ) : (
                                       isLatestActive && (
@@ -793,16 +811,6 @@ export default function UserProfilePage() {
                                       {pdpError.msg}
                                     </p>
                                   )}
-                                  {isOnReview && pdp.reviewNotes && (
-                                    <div className="mt-1.5 rounded-md bg-warning/10 border border-warning/30 px-2.5 py-1.5">
-                                      <p className="text-[10px] font-semibold uppercase tracking-wide text-warning-foreground/80">
-                                        Administrator notes
-                                      </p>
-                                      <p className="text-[11px] text-foreground whitespace-pre-wrap mt-0.5">
-                                        {pdp.reviewNotes}
-                                      </p>
-                                    </div>
-                                  )}
                                 </div>
                                 <div className="flex items-center gap-1 shrink-0">
                                   {!isGenerating && !isFailed && pdp.driveLink && (
@@ -821,7 +829,7 @@ export default function UserProfilePage() {
                                       Drive
                                     </a>
                                   )}
-                                  {isFailed && canEdit && (
+                                  {isFailed && canComposePdp && (
                                     <>
                                       <button
                                         type="button"

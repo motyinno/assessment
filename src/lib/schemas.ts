@@ -220,6 +220,8 @@ export const generatePdpSchema = z
     // Free-text technologies the mentor wants to see in the PDP no matter what.
     // These are treated as priority items and don't have to exist in the matrix.
     customTopics: z.array(z.string().trim().min(1)).max(20).default([]),
+    // The assessment the plan is based on, if any (its scores feed the AI).
+    assessmentId: z.string().min(1).nullish(),
   })
   .refine((v) => v.topicIds.length > 0 || v.customTopics.length > 0, {
     message: "Select at least one topic or add a custom technology",
@@ -231,13 +233,6 @@ export const attachPdpSchema = z.object({
   fileName: z.string().optional(),
 });
 
-export const reviewPdpSchema = z.object({
-  action: z.enum(["approve", "comment"]),
-  reviewNotes: z.string().optional(),
-});
-
-// Admin decision on an ended assessment: upgrade the subject's grade (admin
-// picks the new grade) or record a no-upgrade decision.
 export const assessmentReviewDecisionSchema = z
   .object({
     action: z.enum(["upgrade", "noUpgrade"]),
@@ -251,34 +246,3 @@ export const assessmentReviewDecisionSchema = z
 
 // ---- AI feedback / generate ----
 
-export const generateBodySchema = z.object({
-  weakTopics: z.array(
-    z.object({
-      name: z.string(),
-      score: z.number().nullable(),
-      subtopics: z.array(z.string()),
-      comment: z.string(),
-      selected: z.boolean().optional(),
-    })
-  ),
-  info: z.object({
-    employee: z.string(),
-    date: z.string().optional().default(""),
-    level_before: z.string().optional().default(""),
-    project: z.string().optional().default(""),
-    manager: z.string().optional().default(""),
-    interviewer: z.string().optional().default(""),
-    grade: gradeEnum,
-    level_after: z.string().optional(),
-    next_date: z.string().optional(),
-    next_level: z.string().optional(),
-  }),
-  settings: z.object({
-    maxQuestions: z.number().int().min(1).max(10),
-    threshold: z.number(),
-    outputName: z.string(),
-    includeTasks: z.boolean(),
-  }),
-  useAI: z.boolean().optional().default(false),
-  assessmentId: z.string().optional(),
-});

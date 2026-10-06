@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -417,6 +418,18 @@ export default function AssessmentDetailPage() {
             )}
           </div>
         </div>
+
+        {/* The subject's direct manager drafts their PDP from this assessment. */}
+        {assessment.status === "COMPLETED" &&
+          subjects[0] &&
+          subjects[0].user.managerId === session?.user?.id && (
+            <Link
+              href={`/users/${subjects[0].user.id}/generate-pdp?assessmentId=${assessment.id}`}
+              className={cn(buttonVariants(), "shrink-0")}
+            >
+              Create PDP
+            </Link>
+          )}
 
         {isAdmin &&
           assessment.status !== "CANCELLED" &&

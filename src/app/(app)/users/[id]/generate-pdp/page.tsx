@@ -1,48 +1,40 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { baseGrade, gradeLabel } from "@/lib/grades";
 import { apiErrorMessage } from "@/lib/api-error";
 
-interface UserInfo {
-  id: string;
-  name: string;
-  email: string;
-  grade: string | null;
-  project: string | null;
-  managerId: string | null;
-  manager: { id: string; name: string; email: string } | null;
-}
-
-interface TechTopic {
+interface PickerTopic {
   id: string;
   title: string;
-  jun: string[];
-  mid: string[];
-  sen: string[];
+  skills: string[];
+  score: number | null;
 }
-interface TechSection {
+interface PickerSection {
   id: string;
   title: string;
-  topics: TechTopic[];
+  topics: PickerTopic[];
 }
-interface TechMatrix {
-  sections: TechSection[];
+interface PdpOptions {
+  subject: { id: string; name: string; email: string; grade: string | null; gradeLabel: string };
+  assessment: { id: string; title: string; completedAt: string | null } | null;
+  sections: PickerSection[];
+  preselected: string[];
 }
 
 export default function GeneratePdpForUserPage() {
-  const { data: session, status } = useSession();
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const userId = params.id as string;
+  const assessmentIdParam = searchParams.get("assessmentId");
 
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [matrix, setMatrix] = useState<TechMatrix | null>(null);
+  const [options, setOptions] = useState<PdpOptions | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [customTopics, setCustomTopics] = useState<string[]>([]);
@@ -50,47 +42,23 @@ export default function GeneratePdpForUserPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Guard: only assessor/admin
+  // Only the employee's direct manager (or an admin) gets options; anyone else
+  // sees the API's refusal.
   useEffect(() => {
-    if (status === "loading") return;
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    if (role !== "ASSESSOR" && role !== "MANAGER" && role !== "ADMIN") {
-      router.push("/dashboard");
-    }
-  }, [session, status, router]);
-
-  useEffect(() => {
-    Promise.all([
-      fetch(`/api/users/${userId}`).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/tech-matrix").then((r) => r.json()),
-    ]).then(([u, m]) => {
-      setUser(u);
-      setMatrix(m);
+    const qs = assessmentIdParam ? `?assessmentId=${encodeURIComponent(assessmentIdParam)}` : "";
+    fetch(`/api/users/${userId}/pdp-options${qs}`).then(async (r) => {
+      const data = await r.json().catch(() => null);
+      if (!r.ok) {
+        setLoadError(apiErrorMessage(data, "Couldn't load the topics"));
+        return;
+      }
+      const o = data as PdpOptions;
+      setOptions(o);
+      setSelected(new Set(o.preselected));
     });
-  }, [userId]);
+  }, [userId, assessmentIdParam]);
 
-  const base = user?.grade ? baseGrade(user.grade) : null;
-
-  // Filter sections/topics to those that have content for this user's base grade
-  const filtered = useMemo(() => {
-    if (!matrix || !base) return [];
-    return matrix.sections
-      .map((s) => ({
-        ...s,
-        topics: s.topics.filter((t) => (t[base] as string[] | undefined)?.length),
-      }))
-      .filter((s) => s.topics.length > 0);
-  }, [matrix, base]);
-
-  // Default: preselect every visible topic once the matrix loads
-  useEffect(() => {
-    if (selected.size === 0 && filtered.length > 0) {
-      const next = new Set<string>();
-      for (const s of filtered) for (const t of s.topics) next.add(t.id);
-      setSelected(next);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtered.length]);
+  const filtered = useMemo(() => options?.sections ?? [], [options]);
 
   function toggleTopic(id: string) {
     setSelected((prev) => {
@@ -166,24 +134,33 @@ export default function GeneratePdpForUserPage() {
       const res = await fetch(`/api/users/${userId}/generate-pdp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topicIds: Array.from(selected), customTopics: allCustom }),
+        body: JSON.stringify({
+          topicIds: filtered.flatMap((s) => s.topics.map((t) => t.id)).filter((id) => selected.has(id)),
+          customTopics: allCustom,
+          assessmentId: options?.assessment?.id ?? null,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(apiErrorMessage(data, "Failed to generate"));
       }
-      // Generation runs in the background — go straight to the user's page
-      // where the new PDP shows with a "Generating..." indicator.
-      router.push(`/users/${userId}`);
+      // The AI drafts in the background; the builder shows progress and opens
+      // the plan for editing when it's ready.
+      const { id } = (await res.json()) as { id: string };
+      router.push(`/pdps/${id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error");
       setGenerating(false);
     }
   }
 
-  if (!user || !matrix) {
+  if (loadError) {
+    return <p className="text-sm text-destructive">{loadError}</p>;
+  }
+  if (!options) {
     return <p className="text-muted-foreground">Loading...</p>;
   }
+  const user = options.subject;
 
   if (!user.grade) {
     return (
@@ -203,13 +180,26 @@ export default function GeneratePdpForUserPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Generate PDP</h1>
-        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+        <h1 className="text-2xl font-bold">Create PDP</h1>
+        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
           <span>{user.name}</span>
-          <Badge variant="outline">{gradeLabel(user.grade)}</Badge>
+          <Badge variant="outline">{user.gradeLabel}</Badge>
           <span>·</span>
           <span>{user.email}</span>
         </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Pick the topics; the AI drafts questions and practical tasks, then you arrange and approve the plan in the
+          builder.
+          {options.assessment && (
+            <>
+              {" "}Scores are from{" "}
+              <Link href={`/assessments/${options.assessment.id}`} className="text-primary hover:underline">
+                {options.assessment.title}
+              </Link>
+              ; topics below 7 are preselected.
+            </>
+          )}
+        </p>
       </div>
 
       <Card>
@@ -265,10 +255,13 @@ export default function GeneratePdpForUserPage() {
                           onChange={() => toggleTopic(topic.id)}
                         />
                         <div className="flex-1">
-                          <div className="font-medium">{topic.title}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            {(topic[base!] as string[]).join(" · ")}
+                          <div className="font-medium flex items-center gap-2">
+                            {topic.title}
+                            {topic.score !== null && (
+                              <Badge variant={topic.score < 7 ? "destructive" : "secondary"}>{topic.score}/10</Badge>
+                            )}
                           </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">{topic.skills.join(" · ")}</div>
                         </div>
                       </label>
                     ))}
@@ -332,9 +325,9 @@ export default function GeneratePdpForUserPage() {
             (selected.size === 0 && customTopics.length === 0 && customInput.trim() === "")
           }
         >
-          {generating ? "Generating..." : "Generate PDP"}
+          {generating ? "Starting..." : "Draft PDP"}
         </Button>
-        <Button variant="outline" onClick={() => router.push("/users")}>
+        <Button variant="outline" onClick={() => router.push(`/users/${userId}`)}>
           Cancel
         </Button>
       </div>

@@ -128,6 +128,8 @@ model User {
   participations       AssessmentParticipant[]
   pdps                 Pdp[]
   createdPdps          Pdp[]                       @relation("createdPdps")
+  approvedPdps         Pdp[]                       @relation("approvedPdps")
+  completedPdps        Pdp[]                       @relation("completedPdps")
   reviewedAssessments  Assessment[]                @relation("reviewedAssessments")
   requestedAssessments AssessmentRequest[]         @relation("requestedBy")
   requestAssessors     AssessmentRequestAssessor[]
@@ -424,9 +426,27 @@ model Pdp {
   startedAt        DateTime  @default(now())
   createdAt        DateTime  @default(now())
 
-  user       User        @relation(fields: [userId], references: [id])
-  createdBy  User?       @relation("createdPdps", fields: [createdById], references: [id])
-  assessment Assessment? @relation(fields: [assessmentId], references: [id])
+  /// The person who approved the plan (the employee's direct manager, or an
+  /// admin). Approval is what makes the plan visible to the employee and
+  /// creates the Google Doc — see lib/pdp-plan.ts.
+  approvedById   String?
+  approvedAt     DateTime?
+  /// When the structured plan (goals/items) last changed, and when the Google
+  /// Doc was last rebuilt from it. planUpdatedAt > docSyncedAt = doc is stale.
+  planUpdatedAt  DateTime?
+  docSyncedAt    DateTime?
+  /// The manager closes the whole plan (ACTIVE → COMPLETED) when they judge
+  /// it done — not every item has to be ticked. Optional closing comment.
+  completedAt    DateTime?
+  completedById  String?
+  completionNote String?
+
+  user        User        @relation(fields: [userId], references: [id])
+  createdBy   User?       @relation("createdPdps", fields: [createdById], references: [id])
+  approvedBy  User?       @relation("approvedPdps", fields: [approvedById], references: [id])
+  completedBy User?       @relation("completedPdps", fields: [completedById], references: [id])
+  assessment  Assessment? @relation(fields: [assessmentId], references: [id])
+  goals       PdpGoal[]
 
   @@index([userId])
   @@index([assessmentId])
@@ -645,4 +665,47 @@ model DailyTopic {
   code      String? // optional illustrative snippet
   resources Json // [{ label: string, url: string }]
   createdAt DateTime @default(now())
+}
+
+enum PdpItemType {
+  THEORY // a question to study
+  PRACTICE // a practical task
+}
+
+/// One topic of a PDP, as arranged in the builder. Legacy plans (Google Doc
+/// only, from before the builder) have no goals.
+model PdpGoal {
+  id            String   @id @default(cuid())
+  pdpId         String
+  order         Int
+  title         String
+  /// Tech-matrix topic this goal came from; null for a custom topic.
+  matrixTopicId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  pdp   Pdp       @relation(fields: [pdpId], references: [id], onDelete: Cascade)
+  items PdpItem[]
+
+  @@index([pdpId])
+}
+
+/// A question or practical task inside a goal. Ids are kept stable across
+/// builder edits so progress tracking can hang off them later.
+model PdpItem {
+  id        String      @id @default(cuid())
+  goalId    String
+  order     Int
+  type      PdpItemType
+  text      String
+  /// Ticked by the employee as done.
+  doneAt    DateTime?
+  /// Optional link to the employee's work (GitHub repo, PR, doc).
+  link      String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  goal PdpGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
 }
