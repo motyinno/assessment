@@ -332,7 +332,7 @@ export default function SessionTemplatesPage() {
           <DialogTrigger render={<Button size="lg" onClick={openCreate} />}>
             Add session
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>
                 {editing ? "Edit session" : "New session template"}
@@ -353,7 +353,8 @@ export default function SessionTemplatesPage() {
                     }
                   >
                     <SelectTrigger className="w-full" disabled={!!editing}>
-                      <SelectValue />
+                      {/* base-ui shows the raw value ("GENERAL") unless given a label. */}
+                      <SelectValue>{(v: unknown) => ASSESSMENT_TYPE_LABELS[v as string] ?? ""}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {ASSESSMENT_TYPES.map((t) => (
@@ -377,7 +378,7 @@ export default function SessionTemplatesPage() {
                     }
                   >
                     <SelectTrigger className="w-full" disabled={!!editing}>
-                      <SelectValue />
+                      <SelectValue>{(v: unknown) => BAND_LABELS[v as keyof typeof BAND_LABELS] ?? ""}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {GRADE_BANDS.map((b) => (

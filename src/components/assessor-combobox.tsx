@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { UserAvatar } from "@/components/user-avatar";
 import { useUserSearch, firstDepartmentName, type UserSearchItem } from "@/hooks/use-user-search";
 
@@ -39,7 +40,38 @@ export function AssessorCombobox({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // The list renders in a portal: cards clip their content (overflow-hidden),
+  // which used to cut the dropdown off right below the search field.
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number } | null>(null);
+
+  const place = useCallback(() => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // At least 320px wide (narrow cards truncated every email), kept on screen.
+    const width = Math.max(rect.width, 320);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    const spaceBelow = window.innerHeight - rect.bottom;
+    // Open upward when there's clearly more room above (list is ~320px tall).
+    const up = spaceBelow < 320 && rect.top > spaceBelow;
+    setPos(
+      up
+        ? { left, width, bottom: window.innerHeight - rect.top + 4 }
+        : { left, width, top: rect.bottom + 4 }
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, place]);
 
   const { items, loading, query, setQuery } = useUserSearch({ role, division, minQueryLength: 0 });
   const filtered = excludeIds ? items.filter((o) => !excludeIds.has(o.id)) : items;
@@ -47,7 +79,8 @@ export function AssessorCombobox({
   useEffect(() => {
     if (!open) return;
     function onClickOutside(e: MouseEvent) {
-      if (!containerRef.current?.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (!containerRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
         setOpen(false);
       }
     }
@@ -63,8 +96,8 @@ export function AssessorCombobox({
   }, [open]);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
+    if (open && pos) inputRef.current?.focus();
+  }, [open, pos]);
 
   function choose(user: UserSearchItem) {
     onSelect(user);
@@ -101,8 +134,12 @@ export function AssessorCombobox({
         </svg>
       </button>
 
-      {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover shadow-lg">
+      {open && pos && createPortal(
+        <div
+          ref={popoverRef}
+          style={{ position: "fixed", left: pos.left, width: pos.width, top: pos.top, bottom: pos.bottom }}
+          className="z-50 rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+        >
           <div className="p-2 border-b">
             <input
               ref={inputRef}
@@ -153,7 +190,8 @@ export function AssessorCombobox({
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
