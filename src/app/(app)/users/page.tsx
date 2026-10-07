@@ -251,7 +251,13 @@ export default function UsersPage() {
                 <Label>Role</Label>
                 <Select value={form.role} onValueChange={(v) => v && setForm({ ...form, role: v })}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue>
+                      {(v: unknown) =>
+                        ({ USER: "User", ASSESSOR: "Assessor", MANAGER: "Manager", ADMIN: "Admin" } as Record<string, string>)[
+                          v as string
+                        ] ?? ""
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USER">User</SelectItem>

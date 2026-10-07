@@ -319,7 +319,7 @@ export default function RequestsPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Review request</DialogTitle>
           </DialogHeader>
@@ -406,7 +406,30 @@ export default function RequestsPage() {
                     {loadingSuggestion ? "Picking..." : "Auto-pick"}
                   </Button>
                 </div>
-                <div className="rounded-md border divide-y divide-border max-h-64 overflow-y-auto">
+                {selectedAssessorIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedAssessorIds.map((id) => {
+                      const a = assessors.find((x) => x.id === id);
+                      return (
+                        <span
+                          key={id}
+                          className="inline-flex items-center gap-1 rounded-full bg-primary/10 py-0.5 pl-2.5 pr-1 text-xs font-medium text-foreground"
+                        >
+                          {a ? a.name : "Loading…"}
+                          <button
+                            type="button"
+                            onClick={() => toggleAssessor(id)}
+                            className="rounded-full px-1 text-muted-foreground hover:bg-primary/15 hover:text-foreground"
+                            aria-label={`Remove ${a?.name ?? "assessor"}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="rounded-md border divide-y divide-border max-h-72 overflow-y-auto">
                   {(() => {
                     const sorted = [...assessors].sort((a, b) => {
                       const ea = suggestion?.eligibleIds.includes(a.id) ? 0 : 1;
@@ -425,11 +448,19 @@ export default function RequestsPage() {
                       const proximity = suggestion?.proximity[a.id];
                       const proximityUnit = suggestion?.departments[a.id]?.[0]?.name;
                       const checked = selectedAssessorIds.includes(a.id);
+                      // Unit and load go on their own line so they never
+                      // squeeze the name and email (they used to truncate
+                      // to "Ale…" next to the badges).
+                      const meta = [
+                        eligible && proximity === 0 && proximityUnit ? `Same unit: ${proximityUnit}` : null,
+                        eligible && proximity === 1 && proximityUnit ? `Neighboring unit: ${proximityUnit}` : null,
+                        ongoing !== undefined ? `${ongoing} active` : null,
+                      ].filter(Boolean);
                       return (
                         <label
                           key={a.id}
                           className={
-                            "flex items-center gap-3 px-3 py-2 cursor-pointer text-sm transition-colors " +
+                            "flex items-start gap-3 px-3 py-2.5 cursor-pointer text-sm transition-colors " +
                             (checked
                               ? "bg-primary/5"
                               : eligible
@@ -441,44 +472,25 @@ export default function RequestsPage() {
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggleAssessor(a.id)}
-                            className="shrink-0 rounded border-gray-300"
+                            className="mt-1 shrink-0 rounded border-gray-300"
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium text-foreground truncate">
-                              {a.name}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {a.email}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {isPicked && (
-                              <Badge variant="success" className="whitespace-nowrap">
-                                Recommended
-                              </Badge>
-                            )}
-                            {!eligible && suggestion && (
-                              <Badge variant="outline" className="whitespace-nowrap">
-                                not eligible
-                              </Badge>
-                            )}
-                            {eligible && proximity === 0 && proximityUnit && (
-                              <Badge variant="outline" className="whitespace-nowrap">
-                                Same unit: {proximityUnit}
-                              </Badge>
-                            )}
-                            {eligible && proximity === 1 && proximityUnit && (
-                              <Badge variant="outline" className="whitespace-nowrap">
-                                Neighboring unit: {proximityUnit}
-                              </Badge>
-                            )}
-                            {ongoing !== undefined && (
-                              <span
-                                className="text-[11px] text-muted-foreground whitespace-nowrap tabular-nums"
-                                title="Currently active assessments"
-                              >
-                                {ongoing} active
-                              </span>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="font-medium text-foreground">{a.name}</span>
+                              {isPicked && (
+                                <Badge variant="success" className="whitespace-nowrap">
+                                  Recommended
+                                </Badge>
+                              )}
+                              {!eligible && suggestion && (
+                                <Badge variant="outline" className="whitespace-nowrap">
+                                  Not eligible
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground break-all">{a.email}</p>
+                            {meta.length > 0 && (
+                              <p className="mt-0.5 text-[11px] text-muted-foreground">{meta.join(" · ")}</p>
                             )}
                           </div>
                         </label>

@@ -194,7 +194,7 @@ export default function NewAssessmentPage() {
                 }
               >
                 <SelectTrigger className="w-40">
-                  <SelectValue />
+                  <SelectValue>{(v: unknown) => (v === "SUBJECT" ? "Subject" : v === "ASSESSOR" ? "Assessor" : "")}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SUBJECT">Subject</SelectItem>

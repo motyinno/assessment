@@ -239,7 +239,11 @@ export default function TechMatrixPage() {
           </div>
           <Select value={sectionFilter} onValueChange={(v) => v && setSectionFilter(v)}>
             <SelectTrigger className="w-52">
-              <SelectValue placeholder="All sections" />
+              <SelectValue placeholder="All sections">
+                {(v: unknown) =>
+                  v === "all" || !v ? "All sections" : (matrix.sections.find((s) => s.id === v)?.title ?? "")
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All sections</SelectItem>
@@ -250,7 +254,12 @@ export default function TechMatrixPage() {
           </Select>
           <Select value={gradeFilter} onValueChange={(v) => v && setGradeFilter(v)}>
             <SelectTrigger className="w-40">
-              <SelectValue placeholder="All grades" />
+              <SelectValue placeholder="All grades">
+                {(v: unknown) =>
+                  ({ all: "All grades", jun: "Junior", mid: "Middle", sen: "Senior" } as Record<string, string>)[v as string] ??
+                  "All grades"
+                }
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All grades</SelectItem>
