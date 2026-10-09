@@ -7,6 +7,7 @@ import {
   AssessmentStatisticsView,
   type AssessmentRow,
 } from "@/components/assessment-statistics-view";
+import { PdpStatsCards } from "@/components/pdp-stats-cards";
 
 export default async function AssessmentStatisticsPage() {
   const session = await auth();
@@ -113,6 +114,10 @@ export default async function AssessmentStatisticsPage() {
             Aggregate view of completed assessments — grades, volume over time, and who conducted them.
           </p>
         </div>
+      </div>
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold">Development plans</h2>
+        <PdpStatsCards />
       </div>
       <AssessmentStatisticsView rows={rows} />
     </div>

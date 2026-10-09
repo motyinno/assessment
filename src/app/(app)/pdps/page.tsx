@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/roles";
 import { AdminPdpList } from "@/components/admin-pdp-list";
+import { PdpStatsCards } from "@/components/pdp-stats-cards";
 
 export default async function PdpsPage() {
   const session = await auth();
@@ -18,6 +19,7 @@ export default async function PdpsPage() {
           </p>
         </div>
       </div>
+      <PdpStatsCards />
       <AdminPdpList />
     </div>
   );
