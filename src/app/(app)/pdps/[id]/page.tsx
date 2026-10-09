@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { AlertTriangle, Check, CheckCircle2, Code2, ExternalLink, FileCheck2, Loader2, RefreshCw, RotateCw, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Code2, ExternalLink, FileCheck2, Loader2, RefreshCw, RotateCw, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,7 @@ interface PdpView {
   status: "GENERATING" | "DRAFT" | "ACTIVE" | "COMPLETED" | "FAILED" | "ON_REVIEW";
   error: string | null;
   driveLink: string | null;
+  driveFileId: string | null;
   createdAt: string;
   approvedAt: string | null;
   completedAt: string | null;
@@ -131,6 +132,7 @@ export default function PdpPage() {
   const [completeOpen, setCompleteOpen] = useState(false);
   const [completionNote, setCompletionNote] = useState("");
   const [completing, setCompleting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/pdps/${id}`);
@@ -212,6 +214,21 @@ export default function PdpPage() {
       await load();
     }
     setView(next);
+  }
+
+  // Legacy plans (attached by link): let the AI read the doc into a real plan.
+  async function importFromDoc() {
+    setImporting(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/pdps/${id}/import-doc`, { method: "POST" });
+      if (!res.ok) throw new Error(await errorFrom(res, "Couldn't import the plan"));
+      await load();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setImporting(false);
+    }
   }
 
   async function retry() {
@@ -353,6 +370,18 @@ export default function PdpPage() {
                     <a href={pdp.driveLink} target="_blank" rel="noreferrer" className="text-primary hover:underline">
                       Open the Google Doc
                     </a>
+                  )}
+                  {pdp.canComplete && pdp.driveFileId && (
+                    <div className="space-y-2 border-t pt-3">
+                      <p className="text-muted-foreground">
+                        Import it into the app to get topics, questions and tasks with progress tracking. The
+                        document itself isn&apos;t changed.
+                      </p>
+                      <Button variant="outline" onClick={importFromDoc} disabled={importing}>
+                        {importing ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                        {importing ? "Reading the document…" : "Import plan from document"}
+                      </Button>
+                    </div>
                   )}
                 </CardContent>
               </Card>
