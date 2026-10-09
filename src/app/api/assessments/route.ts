@@ -34,6 +34,8 @@ export async function GET() {
       participants: {
         include: { user: { select: { id: true, name: true, email: true } } },
       },
+      // Only what the list needs to pick a date (lib/assessment-date.ts).
+      sessions: { select: { meetingScheduledAt: true, status: true } },
       _count: { select: { results: true, pdps: true } },
     },
     orderBy: { createdAt: "desc" },
