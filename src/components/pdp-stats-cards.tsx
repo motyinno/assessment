@@ -15,8 +15,6 @@ interface Stats {
   employees: number;
   withActivePdp: number;
   active: number;
-  completed: number;
-  drafts: number;
   departments: CoverageRow[];
   managers: CoverageRow[];
 }
@@ -139,10 +137,8 @@ export function PdpStatsCards() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4">
         <Tile label="Active PDPs" value={stats ? String(stats.active) : dash} />
-        <Tile label="Completed" value={stats ? String(stats.completed) : dash} />
-        <Tile label="Drafts" value={stats ? String(stats.drafts) : dash} hint="Not yet approved" />
         <Tile
           label="Employees with active PDP"
           value={stats ? `${stats.withActivePdp} of ${stats.employees}` : dash}

@@ -17,8 +17,7 @@ interface CoverageRow {
  * GET /api/admin/pdps/stats — PDP numbers for the admin's own division
  * (super-admin: everyone). Same scope rule as the list.
  *
- * - `active` / `completed` / `drafts`: plan counts (GENERATING/FAILED left out,
- *   like in the list).
+ * - `active`: number of ACTIVE plans.
  * - `employees` / `withActivePdp`: non-archived people in scope, and how many
  *   of them have an ACTIVE plan right now.
  * - `departments`: the same coverage per org unit of type "Department". A
@@ -34,12 +33,8 @@ export async function GET() {
   if (auth.error) return auth.error;
   const inScope = userInScopeWhere(auth.scope);
 
-  const [byStatus, people, activePdpUsers] = await Promise.all([
-    prisma.pdp.groupBy({
-      by: ["status"],
-      where: { status: { in: ["ACTIVE", "COMPLETED", "DRAFT", "ON_REVIEW"] }, user: inScope },
-      _count: { _all: true },
-    }),
+  const [active, people, activePdpUsers] = await Promise.all([
+    prisma.pdp.count({ where: { status: "ACTIVE", user: inScope } }),
     prisma.user.findMany({
       where: { isArchived: false, ...inScope },
       select: {
@@ -85,15 +80,11 @@ export async function GET() {
 
   const sorted = (map: Map<string, CoverageRow>) =>
     [...map.values()].sort((a, b) => b.people - a.people || a.name.localeCompare(b.name));
-  const count = (...statuses: string[]) =>
-    byStatus.filter((s) => statuses.includes(s.status)).reduce((n, s) => n + s._count._all, 0);
 
   return NextResponse.json({
     employees: people.length,
     withActivePdp: hasActive.size,
-    active: count("ACTIVE"),
-    completed: count("COMPLETED"),
-    drafts: count("DRAFT", "ON_REVIEW"),
+    active,
     departments: sorted(departments),
     managers: sorted(managers),
   });
