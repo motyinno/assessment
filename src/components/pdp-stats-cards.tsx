@@ -221,14 +221,14 @@ export function PdpStatsCards() {
             title="Coverage by department"
             caption="Employees of the whole department who have an active PDP."
             nameLabel="Department"
-            peopleLabel="People"
+            peopleLabel="Employees"
             rows={stats.departments}
           />
           <CoverageCard
             title="Coverage by manager"
             caption="Direct reports of each manager who have an active PDP. Lowest coverage first."
             nameLabel="Manager"
-            peopleLabel="Reports"
+            peopleLabel="Employees"
             rows={stats.managers}
             filterable
             // Worst-covered first: that's the list an admin acts on.
