@@ -111,7 +111,7 @@ export function AdminPdpList() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-full min-w-0 flex-1 space-y-1.5 sm:min-w-64">
+          <div className="w-full space-y-1.5 sm:w-72">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Employee</Label>
             <ManagerCombobox value={userId} onChange={setUserId} placeholder="Any employee" />
           </div>
