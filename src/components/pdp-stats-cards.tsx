@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface CoverageRow {
@@ -37,6 +38,10 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
+type SortKey = "name" | "people" | "coverage";
+
+const ratio = (r: CoverageRow) => (r.people > 0 ? r.withActivePdp / r.people : 0);
+
 /** Share of people covered by an active PDP, one row per department / manager. */
 function CoverageCard({
   title,
@@ -44,16 +49,47 @@ function CoverageCard({
   nameLabel,
   peopleLabel,
   rows,
+  filterable = false,
+  defaultSort = { key: "people", dir: "desc" },
 }: {
   title: string;
   caption: string;
   nameLabel: string;
   peopleLabel: string;
   rows: CoverageRow[];
+  /** Adds a name search and an "only without a PDP" toggle (long lists). */
+  filterable?: boolean;
+  defaultSort?: { key: SortKey; dir: "asc" | "desc" };
 }) {
   const [page, setPage] = useState(1);
-  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
-  const visible = rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const [sort, setSort] = useState(defaultSort);
+  const [search, setSearch] = useState("");
+  const [onlyUncovered, setOnlyUncovered] = useState(false);
+
+  const q = search.trim().toLowerCase();
+  const shown = rows
+    .filter((r) => (!q || r.name.toLowerCase().includes(q)) && (!onlyUncovered || r.withActivePdp === 0))
+    .sort((a, b) => {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      const byKey =
+        sort.key === "name"
+          ? a.name.localeCompare(b.name)
+          : sort.key === "people"
+            ? a.people - b.people
+            : ratio(a) - ratio(b);
+      // Ties: bigger teams first, so an uncovered team of 12 outranks one of 1.
+      return byKey * dir || b.people - a.people || a.name.localeCompare(b.name);
+    });
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const current = Math.min(page, pages);
+  const visible = shown.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+
+  function toggleSort(key: SortKey) {
+    setPage(1);
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" ? "asc" : "desc" }));
+  }
+  const arrow = (key: SortKey) => (sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : "");
+  const headClass = "cursor-pointer select-none py-2 font-medium hover:text-foreground";
 
   return (
     <Card>
@@ -62,16 +98,50 @@ function CoverageCard({
         <p className="text-xs text-muted-foreground">{caption}</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        {rows.length === 0 ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing to show yet</p>
+        {filterable && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder={`Search ${nameLabel.toLowerCase()}`}
+              className="h-8 max-w-56"
+            />
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={onlyUncovered}
+                onChange={(e) => {
+                  setOnlyUncovered(e.target.checked);
+                  setPage(1);
+                }}
+              />
+              Only without an active PDP
+            </label>
+          </div>
+        )}
+        {shown.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            {rows.length === 0 ? "Nothing to show yet" : "No matches"}
+          </p>
         ) : (
           <>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                  <th className="py-2 pr-4 font-medium">{nameLabel}</th>
-                  <th className="py-2 pr-4 text-right font-medium">{peopleLabel}</th>
-                  <th className="py-2 font-medium">With active PDP</th>
+                  <th className={`${headClass} pr-4`} onClick={() => toggleSort("name")}>
+                    {nameLabel}
+                    {arrow("name")}
+                  </th>
+                  <th className={`${headClass} pr-4 text-right`} onClick={() => toggleSort("people")}>
+                    {peopleLabel}
+                    {arrow("people")}
+                  </th>
+                  <th className={headClass} onClick={() => toggleSort("coverage")}>
+                    With active PDP{arrow("coverage")}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -98,16 +168,16 @@ function CoverageCard({
                 })}
               </tbody>
             </table>
-            {pages > 1 && (
+            {shown.length > PAGE_SIZE && (
               <div className="flex items-center justify-between">
                 <span className="text-xs text-muted-foreground">
-                  Page {page} of {pages}
+                  {(current - 1) * PAGE_SIZE + 1}–{Math.min(current * PAGE_SIZE, shown.length)} of {shown.length}
                 </span>
                 <div className="flex gap-2">
-                  <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  <Button type="button" variant="outline" size="sm" disabled={current <= 1} onClick={() => setPage(current - 1)}>
                     Previous
                   </Button>
-                  <Button type="button" variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
+                  <Button type="button" variant="outline" size="sm" disabled={current >= pages} onClick={() => setPage(current + 1)}>
                     Next
                   </Button>
                 </div>
@@ -156,10 +226,13 @@ export function PdpStatsCards() {
           />
           <CoverageCard
             title="Coverage by manager"
-            caption="Direct reports of each manager who have an active PDP."
+            caption="Direct reports of each manager who have an active PDP. Lowest coverage first."
             nameLabel="Manager"
             peopleLabel="Reports"
             rows={stats.managers}
+            filterable
+            // Worst-covered first: that's the list an admin acts on.
+            defaultSort={{ key: "coverage", dir: "asc" }}
           />
         </div>
       )}
