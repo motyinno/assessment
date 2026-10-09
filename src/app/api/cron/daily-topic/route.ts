@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Nightly cron entry (see docker-compose `cron` service). Ensures today's topic
- * is generated so the first visitor in the morning doesn't wait on Gemini.
+ * is generated so the first visitor in the morning doesn't wait on the AI model.
  *
  * Auth: requires the CRON_SECRET as a Bearer token or `?secret=`. If CRON_SECRET
  * is unset the endpoint is disabled (503) rather than left open.

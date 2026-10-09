@@ -9,7 +9,7 @@
  *
  * `HRM_HTTP_RETRIES=3` means 3 attempts TOTAL (1 first try + 2 retries), not
  * 4 requests — matching the one precedent in this codebase,
- * `withGeminiRetry(fn, attempts = 3)`, which also counts the first try.
+ * `withAIRetry(fn, attempts = 3)`, which also counts the first try.
  * Otherwise the same number "3" would mean two different things in the same
  * codebase.
  *

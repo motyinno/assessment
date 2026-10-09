@@ -5,8 +5,8 @@
  * wants backoff on the token grant, and `http.ts` imports `auth.ts`, so a
  * shared helper in `http.ts` would be a cyclic import. It's not folded into
  * a project-wide `src/lib/retry.ts` either — see the decisions table in the
- * S01 implementation plan: `ai-service.ts`'s existing `withGeminiRetry`
- * classifies transience from a Gemini SDK error object/string, this one from
+ * S01 implementation plan: `ai-service.ts`'s existing `withAIRetry`
+ * classifies transience from an AI error object/string, this one from
  * an HTTP `Response` status, and merging them would produce one helper with
  * two unrelated classifiers threaded through it.
  */

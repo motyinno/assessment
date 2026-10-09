@@ -1,18 +1,81 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { normalizeCategory, ensureCategoryMapping } from "./category-mapper";
 import type { PrepCandidateTopic } from "./interview-prep";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Overridable via env so a flaky/overloaded preview model can be swapped
-// without a code change or rebuild. Defaults to the model used before.
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+// Overridable via env so a model can be swapped without a code change or
+// rebuild. OpenRouter tries the fallback if the primary is down or rate-limited.
+const AI_MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-haiku-5.5";
+const AI_FALLBACK_MODEL = process.env.OPENROUTER_FALLBACK_MODEL || "qwen/qwen3.7-plus";
+
+const AI_TIMEOUT_MS = 60_000;
+const AI_MAX_TOKENS = 8000;
+
+class AIRequestError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+  }
+}
+
+/** Models sometimes wrap JSON in ``` fences despite json mode; strip them. */
+function parseJsonResponse(text: string): unknown {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  return JSON.parse(cleaned);
+}
 
 /**
- * Retry a Gemini call through transient errors (503 overloaded, 429 rate limit,
- * 500) with exponential backoff. Non-transient errors are re-thrown immediately.
+ * One JSON-mode chat completion through OpenRouter. Returns the parsed JSON.
+ * Errors carry the HTTP status so withAIRetry can tell transient ones apart.
  */
-async function withGeminiRetry<T>(
+async function callAI(opts: {
+  system: string;
+  prompt: string;
+  temperature: number;
+}): Promise<unknown> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new AIRequestError("OPENROUTER_API_KEY is not set");
+
+  const res = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "X-Title": "PDP Generator",
+    },
+    body: JSON.stringify({
+      models: [AI_MODEL, AI_FALLBACK_MODEL],
+      messages: [
+        { role: "system", content: opts.system },
+        { role: "user", content: opts.prompt },
+      ],
+      temperature: opts.temperature,
+      max_tokens: AI_MAX_TOKENS,
+      response_format: { type: "json_object" },
+    }),
+    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new AIRequestError(`OpenRouter ${res.status}: ${body.slice(0, 300)}`, res.status);
+  }
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string | null } }>;
+    error?: { message?: string; code?: number };
+  };
+  // OpenRouter can return 200 with an error body when a provider fails mid-way.
+  if (data.error) throw new AIRequestError(`OpenRouter: ${data.error.message ?? "error"}`, data.error.code);
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new AIRequestError("No response content from the AI model");
+  return parseJsonResponse(text);
+}
+
+/**
+ * Retry an AI call through transient errors (503 overloaded, 429 rate limit,
+ * 500, timeouts) with exponential backoff. Non-transient errors are re-thrown
+ * immediately.
+ */
+async function withAIRetry<T>(
   fn: () => Promise<T>,
   attempts = 3,
   baseMs = 800
@@ -26,15 +89,17 @@ async function withGeminiRetry<T>(
       const status = (e as { status?: number })?.status;
       const transient =
         status === 503 ||
+        status === 502 ||
         status === 429 ||
         status === 500 ||
-        /50\d|overloaded|high demand|unavailable|rate limit|fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e));
+        /50\d|overloaded|high demand|unavailable|rate limit|fetch failed|ECONNRESET|ETIMEDOUT|TimeoutError|aborted/i.test(String(e));
       if (!transient || i === attempts - 1) throw e;
       await new Promise((r) => setTimeout(r, baseMs * 2 ** i));
     }
   }
   throw lastError;
 }
+
 export interface AssessmentResult {
   category: string;
   score: number | null;
@@ -126,31 +191,13 @@ Respond ONLY with valid JSON in exactly this shape:
 Rules for resources: 2-3 items. Only link to well-known, canonical, stable sources (MDN, official language/framework docs, Wikipedia, well-known references). Never invent URLs — if unsure of an exact URL, link to the site's stable root/section rather than a guessed deep link. All text in ENGLISH.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-    const result = await withGeminiRetry(() =>
-      model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: "You are a precise technical writer. Always respond with valid JSON only.",
-              },
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.9,
-          responseMimeType: "application/json",
-        },
+    const parsed = (await withAIRetry(() =>
+      callAI({
+        system: "You are a precise technical writer. Always respond with valid JSON only.",
+        prompt,
+        temperature: 0.9,
       })
-    );
-
-    const responseContent = result.response.text();
-    if (!responseContent) throw new Error("No response content from Gemini");
-
-    const parsed = JSON.parse(responseContent) as AIGeneratedDailyTopic;
+    )) as AIGeneratedDailyTopic;
     // Normalize/guard the fields we depend on.
     parsed.kind = parsed.kind === "problem" ? "problem" : "concept";
     parsed.code = parsed.code && parsed.code.trim() ? parsed.code : null;
@@ -216,34 +263,14 @@ Format your response as JSON with this structure:
 Use the EXACT same category name as shown in the Assessment Results above (maintain the original capitalization and formatting). Respond ONLY with valid JSON, no other text.`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: "You are an expert technical assessor and mentor. You provide constructive, actionable feedback. Always respond with valid JSON only.",
-            },
-            {
-              text: prompt,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
+    const parsed = (await withAIRetry(() =>
+      callAI({
+        system:
+          "You are an expert technical assessor and mentor. You provide constructive, actionable feedback. Always respond with valid JSON only.",
+        prompt,
         temperature: 0.7,
-        responseMimeType: "application/json",
-      },
-    });
-
-    const responseContent = result.response.text();
-    if (!responseContent) {
-      throw new Error("No response content from Gemini");
-    }
-
-    const parsed = JSON.parse(responseContent) as AIGeneratedFeedback;
+      })
+    )) as AIGeneratedFeedback;
     console.log("AI Feedback Response:", JSON.stringify(parsed, null, 2));
 
     // Normalize category names to match tech matrix titles
@@ -256,7 +283,7 @@ Use the EXACT same category name as shown in the Assessment Results above (maint
     return parsed;
   } catch (error) {
     console.error("Error generating AI feedback:", error);
-    throw new Error("Failed to generate AI feedback. Please check your Gemini API key and try again.");
+    throw new Error("Failed to generate AI feedback. Please try again in a moment.");
   }
 }
 
@@ -274,7 +301,7 @@ export async function generateStandalonePDP(
   if (topics.length === 0) {
     return { pdpTopics: [] };
   }
-  // Local development only: Gemini is geo-blocked from some dev machines.
+  // Local development only: skip the AI call.
   if (process.env.AI_MOCK === "true") {
     return {
       pdpTopics: topics.map((t) => ({
@@ -335,31 +362,13 @@ Respond ONLY with valid JSON:
 }`;
 
   try {
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-    const result = await withGeminiRetry(() =>
-      model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: "You are an expert technical mentor. Always respond with valid JSON only.",
-              },
-              { text: prompt },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: "application/json",
-        },
+    const parsed = (await withAIRetry(() =>
+      callAI({
+        system: "You are an expert technical mentor. Always respond with valid JSON only.",
+        prompt,
+        temperature: 0.7,
       })
-    );
-
-    const responseContent = result.response.text();
-    if (!responseContent) throw new Error("No response content from Gemini");
-
-    const parsed = JSON.parse(responseContent) as AIGeneratedPDPTopics;
+    )) as AIGeneratedPDPTopics;
     if (departmentId) await ensureCategoryMapping(departmentId);
     parsed.pdpTopics = parsed.pdpTopics.map((topic) => ({
       ...topic,
@@ -380,7 +389,7 @@ Respond ONLY with valid JSON:
       throw new Error("AI rate limit reached (429). Please try again shortly.");
     }
     throw new Error(
-      "Failed to generate PDP via AI. Check GEMINI_API_KEY / GEMINI_MODEL and try again."
+      "Failed to generate PDP via AI. Check OPENROUTER_API_KEY / OPENROUTER_MODEL and try again."
     );
   }
 }
@@ -450,19 +459,11 @@ All text values MUST be in ${PREP_LANGUAGE_NAMES[req.language]}. Keep technical 
 }
 
 async function runPrepPrompt(prompt: string, retry = { attempts: 3, baseMs: 800 }): Promise<unknown> {
-  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-  const result = await withGeminiRetry(
-    () =>
-      model.generateContent({
-        contents: [{ role: "user", parts: [{ text: "Always respond with valid JSON only." }, { text: prompt }] }],
-        generationConfig: { temperature: 0.6, responseMimeType: "application/json" },
-      }),
+  return withAIRetry(
+    () => callAI({ system: "Always respond with valid JSON only.", prompt, temperature: 0.6 }),
     retry.attempts,
     retry.baseMs
   );
-  const text = result.response.text();
-  if (!text) throw new Error("No response content from Gemini");
-  return JSON.parse(text);
 }
 
 /** Questions for every requested topic, plus an overall focus line. */
@@ -486,7 +487,7 @@ Respond ONLY with JSON:
 }`;
   try {
     // Runs in the background (lib/interview-prep runPrepGeneration), so it can
-    // afford to wait out Gemini's frequent 503 "high demand" spikes (~30s).
+    // afford to wait out transient 503/429 spikes.
     return await runPrepPrompt(prompt, { attempts: 5, baseMs: 2000 });
   } catch (error) {
     console.error("Error generating interview prep:", error);
@@ -538,8 +539,7 @@ Respond ONLY with JSON: { "task": ${PREP_TASK_SHAPE} }`;
   }
 }
 
-// Local development only (AI_MOCK=true): Gemini is geo-blocked from some dev
-// machines, and the UI still needs realistic data to be built against.
+// Local development only (AI_MOCK=true): the UI still needs realistic data to be built against.
 function mockQuestions(topic: PrepCandidateTopic | undefined, count: number, offset = 0) {
   const title = topic?.title ?? "Topic";
   const reason = topic?.signals.pastScore != null && topic.signals.pastScore <= 6
