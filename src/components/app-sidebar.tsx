@@ -57,6 +57,7 @@ const adminItems = [
   { href: "/requests", label: "Assessment Requests", icon: "inbox" },
   { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
   { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
+  { href: "/pdps", label: "PDPs", icon: "file-text" },
 ];
 
 // SUPER_ADMIN-only items: the HRM sync console.
