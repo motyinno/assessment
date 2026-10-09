@@ -93,8 +93,9 @@ export function AdminPdpList() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap items-end gap-4 py-4">
+      {/* overflow-visible: the employee dropdown has to spill out of the card */}
+      <Card className="overflow-visible">
+        <CardContent className="flex flex-wrap items-start gap-4 py-4">
           <div className="w-full space-y-1.5 sm:w-48">
             <Label className="text-xs uppercase tracking-wide text-muted-foreground">Status</Label>
             <Select value={status} onValueChange={(v) => v && setStatus(v)}>
@@ -119,6 +120,7 @@ export function AdminPdpList() {
               type="button"
               variant="ghost"
               size="sm"
+              className="sm:mt-6"
               onClick={() => {
                 setStatus(DEFAULT_STATUS);
                 setUserId(null);
