@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { assessmentDisplayDate, type AssessmentDateKind } from "@/lib/assessment-date";
 
 const statusLabels: Record<string, string> = {
   PLANNED: "Planned",
@@ -30,13 +31,22 @@ const statusVariants: Record<string, "default" | "secondary" | "destructive" | "
   CANCELLED: "destructive",
 };
 
+const DATE_KIND_LABEL: Record<AssessmentDateKind, string> = {
+  completed: "Completed",
+  meeting: "Next meeting",
+  scheduled: "Scheduled",
+  created: "Created",
+};
+
 interface Assessment {
   id: string;
   title: string;
   status: string;
   grade: string;
   scheduledAt: string | null;
+  completedAt: string | null;
   createdAt: string;
+  sessions: Array<{ meetingScheduledAt: string | null; status: string }>;
   participants: Array<{
     id: string;
     participantRole: string;
@@ -172,9 +182,15 @@ export default function AssessmentsPage() {
                         {assessors.join(", ") || "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {a.scheduledAt
-                          ? new Date(a.scheduledAt).toLocaleDateString("en-US")
-                          : "—"}
+                        {(() => {
+                          const d = assessmentDisplayDate(a);
+                          return (
+                            <>
+                              <span className="text-foreground">{new Date(d.date).toLocaleDateString("en-US")}</span>
+                              <span className="block text-[11px] leading-tight">{DATE_KIND_LABEL[d.kind]}</span>
+                            </>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-right pr-4">
                         <Link
