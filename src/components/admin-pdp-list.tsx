@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -168,18 +169,30 @@ export function AdminPdpList() {
                         onClick={() => router.push(`/pdps/${p.id}`)}
                       >
                         <TableCell className="pl-5">
-                          <div className="flex items-center gap-3">
+                          {/* stopPropagation: the row itself opens the PDP */}
+                          <Link
+                            href={`/users/${p.user.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="group/user flex items-center gap-3"
+                          >
                             <UserAvatar user={p.user} size="sm" />
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">{p.user.name}</p>
+                              <p className="truncate text-sm font-medium group-hover/user:text-primary group-hover/user:underline">
+                                {p.user.name}
+                              </p>
                               <p className="truncate text-xs text-muted-foreground">{p.user.email}</p>
                             </div>
-                          </div>
+                          </Link>
                         </TableCell>
                         <TableCell className="max-w-[300px]">
-                          <p className="truncate text-sm" title={p.fileName}>
+                          <Link
+                            href={`/pdps/${p.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            title={p.fileName}
+                            className="block truncate text-sm hover:text-primary hover:underline"
+                          >
                             {p.fileName.replace(/\.docx$/i, "")}
-                          </p>
+                          </Link>
                           {p.progress == null && (
                             <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <ExternalLink className="size-3" /> Google Doc, not tracked here
