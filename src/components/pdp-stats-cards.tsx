@@ -149,7 +149,7 @@ export function PdpStatsCards() {
         <div className="grid gap-4 lg:grid-cols-2">
           <CoverageCard
             title="Coverage by department"
-            caption="Employees of each department who have an active PDP. Someone in several departments counts in each."
+            caption="Employees of the whole department who have an active PDP."
             nameLabel="Department"
             peopleLabel="People"
             rows={stats.departments}

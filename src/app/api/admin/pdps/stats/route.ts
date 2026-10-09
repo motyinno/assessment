@@ -20,9 +20,10 @@ interface CoverageRow {
  * - `active`: number of ACTIVE plans.
  * - `employees` / `withActivePdp`: non-archived people in scope, and how many
  *   of them have an ACTIVE plan right now.
- * - `departments`: the same coverage per org unit of type "Department". A
- *   person is counted in each Department they belong to (HRM allows several),
- *   so the rows needn't add up to `employees`.
+ * - `departments`: the same coverage per whole department — the person's
+ *   division (`User.divisionId`), NOT its sub-units, so "NodeJS BY & Asia" and
+ *   "NodeJS Europe" are one "NodeJS" row. A plain admin gets a single row; a
+ *   super-admin one per division. Each person is in exactly one.
  * - `managers`: coverage of each manager's DIRECT reports (`User.managerId`),
  *   for managers with at least one report in scope.
  *
@@ -40,10 +41,7 @@ export async function GET() {
       select: {
         id: true,
         managerId: true,
-        departments: {
-          where: { department: { typeName: "Department" } },
-          select: { department: { select: { id: true, name: true } } },
-        },
+        division: { select: { id: true, name: true } },
       },
     }),
     prisma.pdp.findMany({
@@ -65,7 +63,7 @@ export async function GET() {
 
   for (const u of people) {
     const active = hasActive.has(u.id);
-    for (const { department } of u.departments) bump(departments, department.id, department.name, active);
+    if (u.division) bump(departments, u.division.id, u.division.name, active);
     if (u.managerId) bump(managers, u.managerId, "", active);
   }
 
