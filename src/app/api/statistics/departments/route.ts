@@ -114,7 +114,7 @@ export async function GET(req: NextRequest) {
       distinct: ["userId"],
     }),
     prisma.pdp.findMany({
-      where: { status: { in: ["ACTIVE", "COMPLETED"] }, user: { isArchived: false, ...inScope } },
+      where: { status: "ACTIVE", user: { isArchived: false, ...inScope } },
       select: { userId: true },
       distinct: ["userId"],
     }),

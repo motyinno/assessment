@@ -270,7 +270,7 @@ function DoubleCountingCaption() {
   );
 }
 
-type SortKey = "name" | "people" | "coverage" | "withoutPdp";
+type SortKey = "name" | "people" | "coverage" | "withActivePdp";
 
 function pct(n: number, total: number): string {
   return total > 0 ? `${Math.round((n / total) * 100)}%` : "—";
@@ -423,7 +423,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
       name: d.name,
       people: d.people,
       withCompleted: d.withCompletedAssessment,
-      withoutPdp: d.people - d.withActivePdp,
+      withActivePdp: d.withActivePdp,
     }));
     if (small.length > 0) {
       rowsOut.push({
@@ -431,14 +431,14 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
         name: `Other divisions (${small.length}, < ${SMALL_UNIT_THRESHOLD} people each)`,
         people: small.reduce((s, d) => s + d.people, 0),
         withCompleted: small.reduce((s, d) => s + d.withCompletedAssessment, 0),
-        withoutPdp: small.reduce((s, d) => s + (d.people - d.withActivePdp), 0),
+        withActivePdp: small.reduce((s, d) => s + d.withActivePdp, 0),
       });
     }
     const dir = sort.dir === "asc" ? 1 : -1;
     return rowsOut.sort((a, b) => {
       if (sort.key === "name") return a.name.localeCompare(b.name) * dir;
       if (sort.key === "people") return (a.people - b.people) * dir;
-      if (sort.key === "withoutPdp") return (a.withoutPdp - b.withoutPdp) * dir;
+      if (sort.key === "withActivePdp") return (a.withActivePdp - b.withActivePdp) * dir;
       const ca = a.people > 0 ? a.withCompleted / a.people : 0;
       const cb = b.people > 0 ? b.withCompleted / b.people : 0;
       return (ca - cb) * dir;
@@ -756,7 +756,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
                         ["name", "Division"],
                         ["people", "People"],
                         ["coverage", "With completed assessment"],
-                        ["withoutPdp", "Without PDP"],
+                        ["withActivePdp", "With active PDP"],
                       ] as [SortKey, string][]
                     ).map(([key, label]) => (
                       <th
@@ -778,7 +778,7 @@ export function AssessmentStatisticsView({ rows }: { rows: AssessmentRow[] }) {
                         {r.withCompleted} ({pct(r.withCompleted, r.people)})
                       </td>
                       <td className="py-1.5 pr-4">
-                        {r.withoutPdp} ({pct(r.withoutPdp, r.people)})
+                        {r.withActivePdp} ({pct(r.withActivePdp, r.people)})
                       </td>
                     </tr>
                   ))}

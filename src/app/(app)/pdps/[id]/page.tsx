@@ -228,7 +228,10 @@ export default function PdpPage() {
       setConfirmDelete(false);
       return;
     }
-    router.push(`/users/${pdp?.user.id}`);
+    setConfirmDelete(false);
+    // Full navigation, not router.push: the soft navigation stalled after the
+    // delete (dialog stayed open), and the profile must refetch its PDP list.
+    window.location.assign(`/users/${pdp?.user.id}`);
   }
 
   if (loadError) return <p className="text-sm text-destructive">{loadError}</p>;
@@ -398,6 +401,8 @@ export default function PdpPage() {
                     ? `Only you can see this draft. Approving creates the Google Doc and shows the plan to ${pdp.user.name}.`
                     : pdp.status === "ACTIVE" && showBuilder
                       ? `${pdp.user.name} sees this plan. Edits here need "Update Google Doc" to reach the document.`
+                      : pdp.status === "ACTIVE" && pdp.canComplete && legacy
+                        ? "This plan lives in a Google Doc, so progress isn't tracked here. Close it when it's done to stop counting it as active."
                       : pdp.status === "ACTIVE" && pdp.canComplete
                         ? `${pdp.user.name} ticks what's done and links their work. Close the plan when you're satisfied — not every item has to be ticked.`
                         : null}
