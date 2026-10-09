@@ -19,7 +19,6 @@ const MAX_PAGE_SIZE = 100;
  *
  * ?status=ACTIVE|COMPLETED|DRAFT|ALL  (default ACTIVE — what's running now)
  * ?userId=<id>                          one employee's plans
- * ?q=<text>                             matches the PDP name or its goal titles
  * ?page=1&pageSize=20
  *
  * Division scope is applied before anything else, so a filter can never widen
@@ -33,7 +32,6 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const statusParam = sp.get("status") ?? "ACTIVE";
   const userId = sp.get("userId");
-  const q = sp.get("q")?.trim();
   const page = Math.max(1, parseInt(sp.get("page") ?? "1", 10) || 1);
   const pageSize = Math.min(
     MAX_PAGE_SIZE,
@@ -47,12 +45,6 @@ export async function GET(req: NextRequest) {
     ? (statusParam as PdpStatus)
     : { in: STATUSES };
   if (userId) where.userId = userId;
-  if (q) {
-    where.OR = [
-      { fileName: { contains: q, mode: "insensitive" } },
-      { goals: { some: { title: { contains: q, mode: "insensitive" } } } },
-    ];
-  }
 
   const [total, rows] = await Promise.all([
     prisma.pdp.count({ where }),
@@ -68,7 +60,7 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         approvedAt: true,
         completedAt: true,
-        user: { select: { id: true, name: true, email: true, isArchived: true, manager: { select: { name: true } } } },
+        user: { select: { id: true, name: true, email: true, isArchived: true, photoFileName: true, manager: { select: { name: true } } } },
         goals: { select: { items: { select: { doneAt: true } } } },
       },
     }),

@@ -2,16 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ManagerCombobox } from "@/components/manager-combobox";
+import { UserAvatar } from "@/components/user-avatar";
 
 const PAGE_SIZE = 20;
+const DEFAULT_STATUS = "ACTIVE";
 
 const STATUS_OPTIONS = [
   { value: "ACTIVE", label: "Active" },
@@ -33,7 +35,18 @@ interface PdpRow {
   status: string;
   createdAt: string;
   progress: number | null;
-  user: { id: string; name: string; email: string; isArchived: boolean; manager: { name: string } | null };
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    isArchived: boolean;
+    photoFileName: string | null;
+    manager: { name: string } | null;
+  };
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
 export function AdminPdpList() {
@@ -44,26 +57,18 @@ export function AdminPdpList() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [status, setStatus] = useState<string>("ACTIVE");
+  const [status, setStatus] = useState<string>(DEFAULT_STATUS);
   const [userId, setUserId] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(t);
-  }, [search]);
 
   // Any filter change starts back at page 1.
   useEffect(() => {
     setPage(1);
-  }, [status, userId, debouncedSearch]);
+  }, [status, userId]);
 
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams({ status, page: String(page), pageSize: String(PAGE_SIZE) });
     if (userId) params.set("userId", userId);
-    if (debouncedSearch) params.set("q", debouncedSearch);
 
     setFetching(true);
     fetch(`/api/admin/pdps?${params}`, { signal: controller.signal })
@@ -81,50 +86,59 @@ export function AdminPdpList() {
         setFetching(false);
       });
     return () => controller.abort();
-  }, [status, userId, debouncedSearch, page]);
+  }, [status, userId, page]);
 
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const filtered = status !== DEFAULT_STATUS || !!userId;
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Status</Label>
-          <Select value={status} onValueChange={(v) => v && setStatus(v)}>
-            <SelectTrigger>
-              <SelectValue>
-                {(v: unknown) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? "Active"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Employee</Label>
-          <ManagerCombobox value={userId} onChange={setUserId} placeholder="Any employee" />
-        </div>
-        <div className="space-y-2">
-          <Label>PDP</Label>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by plan name or topic"
-          />
-        </div>
-      </div>
+      <Card>
+        <CardContent className="flex flex-wrap items-end gap-4 py-4">
+          <div className="w-full space-y-1.5 sm:w-48">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Status</Label>
+            <Select value={status} onValueChange={(v) => v && setStatus(v)}>
+              <SelectTrigger className="w-full">
+                <SelectValue>{(v: unknown) => STATUS_OPTIONS.find((o) => o.value === v)?.label ?? "Active"}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full min-w-0 flex-1 space-y-1.5 sm:min-w-64">
+            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Employee</Label>
+            <ManagerCombobox value={userId} onChange={setUserId} placeholder="Any employee" />
+          </div>
+          {filtered && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setStatus(DEFAULT_STATUS);
+                setUserId(null);
+              }}
+            >
+              Reset
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       {error ? (
         <p className="text-sm text-destructive">{error}</p>
       ) : !fetching && rows.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No PDPs match these filters.
+          <CardContent className="py-12 text-center">
+            <p className="text-sm font-medium">No PDPs found</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {filtered ? "Try a different status or employee." : "There are no active PDPs in your division yet."}
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -134,12 +148,12 @@ export function AdminPdpList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Employee</TableHead>
+                    <TableHead className="pl-5">Employee</TableHead>
                     <TableHead>PDP</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Progress</TableHead>
+                    <TableHead className="w-44">Progress</TableHead>
                     <TableHead>Manager</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead className="pr-5">Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -151,23 +165,42 @@ export function AdminPdpList() {
                         className={"cursor-pointer" + (p.user.isArchived ? " opacity-60" : "")}
                         onClick={() => router.push(`/pdps/${p.id}`)}
                       >
-                        <TableCell>
-                          <p className="text-sm font-medium truncate">{p.user.name}</p>
-                          <p className="text-xs text-muted-foreground truncate">{p.user.email}</p>
+                        <TableCell className="pl-5">
+                          <div className="flex items-center gap-3">
+                            <UserAvatar user={p.user} size="sm" />
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">{p.user.name}</p>
+                              <p className="truncate text-xs text-muted-foreground">{p.user.email}</p>
+                            </div>
+                          </div>
                         </TableCell>
-                        <TableCell className="max-w-[280px] truncate" title={p.fileName}>
-                          {p.fileName.replace(/\.docx$/i, "")}
+                        <TableCell className="max-w-[300px]">
+                          <p className="truncate text-sm" title={p.fileName}>
+                            {p.fileName.replace(/\.docx$/i, "")}
+                          </p>
+                          {p.progress == null && (
+                            <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <ExternalLink className="size-3" /> Google Doc, not tracked here
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Badge variant={badge.variant}>{badge.label}</Badge>
                         </TableCell>
-                        <TableCell className="text-muted-foreground tabular-nums">
-                          {p.progress == null ? "—" : `${p.progress}%`}
+                        <TableCell>
+                          {p.progress == null ? (
+                            <span className="text-muted-foreground">—</span>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                                <div className="h-full rounded-full bg-success" style={{ width: `${p.progress}%` }} />
+                              </div>
+                              <span className="text-xs tabular-nums text-muted-foreground">{p.progress}%</span>
+                            </div>
+                          )}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">{p.user.manager?.name ?? "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(p.createdAt).toLocaleDateString("en-US")}
-                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{p.user.manager?.name ?? "—"}</TableCell>
+                        <TableCell className="pr-5 text-sm text-muted-foreground">{formatDate(p.createdAt)}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -178,7 +211,7 @@ export function AdminPdpList() {
 
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
-              {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} of {total}
             </p>
             <div className="flex items-center gap-2">
               <Button
