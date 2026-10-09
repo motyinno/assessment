@@ -163,3 +163,44 @@ export async function shareDriveFile(
   }
   return true;
 }
+
+export type DriveTextResult =
+  | { ok: true; name: string; format: "gdoc" | "docx"; content: Buffer | string }
+  | { ok: false; reason: "no-token" | "no-access" | "unsupported" };
+
+const GDOC_MIME = "application/vnd.google-apps.document";
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/**
+ * Fetch a document's raw content with the acting user's token: a native Google
+ * Doc is exported as HTML (keeps table structure), an uploaded .docx is
+ * downloaded as-is. Anything else (PDF, Sheets, …) is "unsupported".
+ */
+export async function readDriveDocument(userId: string, fileId: string): Promise<DriveTextResult> {
+  const accessToken = await getValidAccessToken(userId);
+  if (!accessToken) return { ok: false, reason: "no-token" };
+  const headers = { Authorization: `Bearer ${accessToken}` };
+  const id = encodeURIComponent(fileId);
+
+  const metaRes = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${id}?fields=name,mimeType&supportsAllDrives=true`,
+    { headers }
+  );
+  if (!metaRes.ok) return { ok: false, reason: "no-access" };
+  const meta = (await metaRes.json()) as { name: string; mimeType: string };
+
+  if (meta.mimeType === GDOC_MIME) {
+    const res = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=${encodeURIComponent("text/html")}`,
+      { headers }
+    );
+    if (!res.ok) return { ok: false, reason: "no-access" };
+    return { ok: true, name: meta.name, format: "gdoc", content: await res.text() };
+  }
+  if (meta.mimeType === DOCX_MIME) {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`, { headers });
+    if (!res.ok) return { ok: false, reason: "no-access" };
+    return { ok: true, name: meta.name, format: "docx", content: Buffer.from(await res.arrayBuffer()) };
+  }
+  return { ok: false, reason: "unsupported" };
+}
