@@ -63,7 +63,9 @@ export default function MarketSignalsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<{ message: string; issues?: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const addRef = useRef<HTMLDivElement>(null);
+  // The add form stays out of the way once there are sources to look at.
+  const [addOpen, setAddOpen] = useState<boolean | null>(null);
+  const showAdd = addOpen ?? (sources !== null && sources.length === 0);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -164,11 +166,13 @@ export default function MarketSignalsPage() {
               ))}
             </select>
           )}
-          <Button onClick={() => addRef.current?.scrollIntoView({ behavior: "smooth" })}>Add source</Button>
+          <Button variant={showAdd ? "outline" : "default"} onClick={() => setAddOpen(!showAdd)}>
+            {showAdd ? "Close" : "Add source"}
+          </Button>
         </div>
       </div>
 
-      <div ref={addRef}>
+      {showAdd && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Add a source</CardTitle>
@@ -232,7 +236,7 @@ export default function MarketSignalsPage() {
           )}
         </CardContent>
       </Card>
-      </div>
+      )}
 
       <Card>
         <CardHeader>

@@ -132,6 +132,10 @@ export function PdpBuilder({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef(goals);
   latest.current = goals;
+  // Parents pass onSaved inline; reading it through a ref keeps `save` stable,
+  // otherwise the onStatus effect below re-fires every render and loops.
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
 
   const save = useCallback(async () => {
     timer.current = null;
@@ -155,13 +159,13 @@ export function PdpBuilder({
       setSaveError(null);
       // A newer edit may already be queued; only report "saved" when idle.
       setSaveState(dirty.current ? "saving" : "saved");
-      onSaved?.();
+      onSavedRef.current?.();
     } catch (e) {
       dirty.current = true;
       setSaveError(e instanceof Error ? e.message : String(e));
       setSaveState("error");
     }
-  }, [pdpId, onSaved]);
+  }, [pdpId]);
 
   const update = useCallback(
     (fn: (prev: BuilderGoal[]) => BuilderGoal[]) => {
