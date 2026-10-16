@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -245,15 +244,6 @@ export default function GeneratePdpForUserPage() {
         <p className="mt-2 text-sm text-muted-foreground">
           Pick the topics; the AI drafts questions and practical tasks, then you arrange and approve the plan in the
           builder.
-          {options.assessment && (
-            <>
-              {" "}Scores are from{" "}
-              <Link href={`/assessments/${options.assessment.id}`} className="text-primary hover:underline">
-                {options.assessment.title}
-              </Link>
-              ; topics below 7 are preselected.
-            </>
-          )}
         </p>
         )}
       </div>
