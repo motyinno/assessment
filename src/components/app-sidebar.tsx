@@ -29,8 +29,10 @@ const navItems = [
   { href: "/request-assessment", label: "Request Assessment", icon: "send", hideForAdmin: true },
 ];
 
-const assessorItems = [
+const assessorItems: Array<{ href: string; label: string; icon: string; adminOnly?: boolean }> = [
   { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
+  // Market reports and other sources that PDPs can be based on (lib/market-signals.ts).
+  { href: "/market-signals", label: "Market signals", icon: "trending", adminOnly: true },
 ];
 
 // People-section items. Each carries the roles allowed to see the link —
@@ -164,6 +166,13 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
       </svg>
     ),
+    // lucide "trending-up" glyph — market signals.
+    trending: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+        <polyline points="16 7 22 7 22 13" />
+      </svg>
+    ),
     // lucide "network" glyph — org-chart shape, used for Departments (S10).
     sitemap: (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -239,7 +248,7 @@ export function AppSidebar({ user }: SidebarProps) {
                 Assessment Tools
               </p>
             </div>
-            {assessorItems.map((item) => {
+            {assessorItems.filter((item) => !item.adminOnly || user.role === "ADMIN").map((item) => {
               const active = isActive(item.href);
               return (
                 <Link

@@ -28,6 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       id: true,
       status: true,
       assessmentId: true,
+      generationInputs: true,
       user: { select: { id: true, name: true, grade: true, managerId: true } },
     },
   });
@@ -40,15 +41,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (parsed.error) return parsed.error;
   const { title, matrixTopicId } = parsed.data;
 
+  // A market-driven plan keeps drafting at its target level, with the same market context.
+  const original = (pdp.generationInputs ?? {}) as Partial<PdpGenerationInputs>;
+  const market = { targetBand: original.targetBand, horizonMonths: original.horizonMonths, reasons: original.reasons };
   const inputs: PdpGenerationInputs = matrixTopicId
-    ? { topicIds: [matrixTopicId], customTopics: [], assessmentId: pdp.assessmentId }
-    : { topicIds: [], customTopics: [title], assessmentId: pdp.assessmentId };
+    ? { topicIds: [matrixTopicId], customTopics: [], assessmentId: pdp.assessmentId, ...market }
+    : { topicIds: [], customTopics: [title], assessmentId: pdp.assessmentId, ...market };
 
   try {
     const topics = await resolveDraftTopics(pdp.user.id, pdp.user.grade, inputs);
     // A matrix topic renamed in the builder keeps its matrix skills but uses the new title.
     const named = topics.length ? [{ ...topics[0], title }] : [{ title, skills: [], priority: true, matrixTopicId: null }];
-    const [goal] = await draftGoals(named, { name: pdp.user.name, grade: pdp.user.grade });
+    const [goal] = await draftGoals(
+      named,
+      { name: pdp.user.name, grade: pdp.user.grade },
+      market.targetBand ? { band: market.targetBand, horizonMonths: market.horizonMonths } : undefined
+    );
     if (!goal) throw new Error("The AI returned nothing for this topic");
     return NextResponse.json({ items: goal.items });
   } catch (e) {

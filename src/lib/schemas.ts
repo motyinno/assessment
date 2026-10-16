@@ -214,6 +214,41 @@ export const patchRequestSchema = z.object({
 
 // ---- PDPs ----
 
+// ---- Market signals (lib/market-signals.ts, lib/market-fit.ts) ----
+
+export const createSignalSourceSchema = z.object({
+  format: z.enum(["json", "html", "text"]),
+  content: z.string().min(1, "The source is empty").max(2_000_000, "The source is too large"),
+  title: z.string().trim().max(200).nullish(),
+  // Required from a super-admin, ignored for a plain admin (own division).
+  departmentId: z.string().min(1).nullish(),
+});
+
+export const signalMappingSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal("MAPPED"), topicId: z.string().min(1), match: z.enum(["exact", "partial"]).default("exact") }),
+  z.object({ state: z.literal("PROPOSAL"), proposedTitle: z.string().trim().min(1).max(200) }),
+  z.object({ state: z.literal("OUT_OF_SCOPE") }),
+]);
+
+export const fitWeightsSchema = z
+  .object({
+    monthWeight: z.number().min(0).max(1),
+    yearWeight: z.number().min(0).max(1),
+    baselineWeight: z.number().min(0).max(1),
+    lowConfidenceFactor: z.number().min(0).max(1),
+    assessmentWeight: z.number().min(0).max(1),
+  })
+  .partial();
+
+export const pdpBasisRequestSchema = z.object({
+  sourceIds: z.array(z.string().min(1)).max(10).default([]),
+  targetBand: z.enum(["jun", "mid", "sen"]),
+  horizonMonths: z.number().int().min(1).max(24).default(3),
+  maxTopics: z.number().int().min(1).max(15).default(5),
+  useGap: z.boolean().default(true),
+  weights: fitWeightsSchema.default({}),
+});
+
 export const generatePdpSchema = z
   .object({
     topicIds: z.array(z.string().min(1)),
@@ -222,6 +257,9 @@ export const generatePdpSchema = z
     customTopics: z.array(z.string().trim().min(1)).max(20).default([]),
     // The assessment the plan is based on, if any (its scores feed the AI).
     assessmentId: z.string().min(1).nullish(),
+    // Market-driven plan (lib/market-fit.ts): the server re-ranks with these
+    // and stores the basis plus each goal's fit and reason.
+    basis: pdpBasisRequestSchema.nullish(),
   })
   .refine((v) => v.topicIds.length > 0 || v.customTopics.length > 0, {
     message: "Select at least one topic or add a custom technology",

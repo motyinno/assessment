@@ -76,6 +76,7 @@ interface Pdp {
   reviewNotes: string | null;
   assessment: { id: string; title: string } | null;
   goals: Array<{ items: Array<{ doneAt: string | null }> }>;
+  basis?: { label?: string } | null;
 }
 
 interface ManagerRef {
@@ -755,6 +756,9 @@ export default function UserProfilePage() {
                                   >
                                     {pdp.fileName.replace(/\.docx$/i, "")}
                                   </Link>
+                                  {pdp.basis?.label && (
+                                    <p className="text-xs text-muted-foreground truncate">Based on {pdp.basis.label}</p>
+                                  )}
                                   <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
                                     {isGenerating ? (
                                       <Badge variant="info" className="shrink-0">

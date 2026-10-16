@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiErrorMessage } from "@/lib/api-error";
+import { baseGrade } from "@/lib/grades";
+import { PdpBasisPicker, type BasisSettings } from "@/components/pdp-basis-picker";
 
 interface PickerTopic {
   id: string;
@@ -41,6 +43,12 @@ export default function GeneratePdpForUserPage() {
   const [customInput, setCustomInput] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Market-driven flow: offered unless the plan is explicitly "from this
+  // assessment", and only once the division has a source to base it on.
+  const [basisAvailable, setBasisAvailable] = useState<boolean | null>(assessmentIdParam ? false : null);
+  const [basis, setBasis] = useState<BasisSettings | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const marketMode = !assessmentIdParam && basisAvailable === true;
 
   // Only the employee's direct manager (or an admin) gets options; anyone else
   // sees the API's refusal.
@@ -54,7 +62,9 @@ export default function GeneratePdpForUserPage() {
       }
       const o = data as PdpOptions;
       setOptions(o);
-      setSelected(new Set(o.preselected));
+      // The market flow preselects from its own ranking.
+      if (assessmentIdParam) setSelected(new Set(o.preselected));
+      else setSelected((prev) => (prev.size ? prev : new Set(o.preselected)));
     });
   }, [userId, assessmentIdParam]);
 
@@ -137,7 +147,8 @@ export default function GeneratePdpForUserPage() {
         body: JSON.stringify({
           topicIds: filtered.flatMap((s) => s.topics.map((t) => t.id)).filter((id) => selected.has(id)),
           customTopics: allCustom,
-          assessmentId: options?.assessment?.id ?? null,
+          assessmentId: marketMode ? null : options?.assessment?.id ?? null,
+          basis: marketMode ? basis : null,
         }),
       });
       if (!res.ok) {
@@ -187,6 +198,13 @@ export default function GeneratePdpForUserPage() {
           <span>·</span>
           <span>{user.email}</span>
         </div>
+        {marketMode ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Choose what the plan is based on; topics are ranked by client demand and the employee&apos;s gaps. The AI drafts
+            questions and practical tasks, then you arrange and approve the plan in the builder. The PDP keeps a link to
+            the sources and the weights used.
+          </p>
+        ) : (
         <p className="mt-2 text-sm text-muted-foreground">
           Pick the topics; the AI drafts questions and practical tasks, then you arrange and approve the plan in the
           builder.
@@ -200,8 +218,26 @@ export default function GeneratePdpForUserPage() {
             </>
           )}
         </p>
+        )}
       </div>
 
+      {!assessmentIdParam && (
+        <div className={basisAvailable ? "space-y-6" : "hidden"}>
+          <PdpBasisPicker
+            userId={userId}
+            currentBand={baseGrade(user.grade)}
+            selected={selected}
+            setSelected={setSelected}
+            onSettings={setBasis}
+            onAvailability={setBasisAvailable}
+          />
+          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Hide the full matrix" : "Show all matrix topics"}
+          </button>
+        </div>
+      )}
+
+      {(!marketMode || showAll) && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -272,6 +308,7 @@ export default function GeneratePdpForUserPage() {
           })}
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -325,7 +362,7 @@ export default function GeneratePdpForUserPage() {
             (selected.size === 0 && customTopics.length === 0 && customInput.trim() === "")
           }
         >
-          {generating ? "Starting..." : "Draft PDP"}
+          {generating ? "Starting..." : marketMode ? `Generate draft · ${selected.size + customTopics.length} topics` : "Draft PDP"}
         </Button>
         <Button variant="outline" onClick={() => router.push(`/users/${userId}`)}>
           Cancel

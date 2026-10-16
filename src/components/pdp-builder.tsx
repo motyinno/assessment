@@ -20,6 +20,9 @@ export interface BuilderGoal {
   title: string;
   matrixTopicId: string | null;
   items: BuilderItem[];
+  /** Why the topic is in the plan, when it came from the market ranking. */
+  origin?: string | null;
+  reason?: string | null;
 }
 
 export interface MatrixOption {
@@ -398,6 +401,12 @@ export function PdpBuilder({
                 </Button>
               </div>
             </header>
+            {goal.reason && (
+              <p className="-mt-1 px-4 pb-2 pl-[3.25rem] text-xs text-muted-foreground">
+                {goal.origin === "market" ? "Market: " : goal.origin === "baseline" ? "Level baseline: " : ""}
+                {goal.reason}
+              </p>
+            )}
 
             <div className="space-y-3 px-4 pb-3.5 pl-[3.25rem]">
               {busy ? (
