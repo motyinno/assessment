@@ -14,8 +14,12 @@ interface PickerTopic {
   id: string;
   title: string;
   skills: string[];
+  /** Bands that do have questions, when this grade has none. */
+  otherBands?: Array<"jun" | "mid" | "sen">;
   score: number | null;
 }
+const BAND_NAMES = { jun: "Junior", mid: "Middle", sen: "Senior" } as const;
+
 interface PickerSection {
   id: string;
   title: string;
@@ -331,7 +335,15 @@ export default function GeneratePdpForUserPage() {
                               <Badge variant={topic.score < 7 ? "destructive" : "secondary"}>{topic.score}/10</Badge>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{topic.skills.join(" · ")}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {topic.skills.length
+                              ? topic.skills.join(" · ")
+                              : `No questions at ${user.gradeLabel} level${
+                                  topic.otherBands?.length
+                                    ? ` (has ${topic.otherBands.map((b) => BAND_NAMES[b]).join(", ")})`
+                                    : ""
+                                } — the AI drafts from the topic itself`}
+                          </div>
                         </div>
                       </label>
                     ))}
