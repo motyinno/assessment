@@ -884,7 +884,9 @@ export default function AssessmentDetailPage() {
       )}
 
       {/* Feedback — general + PDP review flow. Text can be authored manually or via AI. */}
-      {assessment.status === "COMPLETED" && isAssessor && (
+      {/* Shown to the assigned assessors (or an admin) whatever their global role — a
+          MANAGER can be the assessor too; mirrors requireAssessmentAssessor. */}
+      {assessment.status === "COMPLETED" && (isAdmin || isInterviewer) && (
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between gap-2">
