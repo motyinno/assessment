@@ -805,3 +805,118 @@ function mockSignalMapping(signals: SignalToMap[], topics: MatrixTopicCandidate[
     }),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Market sync of the tech matrix (lib/matrix-sync.ts validates the result)
+// ---------------------------------------------------------------------------
+
+export interface MatrixSyncRequest {
+  divisionName: string;
+  matrix: Array<{ id: string; title: string; topics: Array<{ id: string; title: string; jun: string[]; mid: string[]; sen: string[] }> }>;
+  signals: Array<{
+    label: string;
+    kind: string;
+    share: number | null;
+    deltaPp: number | null;
+    sampleN: number | null;
+    lowConfidence: boolean;
+    state: string;
+    topic: string | null;
+    match: string | null;
+    proposedTitle: string | null;
+  }>;
+  portraits: Array<{ name: string; signals: string[] }>;
+  notes: string[];
+}
+
+/**
+ * Draft edits to a division's tech matrix from a market report: what to add
+ * (sections, topics, questions per grade) and what is clearly obsolete.
+ * Trend tags are computed without AI, so they're not asked for here.
+ */
+export async function generateMatrixSyncProposals(req: MatrixSyncRequest): Promise<unknown> {
+  if (process.env.AI_MOCK === "true") return mockMatrixSync(req);
+
+  const matrixText = req.matrix
+    .map(
+      (s) =>
+        `## ${s.title} (sectionId=${s.id})\n` +
+        s.topics
+          .map((t) => `- ${t.title} (topicId=${t.id})\n  jun: ${t.jun.join("; ") || "—"}\n  mid: ${t.mid.join("; ") || "—"}\n  sen: ${t.sen.join("; ") || "—"}`)
+          .join("\n")
+    )
+    .join("\n");
+  const pct = (x: number | null) => (x == null ? "n/a" : `${Math.round(x * 1000) / 10}%`);
+  const signalText = req.signals
+    .map(
+      (s) =>
+        `- ${s.label} (${s.kind}): ${pct(s.share)} of requests${s.deltaPp != null ? `, ${s.deltaPp > 0 ? "+" : ""}${s.deltaPp} pp vs 12 months` : ""}${
+          s.lowConfidence ? `, LOW CONFIDENCE (n=${s.sampleN})` : ""
+        } — ${s.state === "MAPPED" ? `mapped to "${s.topic}" (${s.match})` : s.state === "PROPOSAL" ? `no topic fits; suggested "${s.proposedTitle}"` : s.state.toLowerCase()}`
+    )
+    .join("\n");
+
+  const prompt = `You maintain the technical skills matrix of the "${req.divisionName}" division. Each topic lists the skills ("questions") expected at Junior (jun), Middle (mid) and Senior (sen).
+
+CURRENT MATRIX:
+${matrixText || "(empty)"}
+
+CLIENT DEMAND (this month's client requests):
+${signalText}
+${req.portraits.length ? `\nDEVELOPER PORTRAITS: ${req.portraits.map((p) => `${p.name}: ${p.signals.join(", ")}`).join(" | ")}` : ""}
+${req.notes.length ? `\nREPORT NOTES: ${req.notes.join(" ")}` : ""}
+
+Propose edits so the matrix reflects what clients actually ask for. Kinds:
+- "ADD_SECTION": a new section when 2+ related demands fit no existing section. Give "title", "afterSectionId" (or null) and "topics": [{ "title", "jun": [...], "mid": [...], "sen": [...] }] (1-4 topics).
+- "ADD_TOPIC": a new topic in an existing section ("sectionId", "title", "jun", "mid", "sen").
+- "ADD_QUESTIONS": skills an existing topic lacks ("topicId", "jun"/"mid"/"sen" with ONLY the new skills).
+- "REMOVE_QUESTIONS": skills that are obsolete or deprecated ("topicId", the exact existing strings to drop).
+- "REMOVE_TOPIC": a topic that is obsolete — deprecated technology, or demand that is low AND falling hard ("topicId").
+
+Rules:
+- Be conservative with removals (at most 3). A topic is NOT obsolete just because this report doesn't mention it; removing it erases employees' progress on it.
+- Don't build on low-confidence signals alone.
+- Skills are short noun phrases (2-6 words) in the matrix's style; 2-4 per grade; leave a grade empty when the topic isn't expected there (most AI and architecture depth belongs at mid/sen). Never repeat a skill that already exists in the topic.
+- Out-of-scope signals (other languages, frontend frameworks outside the division, hiring conditions) get no proposals.
+- "rationale": one or two sentences citing the numbers. "signals": the labels of the signals behind it.
+- At most 12 proposals, most valuable first. English only.
+
+Respond ONLY with valid JSON:
+{ "proposals": [ { "kind": "...", "sectionId": null, "afterSectionId": null, "topicId": null, "title": null, "topics": [], "jun": [], "mid": [], "sen": [], "rationale": "...", "signals": ["..."] } ] }`;
+
+  try {
+    return await withAIRetry(() =>
+      callAI({
+        system: "You are a staff engineer curating a skills matrix. Always respond with valid JSON only.",
+        prompt,
+        temperature: 0.3,
+      })
+    );
+  } catch (error) {
+    console.error("Error drafting matrix proposals:", error);
+    throw aiErrorMessage(error, "draft matrix proposals");
+  }
+}
+
+// Local development only (AI_MOCK=true).
+function mockMatrixSync(req: MatrixSyncRequest) {
+  const proposals = req.signals
+    .filter((s) => s.state === "PROPOSAL")
+    .slice(0, 3)
+    .map((s) => ({
+      kind: "ADD_TOPIC",
+      sectionId: req.matrix[0]?.id ?? null,
+      title: s.proposedTitle ?? s.label,
+      jun: [`[mock] ${s.label} basics`],
+      mid: [`[mock] ${s.label} in production`],
+      sen: [],
+      rationale: `[mock] ${s.label} has no topic yet.`,
+      signals: [s.label],
+    }));
+  const partial = req.signals.find((s) => s.state === "MAPPED" && s.match === "partial");
+  if (partial) {
+    const topic = req.matrix.flatMap((m) => m.topics).find((t) => t.title === partial.topic);
+    if (topic) proposals.push({ kind: "ADD_QUESTIONS", sectionId: null, title: null, jun: [], mid: [`[mock] ${partial.label} patterns`], sen: [], rationale: "[mock] partial match", signals: [partial.label], ...{ topicId: topic.id } } as never);
+  }
+  return { proposals };
+}

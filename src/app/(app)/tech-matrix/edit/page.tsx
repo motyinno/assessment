@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
+import { MarketSyncPanel } from "@/components/market-sync-panel";
+import { TopicDemandBadges, useTopicDemand } from "@/components/topic-demand-badges";
 
 interface Topic {
   id: string;
@@ -23,6 +25,7 @@ interface Topic {
   jun: string[];
   mid: string[];
   sen: string[];
+  trendTag?: string | null;
 }
 interface Section {
   id: string;
@@ -48,7 +51,10 @@ export default function TechMatrixEditPage() {
   const router = useRouter();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const searchParams = useSearchParams();
+  // /tech-matrix/edit?mode=sync&source=<id> opens Market sync on that report.
+  const [mode, setMode] = useState<"edit" | "preview" | "sync">(searchParams.get("mode") === "sync" ? "sync" : "edit");
+  const [openProposals, setOpenProposals] = useState(0);
   const [newSection, setNewSection] = useState("");
   const [topicDrafts, setTopicDrafts] = useState<Record<string, string>>({});
   const [skillDrafts, setSkillDrafts] = useState<Record<string, string>>({});
@@ -96,6 +102,8 @@ export default function TechMatrixEditPage() {
   useEffect(() => {
     if (divisionId) reload(divisionId);
   }, [divisionId, reload]);
+
+  const demand = useTopicDemand(divisionId, mode);
 
   // ---- Section mutations ----
   async function addSection() {
@@ -294,6 +302,14 @@ export default function TechMatrixEditPage() {
           >
             Preview
           </Button>
+          <Button
+            variant={mode === "sync" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setMode("sync")}
+          >
+            Market sync
+            {openProposals > 0 && <Badge variant="default" className="ml-1">{openProposals}</Badge>}
+          </Button>
         </div>
       </div>
 
@@ -314,7 +330,20 @@ export default function TechMatrixEditPage() {
         </Card>
       )}
 
-      {loading ? (
+      {/* Mounted while hidden so the tab badge knows the open-proposal count. */}
+      {divisionId && (
+        <div className={mode === "sync" ? "" : "hidden"}>
+          <MarketSyncPanel
+            divisionId={divisionId}
+            divisionName={selectedDivisionName}
+            initialSourceId={searchParams.get("source")}
+            onPublished={() => reload(divisionId)}
+            onOpenCount={setOpenProposals}
+          />
+        </div>
+      )}
+
+      {mode === "sync" ? null : loading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : mode === "preview" ? (
         <MatrixPreview sections={sections} />
@@ -362,6 +391,7 @@ export default function TechMatrixEditPage() {
                           renameTopic(topic.id, e.target.value.trim())
                         }
                       />
+                      <TopicDemandBadges trendTag={topic.trendTag} demand={demand.topics[topic.id]} />
                       <Button
                         variant="ghost"
                         size="sm"

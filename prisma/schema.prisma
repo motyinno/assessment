@@ -147,6 +147,7 @@ model User {
   roleAudit            RoleAuditLog[]              @relation("roleAuditSubject")
   roleAuditActions     RoleAuditLog[]              @relation("roleAuditActor")
   signalSources        SignalSource[]              @relation("signalSourceCreator")
+  matrixVersions       TechMatrixVersion[]         @relation("matrixVersionCreator")
 
   @@index([managerId])
   @@index([hrmEmployeeId])
@@ -181,15 +182,16 @@ model Department {
   /// It is the only source: nothing is configurable per assessment.
   meetingGuestEmails String[] @default([])
 
-  parent           Department?       @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children         Department[]      @relation("depTree")
-  head             User?             @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
-  deputy           User?             @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
+  parent           Department?         @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Department[]        @relation("depTree")
+  head             User?               @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  deputy           User?               @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
   members          UserDepartment[]
-  divisionMembers  User[]            @relation("divisionMembers")
+  divisionMembers  User[]              @relation("divisionMembers")
   matrixSections   MatrixSection[]
   sessionTemplates SessionTemplate[]
   signalSources    SignalSource[]
+  matrixVersions   TechMatrixVersion[]
 
   @@index([parentId])
   @@index([isActive])
@@ -651,6 +653,9 @@ model MatrixTopic {
   jun       String[] @default([])
   mid       String[] @default([])
   sen       String[] @default([])
+  /// "hot" | "cooling" — set by accepting a market-sync proposal
+  /// (lib/matrix-sync.ts); null = steady / never tagged.
+  trendTag  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -786,29 +791,36 @@ enum SignalMappingState {
 /// AI extracts into the same contract. Nothing feeds PDPs until an admin
 /// publishes it.
 model SignalSource {
-  id           String             @id @default(cuid())
-  departmentId String
-  type         SignalSourceType   @default(MARKET_REPORT)
-  title        String
-  periodFrom   DateTime?
-  periodTo     DateTime?
+  id                    String             @id @default(cuid())
+  departmentId          String
+  type                  SignalSourceType   @default(MARKET_REPORT)
+  title                 String
+  periodFrom            DateTime?
+  periodTo              DateTime?
   /// "json" | "html" | "text" — how rawText was provided.
-  format       String
-  rawText      String             @db.Text
+  format                String
+  rawText               String             @db.Text
   /// Report-level numbers from the contract: { requests, seniorShare, baseline, notes, portraits }.
-  meta         Json               @default("{}")
-  status       SignalSourceStatus @default(PROCESSING)
-  error        String?
+  meta                  Json               @default("{}")
+  status                SignalSourceStatus @default(PROCESSING)
+  error                 String?
   /// Token of the latest background run; a superseded run doesn't write.
-  generationId String?
-  createdById  String?
-  publishedAt  DateTime?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  generationId          String?
+  /// Market sync (lib/matrix-sync.ts): proposal generation runs in the
+  /// background too. null = never generated; "GENERATING" | "READY" | "FAILED".
+  proposalsStatus       String?
+  proposalsError        String?
+  proposalsGenerationId String?
+  createdById           String?
+  publishedAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
-  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
-  createdBy  User?      @relation("signalSourceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  department Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdBy  User?               @relation("signalSourceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   signals    Signal[]
+  proposals  MatrixProposal[]
+  versions   TechMatrixVersion[]
 
   @@index([departmentId, status])
 }
@@ -842,4 +854,78 @@ model Signal {
   source SignalSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
 
   @@index([sourceId])
+}
+
+// ---- Market sync of the tech matrix ----
+
+enum MatrixProposalKind {
+  ADD_SECTION // new section with its topics (payload.topics)
+  ADD_TOPIC // new topic in sectionId (payload.jun/mid/sen)
+  ADD_QUESTIONS // more skills on topicId (payload.jun/mid/sen)
+  REMOVE_TOPIC // delete topicId — orphans employees' progress on it
+  REMOVE_QUESTIONS // drop skills from topicId (payload.jun/mid/sen)
+  TAG_HOT
+  TAG_COOLING
+}
+
+enum MatrixProposalState {
+  PENDING
+  ACCEPTED
+  REJECTED
+  APPLIED
+  SKIPPED // accepted, but its target was gone when the version was published
+}
+
+/// A suggested change to a division's tech matrix, drafted from a market
+/// report (lib/matrix-sync.ts). Nothing changes until an admin accepts
+/// proposals and publishes them together as a new matrix version.
+model MatrixProposal {
+  id           String              @id @default(cuid())
+  sourceId     String
+  departmentId String
+  kind         MatrixProposalKind
+  order        Int
+  /// ADD_TOPIC: the section to add to. ADD_SECTION: place after this section.
+  sectionId    String?
+  /// The topic acted on (ADD_QUESTIONS, REMOVE_*, TAG_*).
+  topicId      String?
+  /// New section / topic title.
+  title        String?
+  /// { jun?, mid?, sen? } skill lists, or { topics: [{ title, jun, mid, sen }] } for ADD_SECTION.
+  payload      Json                @default("{}")
+  rationale    String
+  signalIds    String[]            @default([])
+  state        MatrixProposalState @default(PENDING)
+  versionId    String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  source  SignalSource       @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  version TechMatrixVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId])
+  @@index([departmentId, state])
+}
+
+/// A published change set of a division's matrix: the matrix before and
+/// after, and the report it came from — so a change can be traced and undone.
+model TechMatrixVersion {
+  id           String   @id @default(cuid())
+  departmentId String
+  number       Int
+  sourceId     String?
+  /// TechMatrix JSON before / after applying the proposals.
+  before       Json
+  after        Json
+  /// [{ kind, title }] — one line per applied proposal.
+  summary      Json     @default("[]")
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  department Department       @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  source     SignalSource?    @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  createdBy  User?            @relation("matrixVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  proposals  MatrixProposal[]
+
+  @@unique([departmentId, number])
 }

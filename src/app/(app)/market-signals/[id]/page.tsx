@@ -216,6 +216,14 @@ export default function SignalSourcePage() {
                 {source.status === "ARCHIVED" ? "Publish again" : "Publish"}
               </Button>
             )}
+            {source.status !== "PROCESSING" && source.status !== "FAILED" && (
+              <Link
+                href={`/tech-matrix/edit?mode=sync&source=${source.id}`}
+                className="inline-flex h-9 items-center rounded-lg border px-3 text-sm font-medium hover:bg-muted"
+              >
+                {counts.PROPOSAL ? `Matrix proposals · ${counts.PROPOSAL} new topics` : "Matrix proposals"}
+              </Link>
+            )}
             <Button variant="ghost" className="text-destructive" disabled={busy} onClick={remove}>
               Delete
             </Button>

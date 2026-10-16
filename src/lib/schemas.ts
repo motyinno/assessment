@@ -230,6 +230,24 @@ export const signalMappingSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("OUT_OF_SCOPE") }),
 ]);
 
+const bandSkillsSchema = z.array(z.string().trim().min(1).max(120)).max(12);
+
+export const matrixProposalPatchSchema = z.object({
+  state: z.enum(["PENDING", "ACCEPTED", "REJECTED"]).optional(),
+  title: z.string().trim().min(1).max(120).optional(),
+  payload: z
+    .object({
+      jun: bandSkillsSchema.optional(),
+      mid: bandSkillsSchema.optional(),
+      sen: bandSkillsSchema.optional(),
+      topics: z
+        .array(z.object({ title: z.string().trim().min(1).max(120), jun: bandSkillsSchema, mid: bandSkillsSchema, sen: bandSkillsSchema }))
+        .max(6)
+        .optional(),
+    })
+    .optional(),
+});
+
 export const fitWeightsSchema = z
   .object({
     monthWeight: z.number().min(0).max(1),
