@@ -48,9 +48,11 @@ interface Props {
   onSettings: (s: BasisSettings | null) => void;
   /** True when the division has sources to base a plan on (or once that's known). */
   onAvailability: (available: boolean) => void;
+  /** Bump to re-apply the ranking's preselection (e.g. after switching back from manual picking). */
+  resetKey?: number;
 }
 
-export function PdpBasisPicker({ userId, currentBand, selected, setSelected, onSettings, onAvailability }: Props) {
+export function PdpBasisPicker({ userId, currentBand, selected, setSelected, onSettings, onAvailability, resetKey }: Props) {
   const [options, setOptions] = useState<Options | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sourceIds, setSourceIds] = useState<string[]>([]);
@@ -63,6 +65,14 @@ export function PdpBasisPicker({ userId, currentBand, selected, setSelected, onS
   const [ranking, setRanking] = useState(false);
   const touched = useRef(false);
   const lastSelectionKey = useRef("");
+  const lastPreselected = useRef<string[]>([]);
+
+  useEffect(() => {
+    if (!resetKey) return;
+    touched.current = false;
+    setSelected(new Set(lastPreselected.current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
 
   useEffect(() => {
     fetch(`/api/users/${userId}/pdp-recommendations`).then(async (r) => {
@@ -78,8 +88,7 @@ export function PdpBasisPicker({ userId, currentBand, selected, setSelected, onS
       setHorizonMonths(o.defaults.horizonMonths);
       setMaxTopics(o.defaults.maxTopics);
       setAssessmentWeight(o.defaults.weights.assessmentWeight);
-      const published = o.sources.filter((s) => s.status === "PUBLISHED").map((s) => s.id);
-      setSourceIds(published);
+      setSourceIds(o.sources.map((s) => s.id));
       onAvailability(o.sources.length > 0);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -113,6 +122,7 @@ export function PdpBasisPicker({ userId, currentBand, selected, setSelected, onS
         }
         setError(null);
         setRanked(data.ranked);
+        lastPreselected.current = data.preselected;
         // Re-preselect when what defines the shortlist changes, unless the
         // manager already ticked topics by hand.
         const key = `${settings.sourceIds.join(",")}|${settings.targetBand}|${settings.maxTopics}`;
@@ -157,19 +167,19 @@ export function PdpBasisPicker({ userId, currentBand, selected, setSelected, onS
       <Card>
         <CardHeader className="flex flex-row flex-wrap items-baseline justify-between gap-2">
           <CardTitle className="text-base">1 · What is the plan based on?</CardTitle>
-          <span className="text-xs text-muted-foreground">Pick one or more. Every source becomes weighted signals on tech matrix topics.</span>
+          <span className="text-xs text-muted-foreground">The division&apos;s latest market report and the employee&apos;s gaps. Click a card to leave it out.</span>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {options.sources.map((s) => (
               <Tile key={s.id} active={sourceIds.includes(s.id)} onClick={() => toggleSource(s.id)}>
-                <div className="text-sm font-semibold">Market report</div>
+                <div className="text-sm font-semibold">Latest market report</div>
                 <div className="text-xs text-muted-foreground">
                   {s.title}
                   {s.meta?.requests ? ` · ${s.meta.requests} requests` : ""}
                 </div>
-                <Badge variant={s.status === "PUBLISHED" ? "success" : "secondary"} className="mt-2">
-                  {s.status === "PUBLISHED" ? "Published" : "Archived"}
+                <Badge variant="success" className="mt-2">
+                  Published
                 </Badge>
               </Tile>
             ))}

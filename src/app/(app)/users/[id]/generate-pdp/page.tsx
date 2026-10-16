@@ -48,7 +48,19 @@ export default function GeneratePdpForUserPage() {
   const [basisAvailable, setBasisAvailable] = useState<boolean | null>(assessmentIdParam ? false : null);
   const [basis, setBasis] = useState<BasisSettings | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const marketMode = !assessmentIdParam && basisAvailable === true;
+  // "market": ranked by the latest market report; "manual": a regular PDP,
+  // topics picked by hand from the whole matrix.
+  const [planMode, setPlanMode] = useState<"market" | "manual">("market");
+  const [pickerReset, setPickerReset] = useState(0);
+  const marketMode = !assessmentIdParam && basisAvailable === true && planMode === "market";
+
+  function switchMode(next: "market" | "manual") {
+    if (next === planMode) return;
+    setPlanMode(next);
+    setShowAll(false);
+    if (next === "manual") setSelected(new Set(options?.preselected ?? []));
+    else setPickerReset((n) => n + 1);
+  }
 
   // Only the employee's direct manager (or an admin) gets options; anyone else
   // sees the API's refusal.
@@ -198,6 +210,27 @@ export default function GeneratePdpForUserPage() {
           <span>·</span>
           <span>{user.email}</span>
         </div>
+        {!assessmentIdParam && basisAvailable && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {([
+              ["market", "Based on the market", "Topics ranked by the latest market report and the employee's gaps."],
+              ["manual", "Pick topics from the matrix", "A regular PDP: choose any topics of the division's matrix yourself."],
+            ] as const).map(([mode, title, body]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => switchMode(mode)}
+                className={[
+                  "rounded-xl border p-3 text-left transition-colors",
+                  planMode === mode ? "border-primary bg-primary/5 ring-1 ring-primary/40" : "hover:bg-muted/50",
+                ].join(" ")}
+              >
+                <div className="text-sm font-semibold">{title}</div>
+                <div className="text-xs text-muted-foreground">{body}</div>
+              </button>
+            ))}
+          </div>
+        )}
         {marketMode ? (
           <p className="mt-2 text-sm text-muted-foreground">
             Choose what the plan is based on; topics are ranked by client demand and the employee&apos;s gaps. The AI drafts
@@ -222,7 +255,7 @@ export default function GeneratePdpForUserPage() {
       </div>
 
       {!assessmentIdParam && (
-        <div className={basisAvailable ? "space-y-6" : "hidden"}>
+        <div className={marketMode ? "space-y-6" : "hidden"}>
           <PdpBasisPicker
             userId={userId}
             currentBand={baseGrade(user.grade)}
@@ -230,6 +263,7 @@ export default function GeneratePdpForUserPage() {
             setSelected={setSelected}
             onSettings={setBasis}
             onAvailability={setBasisAvailable}
+            resetKey={pickerReset}
           />
           <button type="button" className="text-sm text-primary hover:underline" onClick={() => setShowAll((v) => !v)}>
             {showAll ? "Hide the full matrix" : "Show all matrix topics"}

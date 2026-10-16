@@ -458,12 +458,15 @@ export async function isDivision(departmentId: string): Promise<boolean> {
 // PDP recommendations
 // ---------------------------------------------------------------------------
 
-/** Published (and archived) sources of a division — what a PDP can be based on. */
+/**
+ * What a PDP can be based on: the division's latest published report only —
+ * older ones are archived and no longer offered.
+ */
 export async function listBasisSources(departmentId: string) {
   const rows = await prisma.signalSource.findMany({
-    where: { departmentId, status: { in: ["PUBLISHED", "ARCHIVED"] } },
-    orderBy: [{ status: "desc" }, { periodTo: "desc" }, { createdAt: "desc" }],
-    take: 12,
+    where: { departmentId, status: "PUBLISHED" },
+    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+    take: 1,
     select: { id: true, title: true, status: true, periodFrom: true, periodTo: true, meta: true, publishedAt: true },
   });
   return rows;
