@@ -36,6 +36,15 @@ interface Proposal {
   targetMissing: boolean;
   affectedPeople: number;
   signals: Array<{ id: string; label: string; share: number | null; deltaPp: number | null; lowConfidence: boolean }>;
+  evidence: string[];
+}
+
+interface NotProposed {
+  id: string;
+  label: string;
+  share: number | null;
+  deltaPp: number | null;
+  reason: string;
 }
 
 interface SyncSource {
@@ -64,22 +73,19 @@ interface Props {
   onOpenCount?: (n: number) => void;
 }
 
-const GROUPS: Array<{ title: string; note: string; kinds: Kind[] }> = [
-  { title: "Add to the matrix", note: "What clients ask for that the matrix doesn't check yet.", kinds: ["ADD_SECTION", "ADD_TOPIC", "ADD_QUESTIONS"] },
-  { title: "Trend tags", note: "Shown as badges on the matrix and in the PDP picker. A tag never removes anything.", kinds: ["TAG_HOT", "TAG_COOLING"] },
-  {
-    title: "Consider removing",
-    note: "Obsolete or clearly fading content. Removing orphans employees' progress on it — accept only if you're sure.",
-    kinds: ["REMOVE_TOPIC", "REMOVE_QUESTIONS"],
-  },
-];
+// Additions first, then tags, then removals — the order a reviewer decides in.
+const KIND_ORDER: Kind[] = ["ADD_SECTION", "ADD_TOPIC", "ADD_QUESTIONS", "TAG_HOT", "TAG_COOLING", "REMOVE_TOPIC", "REMOVE_QUESTIONS"];
 
 export function MarketSyncPanel({ divisionId, divisionName, initialSourceId, onPublished, onOpenCount }: Props) {
   const { confirm, confirmDialog } = useConfirm();
   const [sources, setSources] = useState<SyncSource[] | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
   const [sourceId, setSourceId] = useState(initialSourceId ?? "");
-  const [data, setData] = useState<{ source: { proposalsStatus: string | null; proposalsError: string | null }; proposals: Proposal[] } | null>(null);
+  const [data, setData] = useState<{
+    source: { proposalsStatus: string | null; proposalsError: string | null };
+    proposals: Proposal[];
+    notProposed: NotProposed[];
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -211,126 +217,162 @@ export function MarketSyncPanel({ divisionId, divisionName, initialSourceId, onP
   }
 
   const generating = data?.source.proposalsStatus === "GENERATING";
-  const current = sources.find((s) => s.id === sourceId);
+  const sorted = [...open].sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind));
+  const ready = data?.source.proposalsStatus === "READY" && !generating;
+  const hasRemovals = open.some((p) => p.kind === "REMOVE_TOPIC" || p.kind === "REMOVE_QUESTIONS");
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 py-4 text-sm">
-          <span className="text-muted-foreground">
-            Market sync — editing <b className="text-foreground">{divisionName}</b> against
-          </span>
-          <select className="h-8 rounded-lg border bg-background px-2" value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
-            {sources.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title} · {s.status === "IN_REVIEW" ? "in review" : s.status.toLowerCase()}
-              </option>
-            ))}
-          </select>
-          <Button size="sm" variant={open.length ? "outline" : "default"} disabled={busy || generating} onClick={draft}>
-            {generating ? "Drafting…" : open.length || data?.source.proposalsStatus ? "Redraft proposals" : "Draft proposals"}
-          </Button>
-          {current && (
-            <Link href={`/market-signals/${current.id}`} className="text-xs text-primary hover:underline">
-              Open report
-            </Link>
-          )}
-          <span className="ml-auto text-xs text-muted-foreground">Weight = 0.6 × month + 0.4 × 12 mo</span>
-        </CardContent>
-      </Card>
-
-      <div className="rounded-lg border bg-muted/40 p-3 text-sm">
-        Proposals are a draft. Accepted ones are published together as a new matrix version; progress on everything that stays is
-        kept. A falling signal only proposes a <b>Cooling</b> tag — removals are proposed only for clearly obsolete content.
-        <span className="float-right font-medium">
-          Accepted {accepted} / {open.length}
+      <div className="-mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+        <span>
+          Market sync — editing <b className="text-foreground">{divisionName}</b> against
         </span>
+        <select
+          className="-ml-1 cursor-pointer rounded bg-transparent px-1 font-medium text-primary hover:bg-primary/10 focus:outline-none"
+          value={sourceId}
+          onChange={(e) => setSourceId(e.target.value)}
+          aria-label="Market report"
+        >
+          {sources.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.title}
+              {s.status === "IN_REVIEW" ? " (in review)" : s.status === "ARCHIVED" ? " (archived)" : ""}
+            </option>
+          ))}
+        </select>
+        {data?.source.proposalsStatus && (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:opacity-50"
+            disabled={busy || generating}
+            onClick={draft}
+          >
+            {generating ? "Drafting…" : "Redraft"}
+          </button>
+        )}
       </div>
 
-      {generating && <p className="text-sm text-muted-foreground">The AI is reading the report against the matrix… this takes up to a minute.</p>}
-      {data?.source.proposalsStatus === "FAILED" && data.source.proposalsError && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{data.source.proposalsError}</div>
-      )}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+        <p className="min-w-0 flex-1">
+          Proposals are a draft. Accepted ones are published together as a new matrix version; existing progress is kept. A falling
+          signal only gets a <b>Cooling</b> tag; removals are proposed only for clearly obsolete content.
+        </p>
+        <span className="rounded-full border bg-background px-2.5 py-0.5 text-xs">
+          Accepted {accepted} / {open.length}
+        </span>
+        <span className="rounded-full border bg-background px-2.5 py-0.5 text-xs">Weight = 0.6 × month + 0.4 × 12 mo</span>
+      </div>
+
       {error && <p className="text-sm text-destructive">{error}</p>}
-      {notice && <div className="rounded-lg border border-success/30 bg-success/10 p-3 text-sm">{notice}</div>}
-      {!generating && data && !data.source.proposalsStatus && (
-        <p className="text-sm text-muted-foreground">No proposals for this report yet — press “Draft proposals”.</p>
-      )}
-      {!generating && data?.source.proposalsStatus === "READY" && open.length === 0 && (
-        <p className="text-sm text-muted-foreground">Nothing open — every proposal of this report is published, or none were found.</p>
+      {notice && <div className="rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">{notice}</div>}
+      {data?.source.proposalsStatus === "FAILED" && data.source.proposalsError && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">{data.source.proposalsError}</div>
       )}
 
-      {GROUPS.map((g) => {
-        const items = open.filter((p) => g.kinds.includes(p.kind));
-        const ready = data?.source.proposalsStatus === "READY" && !generating && open.length > 0;
-        if (!items.length && !(ready && g.kinds.includes("REMOVE_TOPIC"))) return null;
-        return (
-          <section key={g.title} className="space-y-2">
-            <div>
-              <h3 className="text-sm font-semibold">{g.title}</h3>
-              <p className="text-xs text-muted-foreground">{g.note}</p>
-            </div>
-            {items.length === 0 && (
-              <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                Nothing looks obsolete against this report. Topics the report doesn&apos;t mention aren&apos;t proposed for removal —
-                silence in one month&apos;s requests isn&apos;t evidence. Remove by hand in Edit if needed.
-              </p>
-            )}
-            {items.map((p) => (
-              <ProposalCard key={p.id} p={p} busy={busy} onState={(s) => setState(p, s)} onSave={(b) => patch(p.id, b)} />
-            ))}
-          </section>
-        );
-      })}
+      {generating ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            The AI is reading the report against the matrix… this takes up to a minute.
+          </CardContent>
+        </Card>
+      ) : data && !data.source.proposalsStatus ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <p className="text-sm text-muted-foreground">No proposals for this report yet.</p>
+            <Button className="bg-success text-success-foreground hover:bg-success/90" disabled={busy} onClick={draft}>
+              Draft proposals
+            </Button>
+          </CardContent>
+        </Card>
+      ) : ready && open.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-sm text-muted-foreground">
+            Nothing open — every proposal of this report is published, or none were found.
+          </CardContent>
+        </Card>
+      ) : null}
 
-      {open.length > 0 && (
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t pt-4">
-          <span className="text-xs text-muted-foreground">Publishing creates a new version of the {divisionName} matrix and links it to this report.</span>
-          <Button disabled={busy || accepted === 0} onClick={publish}>
+      {!generating &&
+        sorted.map((p) => <ProposalCard key={p.id} p={p} busy={busy} onState={(st) => setState(p, st)} onSave={(b) => patch(p.id, b)} />)}
+
+      {ready && (data?.notProposed.length || !hasRemovals) ? (
+        <Card>
+          <CardContent className="space-y-2 py-5">
+            <div className="text-base font-semibold">Not proposed</div>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              {data?.notProposed.map((n) => (
+                <li key={n.id}>
+                  <b className="text-foreground">{n.label}</b>
+                  {n.share != null ? ` · ${pct(n.share)}` : ""}
+                  {n.deltaPp != null ? `, ${n.deltaPp > 0 ? "+" : ""}${n.deltaPp.toFixed(1)} pp` : ""} — {n.reason}
+                </li>
+              ))}
+              {!hasRemovals && (
+                <li>
+                  <b className="text-foreground">Removals</b> — nothing in the matrix looks obsolete against this report. Silence in one
+                  month&apos;s requests isn&apos;t evidence; remove by hand in Edit if needed.
+                </li>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {open.length > 0 && !generating && (
+        <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+          <span className="text-sm text-muted-foreground">
+            Publishing creates a new version of the {divisionName} matrix and links it to this report.
+          </span>
+          <Button className="bg-success text-success-foreground hover:bg-success/90" disabled={busy || accepted === 0} onClick={publish}>
             Publish new version{accepted ? ` · ${accepted}` : ""}
           </Button>
         </div>
       )}
 
       {versions.length > 0 && (
-        <Card>
-          <CardContent className="space-y-1 py-4 text-sm">
-            <div className="font-medium">Matrix versions</div>
-            {versions.map((v) => (
-              <div key={v.id} className="text-xs text-muted-foreground">
-                <span className="font-mono text-foreground">v{v.number}</span> · {new Date(v.createdAt).toLocaleDateString()}
-                {v.source ? ` · from ${v.source.title}` : ""}
-                {v.createdBy ? ` · ${v.createdBy.name}` : ""} · {v.summary.length} change{v.summary.length === 1 ? "" : "s"}:{" "}
-                {v.summary.slice(0, 4).map((s) => s.title).join(", ")}
-                {v.summary.length > 4 ? "…" : ""}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="space-y-1 border-t pt-4 text-xs text-muted-foreground">
+          <div className="font-medium text-foreground">Matrix versions</div>
+          {versions.map((v) => (
+            <div key={v.id}>
+              <span className="font-mono text-foreground">v{v.number}</span> · {new Date(v.createdAt).toLocaleDateString()}
+              {v.source ? ` · from ${v.source.title}` : ""}
+              {v.createdBy ? ` · ${v.createdBy.name}` : ""} · {v.summary.length} change{v.summary.length === 1 ? "" : "s"}:{" "}
+              {v.summary.slice(0, 4).map((x) => x.title).join(", ")}
+              {v.summary.length > 4 ? "…" : ""}
+            </div>
+          ))}
+        </div>
       )}
       {confirmDialog}
     </div>
   );
 }
 
-function kindLabel(p: Proposal): string {
+function kindPill(p: Proposal): { label: string; context: string; tone: "info" | "warning" | "muted" | "destructive" } {
   switch (p.kind) {
     case "ADD_SECTION":
-      return p.section ? `New section · after ${p.section.title}` : "New section";
+      return { label: "New section", context: p.section ? `after ${p.section.title}` : "at the end", tone: "info" };
     case "ADD_TOPIC":
-      return `New topic · ${p.section?.title ?? "?"}`;
+      return { label: "New topic", context: p.section?.title ?? "", tone: "info" };
     case "ADD_QUESTIONS":
-      return `Add questions · ${p.topic ? `${p.topic.sectionTitle} › ${p.topic.title}` : "?"}`;
-    case "REMOVE_TOPIC":
-      return `Remove topic · ${p.topic?.sectionTitle ?? "?"}`;
-    case "REMOVE_QUESTIONS":
-      return `Remove questions · ${p.topic ? `${p.topic.sectionTitle} › ${p.topic.title}` : "?"}`;
+      return { label: "Add questions", context: p.topic ? `${p.topic.sectionTitle} › ${p.topic.title}` : "", tone: "info" };
     case "TAG_HOT":
-      return "Priority tag · Hot";
+      return { label: "Priority tag · Hot", context: p.topic?.sectionTitle ?? "", tone: "warning" };
     case "TAG_COOLING":
-      return "Trend tag · Cooling";
+      return { label: "Trend tag · Cooling", context: p.topic?.sectionTitle ?? "", tone: "muted" };
+    case "REMOVE_TOPIC":
+      return { label: "Remove topic", context: p.topic?.sectionTitle ?? "", tone: "destructive" };
+    case "REMOVE_QUESTIONS":
+      return { label: "Remove questions", context: p.topic ? `${p.topic.sectionTitle} › ${p.topic.title}` : "", tone: "destructive" };
   }
 }
+
+const PILL_TONE = {
+  info: "border-info/30 bg-info/10 text-info",
+  warning: "border-warning/50 bg-warning/20 text-warning-foreground dark:text-warning",
+  muted: "border-border bg-muted text-muted-foreground",
+  destructive: "border-destructive/30 bg-destructive/10 text-destructive",
+} as const;
 
 function headline(p: Proposal): string {
   if (p.kind === "ADD_SECTION" || p.kind === "ADD_TOPIC") return p.title ?? "Untitled";
@@ -351,37 +393,43 @@ function ProposalCard({
   const [editing, setEditing] = useState(false);
   const editable = p.kind === "ADD_SECTION" || p.kind === "ADD_TOPIC" || p.kind === "ADD_QUESTIONS";
   const removal = p.kind === "REMOVE_TOPIC" || p.kind === "REMOVE_QUESTIONS";
-
-  const tone =
-    p.state === "ACCEPTED" ? "border-success/50 bg-success/5" : p.state === "REJECTED" ? "opacity-60" : removal ? "border-destructive/30" : "";
+  const pill = kindPill(p);
 
   return (
-    <Card className={tone}>
-      <CardContent className="space-y-3 py-4">
-        <div className="flex flex-wrap items-start gap-2">
+    <Card className={p.state === "ACCEPTED" ? "ring-2 ring-success/50" : p.state === "REJECTED" ? "opacity-55" : ""}>
+      <CardContent className="space-y-4 px-6 py-5">
+        <div className="flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-xs text-muted-foreground">{kindLabel(p)}</div>
-            <div className="text-base font-semibold">{headline(p)}</div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className={`rounded-full border px-2 py-0.5 font-medium ${PILL_TONE[pill.tone]}`}>{pill.label}</span>
+              {pill.context && <span className="text-muted-foreground">{pill.context}</span>}
+            </div>
+            <h3 className="mt-1.5 text-lg font-semibold leading-tight">{headline(p)}</h3>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {p.state === "PENDING" ? (
               <>
-                <Button size="sm" variant="ghost" disabled={busy} onClick={() => onState("REJECTED")}>
+                <Button variant="outline" disabled={busy} onClick={() => onState("REJECTED")}>
                   Reject
                 </Button>
                 {editable && (
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => setEditing((v) => !v)}>
+                  <Button variant="outline" disabled={busy} onClick={() => setEditing((v) => !v)}>
                     Edit
                   </Button>
                 )}
-                <Button size="sm" variant={removal ? "destructive" : "default"} disabled={busy || p.targetMissing} onClick={() => onState("ACCEPTED")}>
+                <Button
+                  className={removal ? "" : "bg-success text-success-foreground hover:bg-success/90"}
+                  variant={removal ? "destructive" : "default"}
+                  disabled={busy || p.targetMissing}
+                  onClick={() => onState("ACCEPTED")}
+                >
                   Accept
                 </Button>
               </>
             ) : (
               <>
                 <Badge variant={p.state === "ACCEPTED" ? "success" : "secondary"}>{p.state === "ACCEPTED" ? "Accepted" : "Rejected"}</Badge>
-                <Button size="sm" variant="ghost" disabled={busy} onClick={() => onState("PENDING")}>
+                <Button variant="ghost" disabled={busy} onClick={() => onState("PENDING")}>
                   Undo
                 </Button>
               </>
@@ -407,14 +455,19 @@ function ProposalCard({
           <ProposalBody p={p} />
         )}
 
-        {p.signals.length > 0 && (
+        {(p.signals.length > 0 || p.evidence.length > 0) && (
           <div className="flex flex-wrap gap-1.5">
             {p.signals.map((s) => (
-              <Badge key={s.id} variant="info">
+              <span key={s.id} className="rounded-full border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
                 {s.label} {pct(s.share)}
-                {s.deltaPp != null ? ` · ${s.deltaPp > 0 ? "+" : ""}${s.deltaPp.toFixed(1)}` : ""}
+                {s.deltaPp != null ? ` · ${s.deltaPp > 0 ? "+" : "−"}${Math.abs(s.deltaPp).toFixed(1)}` : ""}
                 {s.lowConfidence ? " · low conf." : ""}
-              </Badge>
+              </span>
+            ))}
+            {p.evidence.map((id) => (
+              <span key={id} className="rounded-full border bg-background px-2 py-0.5 font-mono text-[11px] text-muted-foreground">
+                {id}
+              </span>
             ))}
           </div>
         )}
@@ -423,25 +476,37 @@ function ProposalCard({
   );
 }
 
-function BandColumns({ skills, sign, existing }: { skills: Partial<Record<Band, string[]>>; sign: "+" | "−"; existing?: Partial<Record<Band, string[]>> }) {
+function SkillChip({ text, sign }: { text: string; sign: "+" | "−" }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <span
+      className={
+        sign === "+"
+          ? "inline-flex rounded-full border border-dashed border-info/50 bg-info/5 px-2.5 py-0.5 text-xs text-info"
+          : "inline-flex rounded-full border border-dashed border-destructive/50 bg-destructive/5 px-2.5 py-0.5 text-xs text-destructive line-through"
+      }
+    >
+      {sign}
+      {text}
+    </span>
+  );
+}
+
+function BandColumns({ skills, sign, existing }: { skills: Partial<Record<Band, string[]>>; sign: "+" | "−"; existing?: boolean }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
       {BANDS.map((b) => {
         const list = skills[b] ?? [];
         return (
-          <div key={b}>
-            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{BAND_LABEL[b]}</div>
+          <div key={b} className="min-h-24 rounded-xl border p-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{BAND_LABEL[b]}</div>
             {list.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{existing ? "no change" : "not expected at this level"}</p>
+              <p className="mt-2 text-xs text-muted-foreground">{existing ? "no change" : "not expected at this level"}</p>
             ) : (
-              <ul className="mt-0.5 space-y-0.5 text-sm">
-                {list.map((s) => (
-                  <li key={s} className={sign === "+" ? "text-success" : "text-destructive line-through"}>
-                    <span className="mr-1 font-mono">{sign}</span>
-                    <span className={sign === "+" ? "text-foreground" : ""}>{s}</span>
-                  </li>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {list.map((x) => (
+                  <SkillChip key={x} text={x} sign={sign} />
                 ))}
-              </ul>
+              </div>
             )}
           </div>
         );
@@ -454,10 +519,10 @@ function ProposalBody({ p }: { p: Proposal }) {
   switch (p.kind) {
     case "ADD_SECTION":
       return (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {(p.payload.topics ?? []).map((t) => (
-            <div key={t.title} className="rounded-lg border p-3">
-              <div className="mb-2 text-sm font-medium">{t.title}</div>
+            <div key={t.title} className="space-y-2">
+              <div className="text-sm font-semibold">{t.title}</div>
               <BandColumns skills={t} sign="+" />
             </div>
           ))}
@@ -466,16 +531,11 @@ function ProposalBody({ p }: { p: Proposal }) {
     case "ADD_TOPIC":
       return <BandColumns skills={p.payload} sign="+" />;
     case "ADD_QUESTIONS":
-      return <BandColumns skills={p.payload} sign="+" existing={p.topic ?? {}} />;
+      return <BandColumns skills={p.payload} sign="+" existing />;
     case "REMOVE_QUESTIONS":
-      return <BandColumns skills={p.payload} sign="−" existing={p.topic ?? {}} />;
+      return <BandColumns skills={p.payload} sign="−" existing />;
     case "REMOVE_TOPIC":
-      return p.topic ? (
-        <p className="text-xs text-muted-foreground">
-          Removes {BANDS.reduce((a, b) => a + p.topic![b].length, 0)} questions: {BANDS.flatMap((b) => p.topic![b]).slice(0, 8).join(", ")}
-          {BANDS.reduce((a, b) => a + p.topic![b].length, 0) > 8 ? "…" : ""}
-        </p>
-      ) : null;
+      return p.topic ? <BandColumns skills={p.topic} sign="−" existing /> : null;
     default:
       return null;
   }
@@ -514,12 +574,12 @@ function ProposalEditor({ p, onCancel, onSave }: { p: Proposal; onCancel: () => 
   }
 
   const bandAreas = (value: Record<Band, string>, set: (b: Band, v: string) => void) => (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-3">
       {BANDS.map((b) => (
-        <label key={b} className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          {BAND_LABEL[b]} — one per line
+        <label key={b} className="rounded-xl border bg-background p-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {BAND_LABEL[b]} <span className="font-normal normal-case tracking-normal">— one per line</span>
           <textarea
-            className="mt-1 min-h-24 w-full rounded-lg border bg-background p-2 text-sm font-normal normal-case tracking-normal text-foreground"
+            className="mt-2 min-h-24 w-full resize-y rounded-lg border bg-background p-2 text-sm font-normal normal-case tracking-normal text-foreground"
             value={value[b]}
             onChange={(e) => set(b, e.target.value)}
           />
@@ -529,13 +589,13 @@ function ProposalEditor({ p, onCancel, onSave }: { p: Proposal; onCancel: () => 
   );
 
   return (
-    <div className="space-y-3 rounded-lg border bg-muted/30 p-3">
+    <div className="space-y-3 rounded-xl bg-muted/40 p-3">
       {(p.kind === "ADD_SECTION" || p.kind === "ADD_TOPIC") && (
         <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={p.kind === "ADD_SECTION" ? "Section title" : "Topic title"} />
       )}
       {p.kind === "ADD_SECTION"
         ? topics.map((t, i) => (
-            <div key={i} className="space-y-2 rounded-lg border bg-background p-3">
+            <div key={i} className="space-y-2">
               <Input
                 value={t.title}
                 placeholder="Topic title (empty = drop this topic)"
@@ -546,10 +606,10 @@ function ProposalEditor({ p, onCancel, onSave }: { p: Proposal; onCancel: () => 
           ))
         : bandAreas(bands, (b, v) => setBands((prev) => ({ ...prev, [b]: v })))}
       <div className="flex gap-2">
-        <Button size="sm" onClick={save}>
+        <Button className="bg-success text-success-foreground hover:bg-success/90" onClick={save}>
           Save
         </Button>
-        <Button size="sm" variant="ghost" onClick={onCancel}>
+        <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>
       </div>

@@ -287,7 +287,11 @@ export async function listProposals(sourceId: string) {
   const [rows, matrix, signals] = await Promise.all([
     prisma.matrixProposal.findMany({ where: { sourceId }, orderBy: { order: "asc" } }),
     loadTechMatrix(source.departmentId),
-    prisma.signal.findMany({ where: { sourceId }, select: { id: true, label: true, share: true, baseline: true, sampleN: true } }),
+    prisma.signal.findMany({
+      where: { sourceId },
+      orderBy: { order: "asc" },
+      select: { id: true, label: true, kind: true, share: true, baseline: true, sampleN: true, evidence: true, mappingState: true, rationale: true },
+    }),
   ]);
   const sections = new Map(matrix.sections.map((s) => [s.id, s]));
   const topicSection = new Map(matrix.sections.flatMap((s) => s.topics.map((t) => [t.id, { topic: t, section: s }] as const)));
@@ -319,8 +323,34 @@ export async function listProposals(sourceId: string) {
           const s = signalById.get(id);
           return s ? [{ id: s.id, label: s.label, share: s.share, deltaPp: deltaPp(s), lowConfidence: isLowConfidence(s) }] : [];
         }),
+        evidence: [
+          ...new Set(
+            r.signalIds.flatMap((id) => {
+              const ev = signalById.get(id)?.evidence;
+              return Array.isArray(ev) ? ev.flatMap((e) => (typeof (e as { requestId?: unknown })?.requestId === "string" ? [(e as { requestId: string }).requestId] : [])) : [];
+            })
+          ),
+        ],
       };
     }),
+    // What the report asked for that no proposal acts on, and why.
+    notProposed: (() => {
+      const used = new Set(rows.flatMap((r) => r.signalIds));
+      return signals
+        .filter((s) => !used.has(s.id) && (s.mappingState === "OUT_OF_SCOPE" || (s.mappingState === "PROPOSAL" && isLowConfidence(s))))
+        .map((s) => ({
+          id: s.id,
+          label: s.label,
+          share: s.share,
+          deltaPp: deltaPp(s),
+          reason:
+            s.kind === "constraint"
+              ? "hiring condition, kept for staffing reports"
+              : s.mappingState === "OUT_OF_SCOPE"
+                ? s.rationale ?? "outside this division's matrix"
+                : `low confidence — ${s.sampleN} request${s.sampleN === 1 ? "" : "s"}`,
+        }));
+    })(),
   };
 }
 

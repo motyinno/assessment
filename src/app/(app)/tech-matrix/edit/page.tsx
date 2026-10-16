@@ -256,7 +256,7 @@ export default function TechMatrixEditPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Edit tech matrix</h1>
-          <p className="page-subtitle mt-1">
+          {mode !== "sync" && <p className="page-subtitle mt-1">
             Add, rename, or remove sections, topics, and questions. Deleting an
             item orphans (but never deletes) users' existing progress on it.
             {/* The division actually on screen — a super-admin opens on their
@@ -265,7 +265,7 @@ export default function TechMatrixEditPage() {
             {selectedDivisionName && (
               <> — editing <strong>{selectedDivisionName}</strong>.</>
             )}
-          </p>
+          </p>}
           {isSuperAdmin && divisions.length > 0 && (
             <div className="mt-2">
               <Select value={divisionId} onValueChange={(v) => v && setDivisionId(v)}>
@@ -308,7 +308,9 @@ export default function TechMatrixEditPage() {
             onClick={() => setMode("sync")}
           >
             Market sync
-            {openProposals > 0 && <Badge variant="default" className="ml-1">{openProposals}</Badge>}
+            {openProposals > 0 && (
+              <span className="ml-1 rounded-full border border-primary/30 px-1.5 text-[11px] leading-4 text-primary">{openProposals}</span>
+            )}
           </Button>
         </div>
       </div>
