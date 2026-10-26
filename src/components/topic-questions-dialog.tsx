@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { HEAT_CLASS, heatOf } from "@/components/interview-stats";
 
@@ -48,7 +47,6 @@ export function TopicQuestionsDialog({
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [band, setBand] = useState<Band | "all">("all");
   const [kind, setKind] = useState<"all" | "THEORY" | "EXPERIENCE">("all");
-  const [q, setQ] = useState("");
   const focusRef = useRef<HTMLDivElement | null>(null);
   const topicId = topic?.id;
 
@@ -57,7 +55,6 @@ export function TopicQuestionsDialog({
     setQuestions(null);
     setBand("all");
     setKind("all");
-    setQ("");
     const controller = new AbortController();
     fetch(`/api/tech-matrix/topics/${encodeURIComponent(topicId)}/questions?limit=300`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
@@ -74,16 +71,15 @@ export function TopicQuestionsDialog({
   }, [topic]);
 
   const visible = useMemo(() => {
-    const needle = q.trim().toLowerCase();
     return (questions ?? []).filter((x) => {
       if (kind !== "all" && x.kind !== kind) return false;
       if (band !== "all") {
         const b = (x.skill && skillBand.get(x.skill)) || x.band;
         if (b !== band) return false;
       }
-      return !needle || x.text.toLowerCase().includes(needle);
+      return true;
     });
-  }, [questions, kind, band, q, skillBand]);
+  }, [questions, kind, band, skillBand]);
 
   // Groups in matrix order (Junior → Senior skills), then the unmapped ones.
   const groups = useMemo(() => {
@@ -103,8 +99,16 @@ export function TopicQuestionsDialog({
     return ordered;
   }, [visible, skillBand]);
 
+  // Scroll the dialog itself to the clicked skill once it has opened: the
+  // dialog moves focus to its first control on open, which resets the scroll.
   useEffect(() => {
-    if (questions && focusSkill) focusRef.current?.scrollIntoView({ block: "start" });
+    if (!questions || !focusSkill) return;
+    const t = setTimeout(() => {
+      const el = focusRef.current;
+      const box = el?.closest<HTMLElement>("[role=dialog]");
+      if (el && box) box.scrollTo({ top: el.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop - 12 });
+    }, 400);
+    return () => clearTimeout(t);
   }, [questions, focusSkill]);
 
   const total = questions?.length ?? 0;
@@ -125,18 +129,41 @@ export function TopicQuestionsDialog({
 
             {total > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <Input className="h-8 w-48" placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
-                {(["all", ...BANDS] as const).map((b) => (
-                  <button key={b} type="button" className={pill(band === b)} onClick={() => setBand(b)}>
-                    {b === "all" ? "All levels" : BAND_LABEL[b]}
+                {BANDS.map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    aria-pressed={band === b}
+                    className={pill(band === b)}
+                    onClick={() => setBand((cur) => (cur === b ? "all" : b))}
+                  >
+                    {BAND_LABEL[b]}
                   </button>
                 ))}
                 <span className="mx-1 h-4 w-px bg-border" />
-                {(["all", "THEORY", "EXPERIENCE"] as const).map((k) => (
-                  <button key={k} type="button" className={pill(kind === k)} onClick={() => setKind(k)}>
-                    {k === "all" ? "All" : k === "THEORY" ? "Theory" : "Your experience"}
+                {(["THEORY", "EXPERIENCE"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={kind === k}
+                    className={pill(kind === k)}
+                    onClick={() => setKind((cur) => (cur === k ? "all" : k))}
+                  >
+                    {k === "THEORY" ? "Theory" : "Your experience"}
                   </button>
                 ))}
+                {(band !== "all" || kind !== "all") && (
+                  <button
+                    type="button"
+                    className="ml-1 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                    onClick={() => {
+                      setBand("all");
+                      setKind("all");
+                    }}
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
             )}
 
@@ -144,40 +171,50 @@ export function TopicQuestionsDialog({
               <p className="text-sm text-muted-foreground">{total ? "Nothing matches the filters." : "No interview questions for this topic yet."}</p>
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               {groups.map((g) => {
                 const heat = g.skill ? heatOf(g.asked, oftenAsked) : null;
                 const focused = !!focusSkill && g.skill === focusSkill;
                 return (
-                  <div key={g.skill ?? "__other"} ref={focused ? focusRef : undefined} className={cn("space-y-1.5 rounded-lg", focused && "ring-2 ring-primary/40 p-2 -m-2")}>
-                    <div className="flex items-center gap-2 text-sm font-medium">
+                  <section
+                    key={g.skill ?? "__other"}
+                    ref={focused ? focusRef : undefined}
+                    className={cn("scroll-mt-2 rounded-xl border p-3", focused ? "border-primary/40 bg-primary/5" : "bg-card")}
+                  >
+                    <header className="mb-2 flex flex-wrap items-center gap-2">
                       {g.skill ? (
                         <>
                           <span className={cn("h-2 w-2 shrink-0 rounded-full", BAND_DOT[g.band])} />
-                          <span className={cn("rounded-sm px-1", heat && HEAT_CLASS[heat])}>{g.skill}</span>
-                          <span className="text-xs font-normal text-muted-foreground">
+                          <span className={cn("rounded px-1.5 py-0.5 text-sm font-medium", heat ? HEAT_CLASS[heat] : "bg-muted")}>{g.skill}</span>
+                          <span className="text-xs text-muted-foreground">
                             {BAND_LABEL[g.band]} · asked {g.asked}×
                           </span>
                         </>
                       ) : (
-                        <span className="text-muted-foreground">Other questions on this topic</span>
+                        <span className="text-sm font-medium text-muted-foreground">Other questions on this topic</span>
                       )}
-                    </div>
-                    <ul className="space-y-1 pl-4">
+                    </header>
+                    <ul className="divide-y divide-border/60">
                       {g.items.map((x) => (
-                        <li key={x.id} className="flex items-start gap-2 text-[13px] leading-relaxed">
-                          <span className="mt-[8px] h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />
-                          <span className="flex-1">
+                        <li key={x.id} className="flex items-start justify-between gap-3 py-1.5 text-[13px] leading-snug">
+                          <span className="min-w-0">
                             {x.text}
-                            <span className="ml-1.5 whitespace-nowrap text-[11px] text-muted-foreground">
-                              {x.kind === "EXPERIENCE" ? "· about your experience" : ""}
-                              {x.timesAsked > 1 ? ` · asked ${x.timesAsked}×` : ""}
-                            </span>
+                            {x.kind === "EXPERIENCE" && (
+                              <span className="ml-1.5 whitespace-nowrap text-[11px] text-muted-foreground">about your experience</span>
+                            )}
                           </span>
+                          {x.timesAsked > 1 && (
+                            <span
+                              className="mt-px shrink-0 rounded-full bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground"
+                              title={`Asked ${x.timesAsked} times`}
+                            >
+                              {x.timesAsked}×
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </section>
                 );
               })}
             </div>
