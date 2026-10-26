@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { OftenAskedMark } from "@/components/interview-stats";
+import { HEAT_CLASS, heatOf, heatTitle } from "@/components/interview-stats";
 
 const BAND_DOT: Record<Grade, string> = {
   jun: "bg-emerald-400",
@@ -168,10 +168,16 @@ export function RoadmapNodeDetail({
                         >
                           {checked && <Check className="h-3 w-3" strokeWidth={3} />}
                         </span>
-                        <span className={cn(checked ? "text-muted-foreground line-through" : "text-foreground/85")}>
+                        <span
+                          title={heatTitle(skillCounts[skill] ?? 0)}
+                          className={cn(
+                            "rounded-sm px-1 -mx-1",
+                            checked ? "text-muted-foreground line-through" : "text-foreground/85",
+                            !checked && heatOf(skillCounts[skill] ?? 0) && HEAT_CLASS[heatOf(skillCounts[skill] ?? 0)!]
+                          )}
+                        >
                           {skill}
                         </span>
-                        <OftenAskedMark count={skillCounts[skill] && skillCounts[skill] >= 3 ? skillCounts[skill] : null} />
                       </button>
                     </li>
                   );
