@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { RoadmapView } from "@/components/roadmap-view";
+import { TopicQuestionsDialog, type DialogTopic } from "@/components/topic-questions-dialog";
 import {
   HEAT_CLASS,
   HEAT_DOT,
@@ -89,6 +90,7 @@ export default function TechMatrixPage() {
     });
   }
   const sortByAsked = askedFirst && hasInterviewData;
+  const [questionsFor, setQuestionsFor] = useState<{ topic: DialogTopic; skill: string | null } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -398,7 +400,11 @@ export default function TechMatrixPage() {
                         {/* Topic name */}
                         <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex flex-col items-start gap-1">
                           <span className="text-[13px] font-medium text-foreground leading-snug">{topic.title}</span>
-                          <TopicAskedBadge stats={interview} topicId={topic.id} />
+                          <TopicAskedBadge
+                            stats={interview}
+                            topicId={topic.id}
+                            onClick={() => setQuestionsFor({ topic, skill: null })}
+                          />
                         </div>
 
                         {/* Grade columns */}
@@ -411,6 +417,7 @@ export default function TechMatrixPage() {
                             topicId={topic.id}
                             interview={interview}
                             sortByAsked={sortByAsked}
+                            onOpenSkill={(skill) => setQuestionsFor({ topic, skill })}
                           />
                         )}
                         {showMid && (
@@ -422,6 +429,7 @@ export default function TechMatrixPage() {
                             topicId={topic.id}
                             interview={interview}
                             sortByAsked={sortByAsked}
+                            onOpenSkill={(skill) => setQuestionsFor({ topic, skill })}
                           />
                         )}
                         {showSen && (
@@ -433,6 +441,7 @@ export default function TechMatrixPage() {
                             topicId={topic.id}
                             interview={interview}
                             sortByAsked={sortByAsked}
+                            onOpenSkill={(skill) => setQuestionsFor({ topic, skill })}
                           />
                         )}
                       </div>
@@ -446,6 +455,12 @@ export default function TechMatrixPage() {
       )}
         </>
       )}
+      <TopicQuestionsDialog
+        topic={questionsFor?.topic ?? null}
+        focusSkill={questionsFor?.skill}
+        oftenAsked={interview.oftenAsked}
+        onClose={() => setQuestionsFor(null)}
+      />
     </div>
   );
 }
@@ -458,6 +473,7 @@ function GradeColumn({
   topicId,
   interview,
   sortByAsked,
+  onOpenSkill,
 }: {
   skills: string[];
   grade: string;
@@ -466,6 +482,7 @@ function GradeColumn({
   topicId: string;
   interview: InterviewStats;
   sortByAsked: boolean;
+  onOpenSkill: (skill: string) => void;
 }) {
   const q = search.toLowerCase().trim();
 
@@ -490,10 +507,11 @@ function GradeColumn({
             return (
               <li
                 key={i}
-                title={heatTitle(count)}
+                title={count ? `${heatTitle(count)} — click to see the questions` : undefined}
+                onClick={count ? () => onOpenSkill(skill) : undefined}
                 className={`flex items-start gap-2 text-[12px] leading-relaxed rounded-sm px-1 py-0.5 -mx-1 ${
                   isHighlighted ? highlightBg : heat ? HEAT_CLASS[heat] : "text-foreground/80"
-                }`}
+                } ${count ? "cursor-pointer hover:brightness-95 hover:underline underline-offset-2" : ""}`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${heat ? HEAT_DOT[heat] : dotColor} mt-[5px] shrink-0`} />
                 {skill}

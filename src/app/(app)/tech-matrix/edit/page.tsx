@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { HEAT_CLASS, HeatLegend, TopicAskedBadge, heatOf, heatTitle, skillCount, useInterviewStats } from "@/components/interview-stats";
+import { TopicQuestionsDialog, type DialogTopic } from "@/components/topic-questions-dialog";
 
 interface Topic {
   id: string;
@@ -99,6 +100,7 @@ export default function TechMatrixEditPage() {
   }, [divisionId, reload]);
 
   const interview = useInterviewStats(divisionId || null);
+  const [questionsFor, setQuestionsFor] = useState<DialogTopic | null>(null);
 
   // ---- Section mutations ----
   async function addSection() {
@@ -367,7 +369,7 @@ export default function TechMatrixEditPage() {
                           renameTopic(topic.id, e.target.value.trim())
                         }
                       />
-                      <TopicAskedBadge stats={interview} topicId={topic.id} />
+                      <TopicAskedBadge stats={interview} topicId={topic.id} onClick={() => setQuestionsFor(topic)} />
                       <Button
                         variant="ghost"
                         size="sm"
@@ -478,6 +480,7 @@ export default function TechMatrixEditPage() {
         ))
       )}
 
+      <TopicQuestionsDialog topic={questionsFor} oftenAsked={interview.oftenAsked} onClose={() => setQuestionsFor(null)} />
       {confirmDialog}
     </div>
   );

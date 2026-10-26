@@ -71,17 +71,23 @@ export function byAsked<T>(items: T[], count: (item: T) => number): T[] {
     .map((x) => x.item);
 }
 
-/** "N interview questions" under a topic title. */
-export function TopicAskedBadge({ stats, topicId }: { stats: InterviewStats; topicId: string }) {
+/** "N interview questions" under a topic title; a button when `onClick` is given. */
+export function TopicAskedBadge({ stats, topicId, onClick }: { stats: InterviewStats; topicId: string; onClick?: () => void }) {
   const t = stats.topics[topicId];
   if (!t) return null;
+  const cls =
+    "inline-flex items-center rounded-full bg-orange-500/10 px-2 text-[10px] font-medium leading-5 text-orange-700 dark:text-orange-300";
+  const label = `${t.questions} interview question${t.questions === 1 ? "" : "s"}`;
+  if (!onClick) return <span className={cls} title={`${t.questions} questions, asked ${t.asked} times in total`}>{label}</span>;
   return (
-    <span
-      className="inline-flex items-center rounded-full bg-orange-500/10 px-2 text-[10px] font-medium leading-5 text-orange-700 dark:text-orange-300"
-      title={`${t.questions} questions, asked ${t.asked} times in total`}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${cls} cursor-pointer underline-offset-2 hover:bg-orange-500/20 hover:underline`}
+      title="See the questions clients asked on this topic"
     >
-      {t.questions} interview question{t.questions === 1 ? "" : "s"}
-    </span>
+      {label} →
+    </button>
   );
 }
 
