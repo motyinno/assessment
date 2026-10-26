@@ -68,6 +68,8 @@ const superAdminItems = [{ href: "/admin/hrm-sync", label: "HRM Sync", icon: "re
 const configItems = [
   { href: "/tech-matrix/edit", label: "Tech Matrix", icon: "grid" },
   { href: "/session-templates", label: "Session Templates", icon: "sliders" },
+  // Questions from real client interviews, attached to matrix topics (lib/question-bank.ts).
+  { href: "/interview-questions", label: "Interview Questions", icon: "message" },
 ];
 
 function NavIcon({ name, className }: { name: string; className?: string }) {
@@ -162,6 +164,12 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
         <polyline points="23 4 23 10 17 10" />
         <polyline points="1 20 1 14 7 14" />
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+      </svg>
+    ),
+    // lucide "message-square" glyph — interview questions.
+    message: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
     // lucide "network" glyph — org-chart shape, used for Departments (S10).

@@ -131,6 +131,8 @@ export interface TechMatrixTopicInput {
   // From the assessment the PDP is based on, when there is one.
   previousScore?: number | null;
   assessorComment?: string | null;
+  // Asked at real client interviews (lib/question-bank.ts), most frequent first.
+  interviewQuestions?: string[];
 }
 
 export interface DailyTopicResource {
@@ -317,6 +319,9 @@ export async function generateStandalonePDP(
     if (t.previousScore != null || t.assessorComment) {
       line += `\n  assessment result: ${t.previousScore ?? "n/a"}/10${t.assessorComment ? `, assessor's comment: "${t.assessorComment}"` : ""} — target the gaps this reveals`;
     }
+    if (t.interviewQuestions?.length) {
+      line += `\n  asked at real client interviews: ${t.interviewQuestions.map((q) => `"${q}"`).join("; ")} — make sure the study questions prepare for these`;
+    }
     return line;
   };
 
@@ -484,6 +489,9 @@ function describePrepTopic(t: PrepCandidateTopic): string {
   }
   if (s.selfScore !== null) {
     lines.push(`  self-assessment: ${s.selfScore}/10${s.selfComment ? ` ("${s.selfComment}")` : ""}`);
+  }
+  if (t.interviewQuestions?.length) {
+    lines.push(`  asked at real client interviews (use as inspiration, don't copy): ${t.interviewQuestions.join("; ")}`);
   }
   return lines.join("\n");
 }

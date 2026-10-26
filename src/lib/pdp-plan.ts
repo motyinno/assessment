@@ -10,6 +10,7 @@ import { replaceDriveDocContent, shareDriveFile, uploadPdpToDrive } from "@/lib/
 import { loadTechMatrix } from "@/lib/data-loader";
 import { resolveUserDivision } from "@/lib/user-division";
 import { baseGrade, gradeLabel } from "@/lib/grades";
+import { questionsForTopics } from "@/lib/question-bank";
 
 /**
  * PDP builder: the plan lives in the app as goals (topics) with items
@@ -198,6 +199,13 @@ export async function resolveDraftTopics(subjectId: string, grade: string, input
       assessorComment: r?.comment ?? null,
     });
   }
+  // Real client-interview questions per topic, so the plan prepares for them.
+  const asked = await questionsForTopics(
+    out.map((t) => t.matrixTopicId!),
+    { band, perTopic: 5, kinds: ["THEORY", "EXPERIENCE"] }
+  );
+  for (const t of out) t.interviewQuestions = (asked.get(t.matrixTopicId!) ?? []).map((q) => q.text);
+
   const seen = new Set(out.map((t) => t.title.toLowerCase()));
   for (const raw of inputs.customTopics) {
     const title = raw.trim();

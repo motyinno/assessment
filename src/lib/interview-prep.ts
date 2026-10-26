@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { log } from "@/lib/logger";
 import { generateInterviewPrep } from "@/lib/ai-service";
+import { questionsForTopics } from "@/lib/question-bank";
 import { loadTechMatrix } from "@/lib/data-loader";
 import { resolveUserDivision } from "@/lib/user-division";
 import { baseGrade, gradeLabel, nextGrade } from "@/lib/grades";
@@ -47,6 +48,8 @@ export interface PrepCandidateTopic {
   /** Matrix skills for the target band (or the PDP questions for PDP-only topics). */
   skills: string[];
   signals: TopicSignals;
+  /** Asked at real client interviews (lib/question-bank.ts), attached right before generation. */
+  interviewQuestions?: string[];
 }
 
 export interface PrepCandidateSection {
@@ -597,7 +600,7 @@ export async function runPrepGeneration(opts: {
   try {
     const ctx = await loadPrepContext(opts.assessmentId, opts.assessorId);
     if (!ctx) throw new Error("Assessment or its subject not found");
-    const topics = findCandidateTopics(ctx.sections, opts.topicIds);
+    const topics = await withInterviewQuestions(findCandidateTopics(ctx.sections, opts.topicIds), ctx.band);
     if (topics.length === 0) throw new Error("None of the selected topics exist in the matrix");
 
     const before = await prisma.interviewPrep.findFirst({ where: current });
@@ -660,4 +663,13 @@ export async function deleteInterviewPreps(
   assessmentId: string
 ): Promise<void> {
   await db.interviewPrep.deleteMany({ where: { assessmentId } });
+}
+
+/** Attach the most-asked client-interview questions to each topic for the prompt. */
+export async function withInterviewQuestions(topics: PrepCandidateTopic[], band: Band): Promise<PrepCandidateTopic[]> {
+  const map = await questionsForTopics(
+    topics.map((t) => t.id),
+    { band, perTopic: 5, kinds: ["THEORY", "EXPERIENCE"] }
+  );
+  return topics.map((t) => ({ ...t, interviewQuestions: (map.get(t.id) ?? []).map((q) => q.text) }));
 }
