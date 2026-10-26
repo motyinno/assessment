@@ -32,6 +32,10 @@ const importQuestionSchema = z.object({
   band: z.enum(BANDS).nullish(),
   timesAsked: z.number().int().min(1).max(10_000).default(1),
   proposedTopic: z.string().trim().min(1).max(120).nullish(),
+  /** Exact skill string of the topic the question tests. */
+  skill: z.string().trim().min(1).max(200).nullish(),
+  /** A skill the topic lacks that the question tests. */
+  proposedSkill: z.string().trim().min(1).max(120).nullish(),
 });
 
 export const questionImportSchema = z.object({
@@ -64,10 +68,20 @@ export interface ImportStats {
  * testable without a database: the first occurrence wins on topic/band/kind,
  * counts add up, an unknown topic id becomes the proposed topic.
  */
-export function prepareImport(questions: QuestionImport["questions"], topicIds: Set<string>) {
+export function prepareImport(questions: QuestionImport["questions"], topicIds: Set<string>, topicSkills?: Map<string, Set<string>>) {
   const byKey = new Map<
     string,
-    { text: string; normalized: string; kind: InterviewQuestionKind; topicId: string | null; band: string | null; timesAsked: number; proposedTopic: string | null }
+    {
+      text: string;
+      normalized: string;
+      kind: InterviewQuestionKind;
+      topicId: string | null;
+      band: string | null;
+      timesAsked: number;
+      proposedTopic: string | null;
+      skill: string | null;
+      proposedSkill: string | null;
+    }
   >();
   let unknownTopics = 0;
   for (const q of questions) {
@@ -82,6 +96,8 @@ export function prepareImport(questions: QuestionImport["questions"], topicIds: 
       existing.band ??= q.band ?? null;
       continue;
     }
+    // A skill only counts if the topic really has it; otherwise it's a proposal.
+    const skillOk = known && q.skill && (topicSkills?.get(known)?.has(q.skill) ?? false);
     byKey.set(normalized, {
       text: q.text,
       normalized,
@@ -90,6 +106,8 @@ export function prepareImport(questions: QuestionImport["questions"], topicIds: 
       band: q.band ?? null,
       timesAsked: q.timesAsked,
       proposedTopic: known ? null : q.proposedTopic ?? (q.topicId && !known ? q.topicId : null),
+      skill: skillOk ? q.skill! : null,
+      proposedSkill: known ? (skillOk ? null : q.proposedSkill ?? q.skill ?? null) : null,
     });
   }
   return { rows: [...byKey.values()], unknownTopics };
@@ -100,6 +118,12 @@ export async function divisionTopicIds(departmentId: string): Promise<Set<string
   return new Set(matrix.sections.flatMap((s) => s.topics.map((t) => t.id)));
 }
 
+/** topicId → every skill string of the topic (all bands). */
+export async function divisionTopicSkills(departmentId: string): Promise<Map<string, Set<string>>> {
+  const matrix = await loadTechMatrix(departmentId);
+  return new Map(matrix.sections.flatMap((s) => s.topics.map((t) => [t.id, new Set([...t.jun, ...t.mid, ...t.sen])] as const)));
+}
+
 /** Import a classified batch into a division's bank. */
 export async function importQuestions(opts: {
   departmentId: string;
@@ -107,7 +131,8 @@ export async function importQuestions(opts: {
   createdById: string;
 }): Promise<{ importId: string; stats: ImportStats }> {
   const { departmentId, payload } = opts;
-  const { rows, unknownTopics } = prepareImport(payload.questions, await divisionTopicIds(departmentId));
+  const skills = await divisionTopicSkills(departmentId);
+  const { rows, unknownTopics } = prepareImport(payload.questions, new Set(skills.keys()), skills);
 
   return prisma.$transaction(
     async (tx) => {
@@ -156,6 +181,7 @@ export interface TopicQuestion {
   kind: InterviewQuestionKind;
   band: string | null;
   timesAsked: number;
+  skill: string | null;
 }
 
 /**
@@ -172,12 +198,12 @@ export async function questionsForTopics(
   const rows = await prisma.interviewQuestion.findMany({
     where: { topicId: { in: topicIds }, hidden: false, ...(opts.kinds ? { kind: { in: opts.kinds } } : {}) },
     orderBy: [{ timesAsked: "desc" }, { createdAt: "asc" }],
-    select: { id: true, text: true, kind: true, band: true, timesAsked: true, topicId: true },
+    select: { id: true, text: true, kind: true, band: true, timesAsked: true, topicId: true, skill: true },
   });
   const rank = (b: string | null) => (opts.band ? (b === opts.band ? 0 : b === null ? 1 : 2) : 0);
   for (const r of rows) {
     const list = out.get(r.topicId!) ?? [];
-    list.push({ id: r.id, text: r.text, kind: r.kind, band: r.band, timesAsked: r.timesAsked });
+    list.push({ id: r.id, text: r.text, kind: r.kind, band: r.band, timesAsked: r.timesAsked, skill: r.skill });
     out.set(r.topicId!, list);
   }
   for (const [k, list] of out) {
@@ -233,4 +259,85 @@ export async function bankSummary(departmentId: string) {
     totals: totals.map((t) => ({ kind: t.kind, hidden: t.hidden, count: t._count._all })),
     imports,
   };
+}
+
+/** A skill is marked "often asked" on the matrix from this many asks. */
+export const OFTEN_ASKED = 3;
+
+/**
+ * How often clients ask about each topic and each of its skills — the marks
+ * on the matrix and roadmap. `asked` sums timesAsked of visible questions.
+ */
+export async function matrixInterviewStats(departmentId: string) {
+  const [byTopic, bySkill] = await Promise.all([
+    prisma.interviewQuestion.groupBy({
+      by: ["topicId"],
+      where: { departmentId, hidden: false, topicId: { not: null } },
+      _count: { _all: true },
+      _sum: { timesAsked: true },
+    }),
+    prisma.interviewQuestion.groupBy({
+      by: ["topicId", "skill"],
+      where: { departmentId, hidden: false, topicId: { not: null }, skill: { not: null } },
+      _sum: { timesAsked: true },
+    }),
+  ]);
+  const topics: Record<string, { questions: number; asked: number }> = {};
+  for (const g of byTopic) topics[g.topicId!] = { questions: g._count._all, asked: g._sum.timesAsked ?? 0 };
+  const skills: Record<string, Record<string, number>> = {};
+  for (const g of bySkill) (skills[g.topicId!] ??= {})[g.skill!] = g._sum.timesAsked ?? 0;
+  return { topics, skills, oftenAsked: OFTEN_ASKED };
+}
+
+/**
+ * Skills the matrix lacks, as proposed by questions attached to a topic —
+ * grouped per topic, most-asked first. The basis for "rewrite the matrix a bit".
+ */
+export async function suggestedSkills(departmentId: string, minAsked = 2) {
+  const groups = await prisma.interviewQuestion.groupBy({
+    by: ["topicId", "proposedSkill"],
+    where: { departmentId, hidden: false, topicId: { not: null }, skill: null, proposedSkill: { not: null } },
+    _count: { _all: true },
+    _sum: { timesAsked: true },
+  });
+  const matrix = await loadTechMatrix(departmentId);
+  const topicInfo = new Map(matrix.sections.flatMap((s) => s.topics.map((t) => [t.id, { title: t.title, sectionTitle: s.title }] as const)));
+  const byTopic = new Map<string, Array<{ skill: string; questions: number; asked: number }>>();
+  for (const g of groups) {
+    if (!topicInfo.has(g.topicId!)) continue;
+    const asked = g._sum.timesAsked ?? 0;
+    if (asked < minAsked) continue;
+    const list = byTopic.get(g.topicId!) ?? [];
+    list.push({ skill: g.proposedSkill!, questions: g._count._all, asked });
+    byTopic.set(g.topicId!, list);
+  }
+  return [...byTopic.entries()]
+    .map(([topicId, list]) => ({ topicId, ...topicInfo.get(topicId)!, skills: list.sort((a, b) => b.asked - a.asked).slice(0, 8) }))
+    .sort((a, b) => b.skills[0].asked - a.skills[0].asked);
+}
+
+/**
+ * Add a proposed skill to a topic's band and re-point the questions that
+ * proposed it, so they count towards the new skill's "often asked" mark.
+ */
+export async function acceptSuggestedSkill(topicId: string, band: (typeof BANDS)[number], skill: string, proposed: string) {
+  await prisma.$transaction(async (tx) => {
+    const topic = await tx.matrixTopic.findUniqueOrThrow({ where: { id: topicId } });
+    const list = topic[band];
+    if (!list.some((s) => s.toLowerCase() === skill.toLowerCase())) {
+      await tx.matrixTopic.update({ where: { id: topicId }, data: { [band]: [...list, skill] } });
+    }
+    await tx.interviewQuestion.updateMany({
+      where: { topicId, proposedSkill: { equals: proposed, mode: "insensitive" } },
+      data: { skill, proposedSkill: null },
+    });
+  });
+}
+
+/** Drop a suggestion without touching the matrix. */
+export async function dismissSuggestedSkill(topicId: string, proposed: string) {
+  await prisma.interviewQuestion.updateMany({
+    where: { topicId, proposedSkill: { equals: proposed, mode: "insensitive" } },
+    data: { proposedSkill: null },
+  });
 }

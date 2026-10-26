@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { RoadmapView } from "@/components/roadmap-view";
+import { OftenAskedMark, TopicAskedBadge, skillAsked, useInterviewStats, type InterviewStats } from "@/components/interview-stats";
 
 interface TechMatrixTopic {
   id: string;
@@ -58,6 +59,7 @@ export default function TechMatrixPage() {
   // after that it's whichever division is being viewed.
   const [divisionId, setDivisionId] = useState<string | null>(null);
   const [divisions, setDivisions] = useState<Division[]>([]);
+  const interview = useInterviewStats(divisionId);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -355,8 +357,9 @@ export default function TechMatrixPage() {
                     {section.topics.map((topic) => (
                       <div key={topic.id} className="grid" style={{ gridTemplateColumns: `180px repeat(${visibleGrades}, 1fr)` }}>
                         {/* Topic name */}
-                        <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex items-start">
+                        <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex flex-col items-start gap-1">
                           <span className="text-[13px] font-medium text-foreground leading-snug">{topic.title}</span>
+                          <TopicAskedBadge stats={interview} topicId={topic.id} />
                         </div>
 
                         {/* Grade columns */}
@@ -366,6 +369,8 @@ export default function TechMatrixPage() {
                             grade="jun"
                             search={search}
                             showBorder={showMid || showSen}
+                            topicId={topic.id}
+                            interview={interview}
                           />
                         )}
                         {showMid && (
@@ -374,6 +379,8 @@ export default function TechMatrixPage() {
                             grade="mid"
                             search={search}
                             showBorder={showSen}
+                            topicId={topic.id}
+                            interview={interview}
                           />
                         )}
                         {showSen && (
@@ -382,6 +389,8 @@ export default function TechMatrixPage() {
                             grade="sen"
                             search={search}
                             showBorder={false}
+                            topicId={topic.id}
+                            interview={interview}
                           />
                         )}
                       </div>
@@ -404,11 +413,15 @@ function GradeColumn({
   grade,
   search,
   showBorder,
+  topicId,
+  interview,
 }: {
   skills: string[];
   grade: string;
   search: string;
   showBorder: boolean;
+  topicId: string;
+  interview: InterviewStats;
 }) {
   const q = search.toLowerCase().trim();
 
@@ -436,7 +449,10 @@ function GradeColumn({
                 }`}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${dotColor} mt-[5px] shrink-0`} />
-                {skill}
+                <span>
+                  {skill}
+                  <OftenAskedMark count={skillAsked(interview, topicId, skill)} />
+                </span>
               </li>
             );
           })}

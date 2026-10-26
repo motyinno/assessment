@@ -775,6 +775,11 @@ model InterviewQuestion {
   timesAsked    Int                   @default(1)
   /// A topic the matrix is missing ("Payments integration"), for unattached questions.
   proposedTopic String?
+  /// The exact skill string of the topic (MatrixTopic.jun/mid/sen) the
+  /// question tests — drives the "often asked" marks on the matrix.
+  skill         String?
+  /// A skill the topic lacks that the question tests ("Backpressure handling").
+  proposedSkill String?
   hidden        Boolean               @default(false)
   importId      String?
   createdAt     DateTime              @default(now())
@@ -785,6 +790,7 @@ model InterviewQuestion {
 
   @@unique([departmentId, normalized])
   @@index([departmentId, topicId])
+  @@index([topicId, skill])
 }
 
 /// One upload into the bank, kept for traceability.

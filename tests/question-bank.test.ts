@@ -55,3 +55,23 @@ describe("questionImportSchema", () => {
     expect(r.questions[0].timesAsked).toBe(1);
   });
 });
+
+describe("prepareImport skills", () => {
+  it("keeps a skill the topic has and turns an unknown one into a proposal", () => {
+    const skills = new Map([["nodejs-core", new Set(["Streams", "Event Loop"])]]);
+    const { rows } = prepareImport(
+      [
+        { text: "What is backpressure in streams?", kind: "THEORY", topicId: "nodejs-core", skill: "Streams", timesAsked: 1 },
+        { text: "How do you size a worker pool?", kind: "THEORY", topicId: "nodejs-core", skill: "Worker pools", timesAsked: 1 },
+        { text: "What is drain?", kind: "THEORY", topicId: "nodejs-core", proposedSkill: "Backpressure handling", timesAsked: 1 },
+      ],
+      new Set(skills.keys()),
+      skills
+    );
+    expect(rows.map((r) => [r.skill, r.proposedSkill])).toEqual([
+      ["Streams", null],
+      [null, "Worker pools"],
+      [null, "Backpressure handling"],
+    ]);
+  });
+});

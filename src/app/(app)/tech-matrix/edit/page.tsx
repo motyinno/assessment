@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
+import { OftenAskedMark, TopicAskedBadge, skillAsked, useInterviewStats } from "@/components/interview-stats";
 
 interface Topic {
   id: string;
@@ -96,6 +97,8 @@ export default function TechMatrixEditPage() {
   useEffect(() => {
     if (divisionId) reload(divisionId);
   }, [divisionId, reload]);
+
+  const interview = useInterviewStats(divisionId || null);
 
   // ---- Section mutations ----
   async function addSection() {
@@ -362,6 +365,7 @@ export default function TechMatrixEditPage() {
                           renameTopic(topic.id, e.target.value.trim())
                         }
                       />
+                      <TopicAskedBadge stats={interview} topicId={topic.id} />
                       <Button
                         variant="ghost"
                         size="sm"
@@ -395,6 +399,7 @@ export default function TechMatrixEditPage() {
                                   className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 text-xs ring-1 ring-border"
                                 >
                                   {skill}
+                                  <OftenAskedMark count={skillAsked(interview, topic.id, skill)} />
                                   <button
                                     type="button"
                                     className="text-muted-foreground hover:text-destructive"

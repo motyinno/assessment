@@ -16,7 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { OftenAskedMark } from "@/components/interview-stats";
 
 const BAND_DOT: Record<Grade, string> = {
   jun: "bg-emerald-400",
@@ -64,7 +65,7 @@ export function RoadmapNodeDetail({
 
   // Real client-interview questions for this topic, this level first
   // (lib/question-bank.ts).
-  const [asked, setAsked] = useState<Array<{ id: string; text: string; kind: string; band: string | null; timesAsked: number }> | null>(null);
+  const [asked, setAsked] = useState<Array<{ id: string; text: string; kind: string; band: string | null; timesAsked: number; skill: string | null }> | null>(null);
   const topicId = topic?.id;
   useEffect(() => {
     if (!topicId) return;
@@ -76,6 +77,13 @@ export function RoadmapNodeDetail({
       .catch(() => {});
     return () => controller.abort();
   }, [topicId, focalGrade]);
+
+  // How often each of this level's skills came up (the questions carry their skill).
+  const skillCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const q of asked ?? []) if (q.skill) m[q.skill] = (m[q.skill] ?? 0) + q.timesAsked;
+    return m;
+  }, [asked]);
 
   function toggleSkill(skill: string) {
     if (!canEdit) return;
@@ -163,6 +171,7 @@ export function RoadmapNodeDetail({
                         <span className={cn(checked ? "text-muted-foreground line-through" : "text-foreground/85")}>
                           {skill}
                         </span>
+                        <OftenAskedMark count={skillCounts[skill] && skillCounts[skill] >= 3 ? skillCounts[skill] : null} />
                       </button>
                     </li>
                   );

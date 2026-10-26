@@ -51,7 +51,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data: {
       ...(body.text ? { text: body.text, normalized } : {}),
       ...(body.kind ? { kind: body.kind } : {}),
-      ...(body.topicId !== undefined ? { topicId: body.topicId, ...(body.topicId ? { proposedTopic: null } : {}) } : {}),
+      // Another topic means other skills: the old skill mapping no longer applies.
+      ...(body.topicId !== undefined && body.topicId !== q.topicId
+        ? { topicId: body.topicId, skill: null, proposedSkill: null, ...(body.topicId ? { proposedTopic: null } : {}) }
+        : {}),
       ...(body.band !== undefined ? { band: body.band } : {}),
       ...(body.hidden !== undefined ? { hidden: body.hidden } : {}),
     },

@@ -27,6 +27,12 @@ interface Question {
   timesAsked: number;
   hidden: boolean;
 }
+interface SkillSuggestion {
+  topicId: string;
+  title: string;
+  sectionTitle: string;
+  skills: Array<{ skill: string; questions: number; asked: number }>;
+}
 interface Summary {
   topics: Array<{ id: string; title: string; sectionTitle: string; theory: number; experience: number; other: number; total: number }>;
   proposed: Array<{ title: string; count: number }>;
@@ -48,6 +54,7 @@ export default function InterviewQuestionsPage() {
   const [divisions, setDivisions] = useState<Division[]>([]);
   const [divisionId, setDivisionId] = useState("");
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [suggestions, setSuggestions] = useState<SkillSuggestion[] | null>(null);
   const [items, setItems] = useState<Question[] | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -82,6 +89,26 @@ export default function InterviewQuestionsPage() {
     if (r.ok) setSummary(await r.json());
   }, [divisionId, qs]);
 
+  const loadSuggestions = useCallback(async () => {
+    if (!divisionId) return;
+    const r = await fetch(`/api/interview-questions/suggested-skills?${qs()}`);
+    if (r.ok) setSuggestions((await r.json()).topics);
+  }, [divisionId, qs]);
+
+  async function decideSkill(body: Record<string, unknown>) {
+    const r = await fetch("/api/interview-questions/suggested-skills", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      setMessage({ tone: "error", text: apiErrorMessage(await r.json().catch(() => null), "Couldn't update the matrix") });
+      return;
+    }
+    if (body.action === "accept") setMessage({ tone: "ok", text: `Added “${body.skill}” to the matrix.` });
+    await loadSuggestions();
+  }
+
   const loadItems = useCallback(async () => {
     if (!divisionId) return;
     const extra: Record<string, string> = { page: String(page) };
@@ -99,7 +126,8 @@ export default function InterviewQuestionsPage() {
 
   useEffect(() => {
     loadSummary();
-  }, [loadSummary]);
+    loadSuggestions();
+  }, [loadSummary, loadSuggestions]);
   useEffect(() => {
     const t = setTimeout(loadItems, filters.q ? 300 : 0);
     return () => clearTimeout(t);
@@ -306,6 +334,36 @@ export default function InterviewQuestionsPage() {
         </>
       )}
 
+      {suggestions && suggestions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Skills clients ask about that the matrix doesn&apos;t list</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Grouped from questions attached to each topic. Adding a skill puts it in the topic at the level you pick, and those questions
+              then count towards its “asked N×” mark.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {suggestions.map((t) => (
+              <div key={t.topicId} className="space-y-1.5">
+                <div className="text-sm font-medium">
+                  <span className="text-muted-foreground">{t.sectionTitle} › </span>
+                  {t.title}
+                </div>
+                {t.skills.map((s) => (
+                  <SuggestionRow
+                    key={s.skill}
+                    suggestion={s}
+                    onAccept={(skill, band) => decideSkill({ action: "accept", topicId: t.topicId, proposed: s.skill, skill, band })}
+                    onDismiss={() => decideSkill({ action: "dismiss", topicId: t.topicId, proposed: s.skill })}
+                  />
+                ))}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="space-y-3">
           <CardTitle className="text-base">Questions{total ? ` · ${total}` : ""}</CardTitle>
@@ -432,6 +490,38 @@ export default function InterviewQuestionsPage() {
           {summary.imports[0].stats.merged ?? 0} merged
         </p>
       )}
+    </div>
+  );
+}
+
+function SuggestionRow({
+  suggestion,
+  onAccept,
+  onDismiss,
+}: {
+  suggestion: { skill: string; questions: number; asked: number };
+  onAccept: (skill: string, band: string) => void;
+  onDismiss: () => void;
+}) {
+  const [skill, setSkill] = useState(suggestion.skill);
+  const [band, setBand] = useState("mid");
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
+      <Input className="h-8 min-w-48 flex-1" value={skill} onChange={(e) => setSkill(e.target.value)} aria-label="Skill" />
+      <span className="whitespace-nowrap text-xs text-muted-foreground">
+        asked {suggestion.asked}× · {suggestion.questions} question{suggestion.questions === 1 ? "" : "s"}
+      </span>
+      <select className="h-8 rounded-lg border bg-background px-2 text-xs" value={band} onChange={(e) => setBand(e.target.value)} aria-label="Level">
+        <option value="jun">Junior</option>
+        <option value="mid">Middle</option>
+        <option value="sen">Senior</option>
+      </select>
+      <Button size="sm" disabled={!skill.trim()} onClick={() => onAccept(skill.trim(), band)}>
+        Add to matrix
+      </Button>
+      <Button size="sm" variant="ghost" onClick={onDismiss}>
+        Dismiss
+      </Button>
     </div>
   );
 }
