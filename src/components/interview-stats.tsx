@@ -59,6 +59,18 @@ export const HEAT_DOT: Record<Exclude<Heat, null>, string> = {
   warm: "bg-amber-400",
 };
 
+/**
+ * A topic's heat relative to the most-asked topic of the division — absolute
+ * thresholds would make nearly every topic "hot" once the bank is large.
+ */
+export function topicHeatOf(asked: number, maxAsked: number): Heat {
+  if (maxAsked <= 0 || asked <= 0) return null;
+  const share = asked / maxAsked;
+  if (share >= 0.35) return "hot";
+  if (share >= 0.1) return "warm";
+  return null;
+}
+
 export function heatTitle(count: number): string | undefined {
   return count > 0 ? `Asked ${count} time${count === 1 ? "" : "s"} at client interviews` : undefined;
 }
