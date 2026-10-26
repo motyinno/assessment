@@ -10,8 +10,8 @@ import { forbidden, notFound } from "@/lib/api-helpers";
 export const dynamic = "force-dynamic";
 
 /**
- * Topic picker data for drafting a PDP: the subject's division matrix with the
- * skills for their grade, plus the scores from the assessment the plan is based
+ * Topic picker data for drafting a PDP: the subject's whole division matrix
+ * with the skills for their grade, plus the scores from the assessment the plan is based
  * on (`?assessmentId=`, or their latest completed one). Weak topics come
  * preselected.
  */
@@ -52,14 +52,15 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         .map((s) => ({
           id: s.id,
           title: s.title,
-          topics: s.topics
-            .filter((t) => t[band].length > 0)
-            .map((t) => ({
-              id: t.id,
-              title: t.title,
-              skills: t[band],
-              score: scoreByKey.get(t.id.toLowerCase()) ?? scoreByKey.get(t.title.toLowerCase()) ?? null,
-            })),
+          // Every topic of the matrix, even one without questions at this
+          // grade — the AI then drafts from the topic itself.
+          topics: s.topics.map((t) => ({
+            id: t.id,
+            title: t.title,
+            skills: t[band],
+            otherBands: (["jun", "mid", "sen"] as const).filter((b) => b !== band && t[b].length > 0),
+            score: scoreByKey.get(t.id.toLowerCase()) ?? scoreByKey.get(t.title.toLowerCase()) ?? null,
+          })),
         }))
         .filter((s) => s.topics.length > 0)
     : [];

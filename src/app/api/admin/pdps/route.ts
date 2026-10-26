@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireAdminScope } from "@/lib/auth-helpers";
 import { userInScopeWhere } from "@/lib/admin-scope";
 import { planProgress, progressPercent } from "@/lib/pdp-progress";
+import { readBasisLabel } from "@/lib/market-fit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -60,14 +61,16 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         approvedAt: true,
         completedAt: true,
+        basis: true,
         user: { select: { id: true, name: true, email: true, isArchived: true, photoFileName: true, manager: { select: { name: true } } } },
         goals: { select: { items: { select: { doneAt: true } } } },
       },
     }),
   ]);
 
-  const items = rows.map(({ goals, ...p }) => ({
+  const items = rows.map(({ goals, basis, ...p }) => ({
     ...p,
+    basis: readBasisLabel(basis),
     progress: goals.length > 0 ? progressPercent(planProgress(goals)) : null,
   }));
 

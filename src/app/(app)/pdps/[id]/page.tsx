@@ -42,6 +42,7 @@ interface PdpView {
   approvedBy: { name: string } | null;
   createdBy: { name: string } | null;
   assessment: { id: string; title: string } | null;
+  basis: { label?: string } | null;
   canEdit: boolean;
   canRetry: boolean;
   isOwner: boolean;
@@ -541,7 +542,8 @@ export default function PdpPage() {
                   </Link>
                 </Meta>
                 <Meta label="Manager">{pdp.user.manager?.name ?? "—"}</Meta>
-                {pdp.assessment && (
+                {pdp.basis?.label && <Meta label="Based on">{pdp.basis.label}</Meta>}
+                {!pdp.basis?.label && pdp.assessment && (
                   <Meta label="Based on">
                     <Link href={`/assessments/${pdp.assessment.id}`} className="line-clamp-2 hover:underline">
                       {pdp.assessment.title}

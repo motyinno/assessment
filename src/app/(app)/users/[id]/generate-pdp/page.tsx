@@ -1,19 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiErrorMessage } from "@/lib/api-error";
+import { baseGrade } from "@/lib/grades";
+import { PdpBasisPicker, type BasisSettings } from "@/components/pdp-basis-picker";
 
 interface PickerTopic {
   id: string;
   title: string;
   skills: string[];
+  /** Bands that do have questions, when this grade has none. */
+  otherBands?: Array<"jun" | "mid" | "sen">;
   score: number | null;
 }
+const BAND_NAMES = { jun: "Junior", mid: "Middle", sen: "Senior" } as const;
+
 interface PickerSection {
   id: string;
   title: string;
@@ -41,6 +46,24 @@ export default function GeneratePdpForUserPage() {
   const [customInput, setCustomInput] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Market-driven flow: offered unless the plan is explicitly "from this
+  // assessment", and only once the division has a source to base it on.
+  const [basisAvailable, setBasisAvailable] = useState<boolean | null>(assessmentIdParam ? false : null);
+  const [basis, setBasis] = useState<BasisSettings | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  // "market": ranked by the latest market report; "manual": a regular PDP,
+  // topics picked by hand from the whole matrix.
+  const [planMode, setPlanMode] = useState<"market" | "manual">("market");
+  const [pickerReset, setPickerReset] = useState(0);
+  const marketMode = !assessmentIdParam && basisAvailable === true && planMode === "market";
+
+  function switchMode(next: "market" | "manual") {
+    if (next === planMode) return;
+    setPlanMode(next);
+    setShowAll(false);
+    if (next === "manual") setSelected(new Set(options?.preselected ?? []));
+    else setPickerReset((n) => n + 1);
+  }
 
   // Only the employee's direct manager (or an admin) gets options; anyone else
   // sees the API's refusal.
@@ -54,7 +77,9 @@ export default function GeneratePdpForUserPage() {
       }
       const o = data as PdpOptions;
       setOptions(o);
-      setSelected(new Set(o.preselected));
+      // The market flow preselects from its own ranking.
+      if (assessmentIdParam) setSelected(new Set(o.preselected));
+      else setSelected((prev) => (prev.size ? prev : new Set(o.preselected)));
     });
   }, [userId, assessmentIdParam]);
 
@@ -137,7 +162,8 @@ export default function GeneratePdpForUserPage() {
         body: JSON.stringify({
           topicIds: filtered.flatMap((s) => s.topics.map((t) => t.id)).filter((id) => selected.has(id)),
           customTopics: allCustom,
-          assessmentId: options?.assessment?.id ?? null,
+          assessmentId: marketMode ? null : options?.assessment?.id ?? null,
+          basis: marketMode ? basis : null,
         }),
       });
       if (!res.ok) {
@@ -187,21 +213,59 @@ export default function GeneratePdpForUserPage() {
           <span>·</span>
           <span>{user.email}</span>
         </div>
+        {!assessmentIdParam && basisAvailable && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {([
+              ["market", "Based on the market", "Topics ranked by the latest market report and the employee's gaps."],
+              ["manual", "Pick topics from the matrix", "A regular PDP: choose any topics of the division's matrix yourself."],
+            ] as const).map(([mode, title, body]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => switchMode(mode)}
+                className={[
+                  "rounded-xl border p-3 text-left transition-colors",
+                  planMode === mode ? "border-primary bg-primary/5 ring-1 ring-primary/40" : "hover:bg-muted/50",
+                ].join(" ")}
+              >
+                <div className="text-sm font-semibold">{title}</div>
+                <div className="text-xs text-muted-foreground">{body}</div>
+              </button>
+            ))}
+          </div>
+        )}
+        {marketMode ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Choose what the plan is based on; topics are ranked by client demand and the employee&apos;s gaps. The AI drafts
+            questions and practical tasks, then you arrange and approve the plan in the builder. The PDP keeps a link to
+            the sources and the weights used.
+          </p>
+        ) : (
         <p className="mt-2 text-sm text-muted-foreground">
           Pick the topics; the AI drafts questions and practical tasks, then you arrange and approve the plan in the
           builder.
-          {options.assessment && (
-            <>
-              {" "}Scores are from{" "}
-              <Link href={`/assessments/${options.assessment.id}`} className="text-primary hover:underline">
-                {options.assessment.title}
-              </Link>
-              ; topics below 7 are preselected.
-            </>
-          )}
         </p>
+        )}
       </div>
 
+      {!assessmentIdParam && (
+        <div className={marketMode ? "space-y-6" : "hidden"}>
+          <PdpBasisPicker
+            userId={userId}
+            currentBand={baseGrade(user.grade)}
+            selected={selected}
+            setSelected={setSelected}
+            onSettings={setBasis}
+            onAvailability={setBasisAvailable}
+            resetKey={pickerReset}
+          />
+          <button type="button" className="text-sm text-primary hover:underline" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? "Hide the full matrix" : "Show all matrix topics"}
+          </button>
+        </div>
+      )}
+
+      {(!marketMode || showAll) && (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -261,7 +325,15 @@ export default function GeneratePdpForUserPage() {
                               <Badge variant={topic.score < 7 ? "destructive" : "secondary"}>{topic.score}/10</Badge>
                             )}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{topic.skills.join(" · ")}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {topic.skills.length
+                              ? topic.skills.join(" · ")
+                              : `No questions at ${user.gradeLabel} level${
+                                  topic.otherBands?.length
+                                    ? ` (has ${topic.otherBands.map((b) => BAND_NAMES[b]).join(", ")})`
+                                    : ""
+                                } — the AI drafts from the topic itself`}
+                          </div>
                         </div>
                       </label>
                     ))}
@@ -272,6 +344,7 @@ export default function GeneratePdpForUserPage() {
           })}
         </CardContent>
       </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -325,7 +398,7 @@ export default function GeneratePdpForUserPage() {
             (selected.size === 0 && customTopics.length === 0 && customInput.trim() === "")
           }
         >
-          {generating ? "Starting..." : "Draft PDP"}
+          {generating ? "Starting..." : marketMode ? `Generate draft · ${selected.size + customTopics.length} topics` : "Draft PDP"}
         </Button>
         <Button variant="outline" onClick={() => router.push(`/users/${userId}`)}>
           Cancel

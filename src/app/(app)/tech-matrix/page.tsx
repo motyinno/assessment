@@ -14,8 +14,10 @@ import {
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { RoadmapView } from "@/components/roadmap-view";
+import { TopicDemandBadges, useTopicDemand } from "@/components/topic-demand-badges";
 
 interface TechMatrixTopic {
+  trendTag?: string | null;
   id: string;
   title: string;
   jun: string[];
@@ -58,6 +60,7 @@ export default function TechMatrixPage() {
   // after that it's whichever division is being viewed.
   const [divisionId, setDivisionId] = useState<string | null>(null);
   const [divisions, setDivisions] = useState<Division[]>([]);
+  const demand = useTopicDemand(divisionId);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -355,8 +358,9 @@ export default function TechMatrixPage() {
                     {section.topics.map((topic) => (
                       <div key={topic.id} className="grid" style={{ gridTemplateColumns: `180px repeat(${visibleGrades}, 1fr)` }}>
                         {/* Topic name */}
-                        <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex items-start">
+                        <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex flex-col items-start gap-1">
                           <span className="text-[13px] font-medium text-foreground leading-snug">{topic.title}</span>
+                          <TopicDemandBadges trendTag={topic.trendTag} demand={demand.topics[topic.id]} />
                         </div>
 
                         {/* Grade columns */}

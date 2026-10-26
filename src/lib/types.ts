@@ -19,6 +19,8 @@ export interface TechMatrixTopic {
   jun: string[];
   mid: string[];
   sen: string[];
+  /** "hot" | "cooling" from an accepted market-sync proposal. */
+  trendTag?: string | null;
 }
 
 export interface TechMatrixSection {

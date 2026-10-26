@@ -3,7 +3,8 @@ import type { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
 import { generatePdpSchema } from "@/lib/schemas";
-import { canComposePdp, runDraftGeneration, type PdpGenerationInputs } from "@/lib/pdp-plan";
+import { canComposePdp, runDraftGeneration, type GoalReason, type PdpGenerationInputs } from "@/lib/pdp-plan";
+import { rankForSubject } from "@/lib/market-signals";
 import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   const parsed = await parseJsonBody(req, generatePdpSchema);
   if (parsed.error) return parsed.error;
-  const { topicIds, customTopics = [], assessmentId = null } = parsed.data;
+  const { topicIds, customTopics = [], assessmentId = null, basis: basisRequest = null } = parsed.data;
 
   const user = await prisma.user.findUnique({
     where: { id: params.id },
@@ -41,6 +42,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const inputs: PdpGenerationInputs = { topicIds, customTopics, assessmentId };
+
+  // Market-driven plan: re-rank on the server (never trust client scores) and
+  // keep, per chosen topic, why it's in the plan.
+  let basis: Prisma.InputJsonValue | undefined;
+  if (basisRequest) {
+    const { ranked, basis: b } = await rankForSubject(user.id, basisRequest);
+    const byTopic = new Map(ranked.map((r) => [r.topicId, r]));
+    const reasons: Record<string, GoalReason> = {};
+    for (const id of topicIds) {
+      const r = byTopic.get(id);
+      reasons[id] = r && !r.hidden
+        ? { origin: r.origin, fit: r.fit, reason: r.reason, signalIds: r.signals.map((s) => s.id) }
+        : { origin: "manual", fit: null, reason: "Picked by hand", signalIds: [] };
+    }
+    Object.assign(inputs, { targetBand: b.targetBand, horizonMonths: b.horizonMonths, reasons });
+    basis = b as unknown as Prisma.InputJsonValue;
+  }
+
   const pdp = await prisma.pdp.create({
     data: {
       userId: user.id,
@@ -50,6 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       status: "GENERATING",
       topicsJson: [],
       generationInputs: inputs as unknown as Prisma.InputJsonValue,
+      ...(basis ? { basis } : {}),
     },
   });
 

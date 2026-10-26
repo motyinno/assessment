@@ -36,6 +36,8 @@ interface PdpRow {
   status: string;
   createdAt: string;
   progress: number | null;
+  /** "Market Sep 2026 + assessment" for a market-driven plan. */
+  basis: string | null;
   user: {
     id: string;
     name: string;
@@ -193,6 +195,7 @@ export function AdminPdpList() {
                           >
                             {p.fileName.replace(/\.docx$/i, "")}
                           </Link>
+                          {p.basis && <p className="mt-0.5 truncate text-xs text-muted-foreground">Based on {p.basis}</p>}
                           {p.progress == null && (
                             <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <ExternalLink className="size-3" /> Google Doc, not tracked here

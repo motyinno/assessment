@@ -133,6 +133,7 @@ export async function loadTechMatrix(departmentId: string): Promise<TechMatrix> 
         jun: t.jun,
         mid: t.mid,
         sen: t.sen,
+        trendTag: t.trendTag,
       })),
     })),
   };

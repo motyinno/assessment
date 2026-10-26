@@ -1,0 +1,42 @@
+{
+  "schema": "market-report/v1",
+  "title": "Requests September 2026",
+  "period": { "from": "2026-09-01", "to": "2026-09-30" },
+  "baseline": "trailing-12m",
+  "requests": 45,
+  "meta": { "seniorShare": 0.844, "juniorOnlyRequests": 0, "aiShare": 0.444, "aiBaseline": 0.334 },
+  "signals": [
+    { "label": "TypeScript", "kind": "skill", "n": 31, "share": 0.689, "baseline": 0.501 },
+    { "label": "JavaScript", "kind": "skill", "n": 27, "share": 0.6, "baseline": 0.657 },
+    { "label": "Node.js", "kind": "skill", "n": 23, "share": 0.511, "baseline": 0.583 },
+    { "label": "React", "kind": "skill", "n": 15, "share": 0.333, "baseline": 0.405 },
+    { "label": "REST", "kind": "skill", "n": 10, "share": 0.222, "baseline": 0.283 },
+    { "label": "NestJS", "kind": "skill", "n": 9, "share": 0.2, "baseline": 0.161 },
+    { "label": "Event-driven", "kind": "practice", "n": 9, "share": 0.2, "baseline": 0.161 },
+    { "label": "PostgreSQL", "kind": "skill", "n": 9, "share": 0.2, "baseline": 0.309 },
+    { "label": "AI (any)", "kind": "skill", "n": 20, "share": 0.444, "baseline": 0.334 },
+    { "label": "B: Building AI systems", "kind": "skill", "n": 14, "share": 0.311, "baseline": 0.249 },
+    { "label": "A: AI-assisted development", "kind": "practice", "n": 10, "share": 0.222 },
+    { "label": "RAG", "kind": "skill", "n": 5, "share": 0.111, "baseline": 0.041 },
+    { "label": "Claude Code", "kind": "practice", "n": 5, "share": 0.111, "baseline": 0.045 },
+    { "label": "MCP", "kind": "skill", "n": 4, "share": 0.089, "baseline": 0.031 },
+    { "label": "Guardrails / AI safety", "kind": "skill", "n": 4, "share": 0.089, "baseline": 0.015, "evidence": [{ "requestId": "R-23173" }] },
+    { "label": "Evals / LLM QA", "kind": "skill", "n": 3, "share": 0.067, "baseline": 0.012 },
+    { "label": "CI/CD", "kind": "practice", "n": 17, "share": 0.378, "baseline": 0.333 },
+    { "label": "AWS", "kind": "skill", "n": 11, "share": 0.244, "baseline": 0.391 },
+    { "label": "Terraform / IaC", "kind": "skill", "n": 9, "share": 0.2, "baseline": 0.151 },
+    { "label": "Observability practice", "kind": "practice", "n": 10, "share": 0.222, "baseline": 0.134 },
+    { "label": "Python", "kind": "skill", "n": 13, "share": 0.289, "baseline": 0.182 },
+    { "label": "Java", "kind": "skill", "n": 7, "share": 0.156, "baseline": 0.075 },
+    { "label": "Vue / Nuxt", "kind": "skill", "n": 7, "share": 0.156, "baseline": 0.048 },
+    { "label": "Urgent start", "kind": "constraint", "n": 9, "share": 0.2, "baseline": 0.132 }
+  ],
+  "portraits": [
+    { "name": "Modal developer", "signals": ["TypeScript", "Node.js", "NestJS", "CI/CD", "PostgreSQL", "Event-driven"] },
+    { "name": "AI-native developer", "signals": ["AWS", "Terraform / IaC", "Claude Code"] }
+  ],
+  "notes": [
+    "Vue/Nuxt growth comes mostly from one brief; GCP and Redis are one request each.",
+    "Hiring constraints (location screens, second spoken language, urgent start) are kept as context, not as skills."
+  ]
+}

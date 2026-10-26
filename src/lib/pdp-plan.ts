@@ -10,6 +10,7 @@ import { replaceDriveDocContent, shareDriveFile, uploadPdpToDrive } from "@/lib/
 import { loadTechMatrix } from "@/lib/data-loader";
 import { resolveUserDivision } from "@/lib/user-division";
 import { baseGrade, gradeLabel } from "@/lib/grades";
+import { BAND_LABELS } from "@/lib/roadmap-types";
 
 /**
  * PDP builder: the plan lives in the app as goals (topics) with items
@@ -160,6 +161,18 @@ export interface PdpGenerationInputs {
   topicIds: string[];
   customTopics: string[];
   assessmentId?: string | null;
+  /** Market-driven plan: draft at this band instead of the employee's own. */
+  targetBand?: "jun" | "mid" | "sen";
+  horizonMonths?: number;
+  /** Per matrix topic: why it's in the plan (from the ranking step). */
+  reasons?: Record<string, GoalReason>;
+}
+
+export interface GoalReason {
+  origin: "market" | "baseline" | "manual";
+  fit: number | null;
+  reason: string;
+  signalIds: string[];
 }
 
 /** A previous score below this marks a topic as a gap worth a PDP goal. */
@@ -175,7 +188,7 @@ export interface DraftTopic extends TechMatrixTopicInput {
  * on one); custom technologies are forced in as priority topics.
  */
 export async function resolveDraftTopics(subjectId: string, grade: string, inputs: PdpGenerationInputs): Promise<DraftTopic[]> {
-  const band = baseGrade(grade);
+  const band = inputs.targetBand ?? baseGrade(grade);
   const division = await resolveUserDivision(subjectId);
   const matrix = division ? await loadTechMatrix(division.id) : { sections: [] };
   const byId = new Map(matrix.sections.flatMap((s) => s.topics).map((t) => [t.id, t]));
@@ -196,6 +209,7 @@ export async function resolveDraftTopics(subjectId: string, grade: string, input
       matrixTopicId: t.id,
       previousScore: r?.score ?? null,
       assessorComment: r?.comment ?? null,
+      marketNote: inputs.reasons?.[t.id]?.origin === "market" ? inputs.reasons[t.id].reason : null,
     });
   }
   const seen = new Set(out.map((t) => t.title.toLowerCase()));
@@ -209,8 +223,18 @@ export async function resolveDraftTopics(subjectId: string, grade: string, input
 }
 
 /** Ask the AI for goals; titles are matched back to the topics we sent. */
-export async function draftGoals(topics: DraftTopic[], subject: { name: string; grade: string }): Promise<PlanGoalInput[]> {
-  const ai = await generateStandalonePDP(topics, subject.name, gradeLabel(subject.grade), null);
+export async function draftGoals(
+  topics: DraftTopic[],
+  subject: { name: string; grade: string },
+  target?: { band: "jun" | "mid" | "sen"; horizonMonths?: number }
+): Promise<PlanGoalInput[]> {
+  const ai = await generateStandalonePDP(
+    topics,
+    subject.name,
+    target ? BAND_LABELS[target.band] : gradeLabel(subject.grade),
+    null,
+    target ? { currentGrade: gradeLabel(subject.grade), horizonMonths: target.horizonMonths ?? null } : undefined
+  );
   const byTitle = new Map(topics.map((t) => [t.title.toLowerCase(), t]));
   const goals = ai.pdpTopics
     .filter((t) => t && typeof t.category === "string")
@@ -238,10 +262,15 @@ export async function runDraftGeneration(pdpId: string): Promise<void> {
     const topics = await resolveDraftTopics(pdp.userId, pdp.user.grade, inputs);
     if (topics.length === 0) throw new Error("None of the selected topics exist in the matrix");
 
-    const goals = await draftGoals(topics, { name: pdp.user.name, grade: pdp.user.grade });
+    const goals = await draftGoals(
+      topics,
+      { name: pdp.user.name, grade: pdp.user.grade },
+      inputs.targetBand ? { band: inputs.targetBand, horizonMonths: inputs.horizonMonths } : undefined
+    );
     if (goals.length === 0) throw new Error("The AI returned an empty plan");
 
     await savePlan(pdpId, goals);
+    if (inputs.reasons) await applyGoalReasons(pdpId, inputs.reasons);
     await prisma.pdp.update({ where: { id: pdpId }, data: { status: "DRAFT", error: null } });
   } catch (e) {
     log.error("PDP draft generation failed", { pdpId, error: e instanceof Error ? e.message : String(e) });
@@ -251,6 +280,19 @@ export async function runDraftGeneration(pdpId: string): Promise<void> {
         data: { status: "FAILED", error: e instanceof Error ? e.message : "Generation error" },
       })
       .catch(() => {});
+  }
+}
+
+/** Stamp each drafted goal with why its topic is in the plan. */
+export async function applyGoalReasons(pdpId: string, reasons: Record<string, GoalReason>): Promise<void> {
+  const goals = await prisma.pdpGoal.findMany({ where: { pdpId, matrixTopicId: { not: null } }, select: { id: true, matrixTopicId: true } });
+  for (const g of goals) {
+    const r = reasons[g.matrixTopicId as string];
+    if (!r) continue;
+    await prisma.pdpGoal.update({
+      where: { id: g.id },
+      data: { origin: r.origin, fitScore: r.fit, reason: r.reason, signalIds: r.signalIds },
+    });
   }
 }
 
