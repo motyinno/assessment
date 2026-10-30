@@ -781,6 +781,10 @@ model InterviewQuestion {
   /// A skill the topic lacks that the question tests ("Backpressure handling").
   proposedSkill String?
   hidden        Boolean               @default(false)
+  /// Waiting for the AI to pick its topic/skill/level (the file had none, or an unknown topicId).
+  pendingTopic  Boolean               @default(false)
+  /// Waiting for the AI to classify the kind (the file had none).
+  pendingKind   Boolean               @default(false)
   importId      String?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
@@ -798,8 +802,13 @@ model InterviewQuestionImport {
   id           String   @id @default(cuid())
   departmentId String
   title        String
-  /// { received, created, merged, skipped, unknownTopics }
+  /// { received, created, merged }
   stats        Json     @default("{}")
+  /// "PROCESSING" while the AI maps questions to the matrix, then "DONE" or "FAILED".
+  status       String   @default("DONE")
+  mapTotal     Int      @default(0)
+  mapDone      Int      @default(0)
+  error        String?
   createdById  String?
   createdAt    DateTime @default(now())
 

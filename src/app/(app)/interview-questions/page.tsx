@@ -38,7 +38,17 @@ interface Summary {
   topics: Array<{ id: string; title: string; sectionTitle: string; theory: number; experience: number; other: number; total: number }>;
   proposed: Array<{ title: string; count: number }>;
   totals: Array<{ kind: Kind; hidden: boolean; count: number }>;
-  imports: Array<{ id: string; title: string; stats: { received?: number; created?: number; merged?: number; unknownTopics?: number }; createdAt: string; createdBy: { name: string } | null }>;
+  imports: Array<{
+    id: string;
+    title: string;
+    stats: { received?: number; created?: number; merged?: number; unknownTopics?: number; toMap?: number };
+    status: "PROCESSING" | "DONE" | "FAILED";
+    mapTotal: number;
+    mapDone: number;
+    error: string | null;
+    createdAt: string;
+    createdBy: { name: string } | null;
+  }>;
 }
 
 /**
@@ -129,6 +139,24 @@ export default function InterviewQuestionsPage() {
     loadSummary();
     loadSuggestions();
   }, [loadSummary, loadSuggestions]);
+
+  // While the AI maps an import, refresh the overview and the list.
+  const mapping = summary?.imports.find((i) => i.status === "PROCESSING");
+  useEffect(() => {
+    if (!mapping) return;
+    const t = setTimeout(() => {
+      loadSummary();
+      loadItems();
+      loadSuggestions();
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [mapping, summary, loadSummary, loadItems, loadSuggestions]);
+
+  async function retryImport(id: string) {
+    const r = await fetch(`/api/interview-questions/import/${id}/retry`, { method: "POST" });
+    if (!r.ok) setMessage({ tone: "error", text: apiErrorMessage(await r.json().catch(() => null), "Couldn't restart mapping") });
+    loadSummary();
+  }
   useEffect(() => {
     const t = setTimeout(loadItems, filters.q ? 300 : 0);
     return () => clearTimeout(t);
@@ -176,7 +204,9 @@ export default function InterviewQuestionsPage() {
       const s = d.stats;
       setMessage({
         tone: "ok",
-        text: `Imported ${s.received} questions: ${s.created} new, ${s.merged} merged into existing${s.unknownTopics ? `, ${s.unknownTopics} with a topic not in the matrix (kept unattached)` : ""}.`,
+        text: `Imported ${s.received} questions: ${s.created} new, ${s.merged} merged into existing.${
+          s.toMap ? ` The AI is now matching ${s.toMap} of them to the matrix — progress is shown below.` : ""
+        }`,
       });
       setPage(1);
       await Promise.all([loadSummary(), loadItems()]);
@@ -261,6 +291,43 @@ export default function InterviewQuestionsPage() {
           )}
         </div>
       )}
+
+      {summary?.imports
+        .filter((i) => i.status !== "DONE")
+        .map((i) => (
+          <div
+            key={i.id}
+            className={
+              i.status === "FAILED"
+                ? "flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+                : "flex flex-wrap items-center gap-3 rounded-xl border bg-muted/40 px-4 py-3 text-sm"
+            }
+          >
+            <span className="font-medium">{i.title}</span>
+            {i.status === "PROCESSING" ? (
+              <>
+                <span className="text-muted-foreground">
+                  Matching questions to the matrix with AI… {i.mapDone} / {i.mapTotal}
+                </span>
+                <span className="h-1.5 min-w-32 flex-1 rounded-full bg-muted">
+                  <span
+                    className="block h-1.5 rounded-full bg-primary transition-all"
+                    style={{ width: `${i.mapTotal ? Math.round((i.mapDone / i.mapTotal) * 100) : 0}%` }}
+                  />
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="text-destructive">
+                  Matching stopped at {i.mapDone} / {i.mapTotal}: {i.error}
+                </span>
+                <Button size="sm" variant="outline" onClick={() => retryImport(i.id)}>
+                  Retry
+                </Button>
+              </>
+            )}
+          </div>
+        ))}
 
       {divisionId && <QuestionImportFormat divisionId={divisionId} divisionName={divisions.find((d) => d.id === divisionId)?.name ?? null} />}
 

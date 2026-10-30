@@ -24,13 +24,10 @@ interface MatrixSection {
 }
 
 const FIELDS: Array<[string, string]> = [
-  ["text", "The question, as a self-contained sentence (required)."],
-  ["kind", "THEORY — knowledge you can study; EXPERIENCE — “how did you use X?”; BEHAVIORAL; BACKGROUND (required)."],
-  ["topicId", "Id of a topic in this division's matrix (see the template). Unknown ids keep the question unattached."],
-  ["skill", "Exact skill string of that topic, so the question counts towards the skill's “asked” tint."],
-  ["band", "jun | mid | sen — the level the question targets."],
+  ["text", "The question, as a self-contained sentence. The only required field."],
   ["timesAsked", "How many interviews it came up in (default 1). Repeats of a known question add up."],
-  ["proposedTopic / proposedSkill", "What the matrix is missing, when no topic or skill fits."],
+  ["kind", "Optional. THEORY — knowledge you can study; EXPERIENCE — “how did you use X?”; BEHAVIORAL; BACKGROUND. The AI fills it in if missing."],
+  ["topicId, skill, band", "Optional. Leave them out and the AI matches each question to this division's topic, skill and level after the upload. Set them only if you know the exact ids (see the template)."],
 ];
 
 export function QuestionImportFormat({ divisionId, divisionName }: { divisionId: string; divisionName: string | null }) {
@@ -49,19 +46,16 @@ export function QuestionImportFormat({ divisionId, divisionName }: { divisionId:
   const example = useMemo(() => {
     const topics = (sections ?? []).flatMap((s) => s.topics).filter((t) => t.jun.length || t.mid.length);
     const a = topics[0];
-    const b = topics[1] ?? topics[0];
     return {
       schema: "interview-questions/v1",
       title: "Client interviews — October 2026",
       questions: [
+        { text: "What is the event loop in Node.js, and how do microtasks differ from macrotasks?", timesAsked: 3 },
+        { text: "How did you set up monitoring and alerting on your last project?" },
+        { text: "Tell us about a disagreement in your team and how you resolved it.", kind: "BEHAVIORAL" },
         a
-          ? { text: `Explain “${a.jun[0] ?? a.mid[0]}” and give an example.`, kind: "THEORY", topicId: a.id, skill: a.jun[0] ?? a.mid[0], band: a.jun[0] ? "jun" : "mid", timesAsked: 3 }
-          : { text: "How does the event loop work in Node.js?", kind: "THEORY", topicId: "<topic id>", band: "jun", timesAsked: 3 },
-        b
-          ? { text: `Where did you apply ${b.title} on your last project?`, kind: "EXPERIENCE", topicId: b.id, band: "mid" }
-          : { text: "How did you use message queues on your last project?", kind: "EXPERIENCE", topicId: "<topic id>", band: "mid" },
-        { text: "How would you integrate several payment providers behind one API?", kind: "THEORY", band: "sen", proposedTopic: "Payments integration" },
-        { text: "Tell us about a conflict in your team and how you resolved it.", kind: "BEHAVIORAL" },
+          ? { text: `Explain “${a.jun[0] ?? a.mid[0]}” and give an example.`, kind: "THEORY", topicId: a.id, skill: a.jun[0] ?? a.mid[0], band: a.jun[0] ? "jun" : "mid" }
+          : { text: "How do promises differ from callbacks?", kind: "THEORY", topicId: "<topic id>", band: "jun" },
       ],
     };
   }, [sections]);
@@ -109,8 +103,9 @@ export function QuestionImportFormat({ divisionId, divisionName }: { divisionId:
         <div>
           <CardTitle className="text-base">Import format · interview-questions/v1</CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Questions go into <b className="text-foreground">{divisionName ?? "the selected division"}</b> and attach to its matrix by{" "}
-            <code>topicId</code>. The import doesn&apos;t guess topics — set them in the file.
+            Questions go into <b className="text-foreground">{divisionName ?? "the selected division"}</b>. Only <code>text</code> is
+            required: after the upload the AI matches every question without a topic to this division&apos;s matrix — topic, skill,
+            level and kind — or proposes what the matrix is missing.
           </p>
         </div>
         <div className="flex gap-2">
@@ -134,8 +129,9 @@ export function QuestionImportFormat({ divisionId, divisionName }: { divisionId:
             </p>
           ))}
           <p className="pt-1 text-xs text-muted-foreground">
-            The template also lists every topic id and skill of this division under <code>topics</code> — the import ignores that
-            key, so you can fill <code>questions</code> right in the downloaded file.
+            The last example sets the ids by hand — optional. The template lists every topic id and skill of this division under{" "}
+            <code>topics</code> for that; the import ignores the key. Tip: ask your AI assistant to turn your notes into this format —
+            text and timesAsked are enough.
           </p>
         </div>
       </CardContent>

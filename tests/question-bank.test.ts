@@ -27,23 +27,33 @@ describe("prepareImport", () => {
     expect(rows[0]).toMatchObject({ text: "What is the event loop?", timesAsked: 5, topicId: "nodejs-core", band: "jun" });
   });
 
-  it("keeps a question with an unknown topic unattached, proposing that topic", () => {
+  it("sends questions without a valid topic, or without a kind, to the AI", () => {
     const { rows, unknownTopics } = prepareImport(
       [
         { text: "How do Stripe webhooks work?", kind: "THEORY", topicId: "payments", timesAsked: 1 },
         { text: "Have you used Angular signals?", kind: "EXPERIENCE", proposedTopic: "Angular", timesAsked: 1 },
+        { text: "What is backpressure?", timesAsked: 1 },
+        { text: "Tell us about a conflict in your team.", kind: "BEHAVIORAL", timesAsked: 1 },
+        { text: "How do you write a unit test?", kind: "THEORY", topicId: "testing", timesAsked: 1 },
       ],
       topics
     );
     expect(unknownTopics).toBe(1);
-    expect(rows.map((r) => [r.topicId, r.proposedTopic])).toEqual([
-      [null, "payments"],
-      [null, "Angular"],
+    expect(rows.map((r) => [r.topicId, r.proposedTopic, r.pendingTopic, r.pendingKind])).toEqual([
+      [null, null, true, false],
+      [null, "Angular", true, false],
+      [null, null, true, true],
+      [null, null, false, false],
+      ["testing", null, false, false],
     ]);
   });
 });
 
 describe("questionImportSchema", () => {
+  it("accepts a question with only text", () => {
+    expect(questionImportSchema.safeParse({ schema: "interview-questions/v1", questions: [{ text: "What is CORS?" }] }).success).toBe(true);
+  });
+
   it("rejects a wrong schema tag and bad kinds", () => {
     expect(questionImportSchema.safeParse({ schema: "x", questions: [] }).success).toBe(false);
     const r = questionImportSchema.safeParse({ schema: "interview-questions/v1", questions: [{ text: "Hello there", kind: "OTHER" }] });

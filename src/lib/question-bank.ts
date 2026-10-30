@@ -2,6 +2,8 @@ import { z } from "zod";
 import type { InterviewQuestionKind, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { loadTechMatrix } from "@/lib/data-loader";
+import { log } from "@/lib/logger";
+import { mapInterviewQuestions } from "@/lib/ai-service";
 
 /**
  * Interview question bank: questions asked at real client interviews,
@@ -27,7 +29,8 @@ export const KIND_LABELS: Record<InterviewQuestionKind, string> = {
 
 const importQuestionSchema = z.object({
   text: z.string().trim().min(3).max(500),
-  kind: z.enum(KINDS),
+  /** Optional — the AI classifies it when missing. */
+  kind: z.enum(KINDS).nullish(),
   topicId: z.string().trim().min(1).max(200).nullish(),
   band: z.enum(BANDS).nullish(),
   timesAsked: z.number().int().min(1).max(10_000).default(1),
@@ -59,8 +62,10 @@ export interface ImportStats {
   received: number;
   created: number;
   merged: number;
-  /** Rows whose topicId isn't in the division's matrix — kept unattached. */
+  /** Rows whose topicId isn't in the division's matrix — the AI maps them. */
   unknownTopics: number;
+  /** New questions the AI is matching to the matrix in the background. */
+  toMap: number;
 }
 
 /**
@@ -81,6 +86,8 @@ export function prepareImport(questions: QuestionImport["questions"], topicIds: 
       proposedTopic: string | null;
       skill: string | null;
       proposedSkill: string | null;
+      pendingTopic: boolean;
+      pendingKind: boolean;
     }
   >();
   let unknownTopics = 0;
@@ -98,16 +105,22 @@ export function prepareImport(questions: QuestionImport["questions"], topicIds: 
     }
     // A skill only counts if the topic really has it; otherwise it's a proposal.
     const skillOk = known && q.skill && (topicSkills?.get(known)?.has(q.skill) ?? false);
+    const kind = q.kind ?? null;
+    // People questions never get a topic; anything else without a valid one
+    // goes to the AI, which picks a topic or proposes the missing one.
+    const needsTopic = !known && kind !== "BEHAVIORAL" && kind !== "BACKGROUND";
     byKey.set(normalized, {
       text: q.text,
       normalized,
-      kind: q.kind,
+      kind: kind ?? "THEORY",
       topicId: known,
       band: q.band ?? null,
       timesAsked: q.timesAsked,
-      proposedTopic: known ? null : q.proposedTopic ?? (q.topicId && !known ? q.topicId : null),
+      proposedTopic: known ? null : q.proposedTopic ?? null,
       skill: skillOk ? q.skill! : null,
       proposedSkill: known ? (skillOk ? null : q.proposedSkill ?? q.skill ?? null) : null,
+      pendingTopic: needsTopic,
+      pendingKind: !kind,
     });
   }
   return { rows: [...byKey.values()], unknownTopics };
@@ -134,7 +147,7 @@ export async function importQuestions(opts: {
   const skills = await divisionTopicSkills(departmentId);
   const { rows, unknownTopics } = prepareImport(payload.questions, new Set(skills.keys()), skills);
 
-  return prisma.$transaction(
+  const result = await prisma.$transaction(
     async (tx) => {
       const batch = await tx.interviewQuestionImport.create({
         data: { departmentId, title: payload.title?.trim() || `Import ${new Date().toISOString().slice(0, 10)}`, createdById: opts.createdById },
@@ -167,12 +180,89 @@ export async function importQuestions(opts: {
           },
         });
       }
-      const stats: ImportStats = { received: payload.questions.length, created: fresh.length, merged, unknownTopics };
-      await tx.interviewQuestionImport.update({ where: { id: batch.id }, data: { stats: stats as unknown as Prisma.InputJsonValue } });
+      const toMap = fresh.filter((r) => r.pendingTopic || r.pendingKind).length;
+      const stats: ImportStats = { received: payload.questions.length, created: fresh.length, merged, unknownTopics, toMap };
+      await tx.interviewQuestionImport.update({
+        where: { id: batch.id },
+        data: { stats: stats as unknown as Prisma.InputJsonValue, ...(toMap ? { status: "PROCESSING", mapTotal: toMap, mapDone: 0 } : {}) },
+      });
       return { importId: batch.id, stats };
     },
     { timeout: 120_000 }
   );
+  if (result.stats.toMap) void runImportMapping(result.importId);
+  return result;
+}
+
+const MAP_BATCH = 40;
+
+/**
+ * Background job: let the AI pick topic, skill, level and kind for an
+ * import's pending questions, batch by batch, validating every answer
+ * against the live matrix. Never throws; a failure leaves the rest pending
+ * and marks the import FAILED so it can be retried.
+ */
+export async function runImportMapping(importId: string): Promise<void> {
+  try {
+    const batch = await prisma.interviewQuestionImport.findUniqueOrThrow({ where: { id: importId } });
+    const matrix = await loadTechMatrix(batch.departmentId);
+    const topics = matrix.sections.flatMap((s) => s.topics.map((t) => ({ id: t.id, section: s.title, title: t.title, jun: t.jun, mid: t.mid, sen: t.sen })));
+    const byId = new Map(topics.map((t) => [t.id, t]));
+
+    for (;;) {
+      const rows = await prisma.interviewQuestion.findMany({
+        where: { importId, OR: [{ pendingTopic: true }, { pendingKind: true }] },
+        orderBy: { createdAt: "asc" },
+        take: MAP_BATCH,
+        select: { id: true, text: true, kind: true, pendingTopic: true, pendingKind: true, band: true, proposedTopic: true },
+      });
+      if (!rows.length) break;
+
+      const raw = await mapInterviewQuestions(
+        rows.map((r, i) => ({ i, text: r.text, kind: r.pendingKind ? null : r.kind })),
+        topics
+      );
+      const results = new Map<number, Record<string, unknown>>();
+      const list = (raw as { results?: unknown })?.results;
+      if (Array.isArray(list)) for (const x of list) if (x && typeof (x as { i?: unknown }).i === "number") results.set((x as { i: number }).i, x as Record<string, unknown>);
+
+      await prisma.$transaction(
+        rows.map((r, i) => {
+          const a = results.get(i) ?? {};
+          const kind = r.pendingKind && typeof a.kind === "string" && (KINDS as readonly string[]).includes(a.kind) ? (a.kind as InterviewQuestionKind) : r.kind;
+          const people = kind === "BEHAVIORAL" || kind === "BACKGROUND";
+          const topic = !people && r.pendingTopic && typeof a.topicId === "string" ? byId.get(a.topicId) : undefined;
+          const skills = topic ? new Set([...topic.jun, ...topic.mid, ...topic.sen]) : null;
+          const skill = topic && typeof a.skill === "string" && skills!.has(a.skill) ? a.skill : null;
+          const str = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
+          const band = typeof a.band === "string" && (BANDS as readonly string[]).includes(a.band) ? a.band : null;
+          return prisma.interviewQuestion.update({
+            where: { id: r.id },
+            data: {
+              kind,
+              pendingKind: false,
+              pendingTopic: false,
+              ...(r.pendingTopic
+                ? {
+                    topicId: topic?.id ?? null,
+                    skill,
+                    proposedSkill: topic && !skill ? str(a.proposedSkill, 120) ?? str(a.skill, 120) : null,
+                    proposedTopic: topic || people ? null : str(a.proposedTopic, 120) ?? r.proposedTopic,
+                    band: people ? null : r.band ?? band,
+                  }
+                : {}),
+            },
+          });
+        })
+      );
+      await prisma.interviewQuestionImport.update({ where: { id: importId }, data: { mapDone: { increment: rows.length } } });
+    }
+    await prisma.interviewQuestionImport.update({ where: { id: importId }, data: { status: "DONE", error: null } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log.error("Interview question mapping failed", { importId, error: message });
+    await prisma.interviewQuestionImport.update({ where: { id: importId }, data: { status: "FAILED", error: message } }).catch(() => {});
+  }
 }
 
 export interface TopicQuestion {
@@ -234,7 +324,17 @@ export async function bankSummary(departmentId: string) {
       where: { departmentId },
       orderBy: { createdAt: "desc" },
       take: 5,
-      select: { id: true, title: true, stats: true, createdAt: true, createdBy: { select: { name: true } } },
+      select: {
+        id: true,
+        title: true,
+        stats: true,
+        status: true,
+        mapTotal: true,
+        mapDone: true,
+        error: true,
+        createdAt: true,
+        createdBy: { select: { name: true } },
+      },
     }),
     loadTechMatrix(departmentId),
   ]);
