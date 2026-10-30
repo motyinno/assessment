@@ -153,7 +153,10 @@ export default function InterviewQuestionsPage() {
     try {
       payload = JSON.parse(await file.text());
     } catch {
-      setMessage({ tone: "error", text: "The file isn't valid JSON" });
+      setMessage({
+        tone: "error",
+        text: `“${file.name}” isn't an interview-questions/v1 JSON file. This import takes questions that are already classified (kind, topic, level). A raw list of questions — a .txt or a transcript export — has to be classified first.`,
+      });
       return;
     }
     setImporting(true);
@@ -235,7 +238,7 @@ export default function InterviewQuestionsPage() {
           <Button disabled={importing || !divisionId} onClick={() => fileRef.current?.click()}>
             {importing ? "Importing…" : "Import JSON"}
           </Button>
-          <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={onFile} />
+          <input ref={fileRef} type="file" accept=".json,.txt,application/json,text/plain" className="hidden" onChange={onFile} />
         </div>
       </div>
 
