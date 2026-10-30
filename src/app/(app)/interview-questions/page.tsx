@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/api-error";
+import { QuestionImportFormat } from "@/components/question-import-format";
 
 type Kind = "THEORY" | "EXPERIENCE" | "BEHAVIORAL" | "BACKGROUND";
 const KIND_LABEL: Record<Kind, string> = { THEORY: "Theory", EXPERIENCE: "Experience", BEHAVIORAL: "Behavioral", BACKGROUND: "Background" };
@@ -261,13 +262,15 @@ export default function InterviewQuestionsPage() {
         </div>
       )}
 
+      {divisionId && <QuestionImportFormat divisionId={divisionId} divisionName={divisions.find((d) => d.id === divisionId)?.name ?? null} />}
+
       {summary && visibleTotal === 0 && (
         <Card>
-          <CardContent className="space-y-2 py-6 text-sm">
+          <CardContent className="space-y-1 py-6 text-sm">
             <p className="font-medium">The bank is empty.</p>
             <p className="text-muted-foreground">
-              Import a JSON file in the <code>interview-questions/v1</code> format:{" "}
-              <code className="text-xs">{`{ "schema": "interview-questions/v1", "questions": [{ "text", "kind": "THEORY|EXPERIENCE|BEHAVIORAL|BACKGROUND", "topicId", "band": "jun|mid|sen", "timesAsked", "proposedTopic" }] }`}</code>
+              Import a JSON file in the <code>interview-questions/v1</code> format — open “Import format and template” above for an
+              example with this division&apos;s topic ids.
             </p>
           </CardContent>
         </Card>
