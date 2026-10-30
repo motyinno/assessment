@@ -16,6 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
+import { HEAT_CLASS, HeatLegend, TopicAskedBadge, heatOf, heatTitle, skillCount, useInterviewStats } from "@/components/interview-stats";
+import { TopicQuestionsDialog, type DialogTopic } from "@/components/topic-questions-dialog";
 
 interface Topic {
   id: string;
@@ -96,6 +98,9 @@ export default function TechMatrixEditPage() {
   useEffect(() => {
     if (divisionId) reload(divisionId);
   }, [divisionId, reload]);
+
+  const interview = useInterviewStats(divisionId || null);
+  const [questionsFor, setQuestionsFor] = useState<DialogTopic | null>(null);
 
   // ---- Section mutations ----
   async function addSection() {
@@ -297,6 +302,8 @@ export default function TechMatrixEditPage() {
         </div>
       </div>
 
+      {mode === "edit" && Object.keys(interview.topics).length > 0 && <HeatLegend floor={interview.oftenAsked} />}
+
       {/* Add a section (edit mode only) */}
       {mode === "edit" && (
         <Card>
@@ -362,6 +369,7 @@ export default function TechMatrixEditPage() {
                           renameTopic(topic.id, e.target.value.trim())
                         }
                       />
+                      <TopicAskedBadge stats={interview} topicId={topic.id} onClick={() => setQuestionsFor(topic)} />
                       <Button
                         variant="ghost"
                         size="sm"
@@ -389,10 +397,14 @@ export default function TechMatrixEditPage() {
                                   No questions
                                 </span>
                               )}
-                              {topic[band].map((skill) => (
+                              {topic[band].map((skill) => {
+                                const count = skillCount(interview, topic.id, skill);
+                                const heat = heatOf(count, interview.oftenAsked);
+                                return (
                                 <span
                                   key={skill}
-                                  className="inline-flex items-center gap-1 rounded-full bg-card px-2 py-0.5 text-xs ring-1 ring-border"
+                                  title={heatTitle(count)}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${heat ? HEAT_CLASS[heat] : "bg-card ring-1 ring-border"}`}
                                 >
                                   {skill}
                                   <button
@@ -406,7 +418,8 @@ export default function TechMatrixEditPage() {
                                     ×
                                   </button>
                                 </span>
-                              ))}
+                                );
+                              })}
                             </div>
                             <div className="flex items-center gap-1.5">
                               <Input
@@ -467,6 +480,7 @@ export default function TechMatrixEditPage() {
         ))
       )}
 
+      <TopicQuestionsDialog topic={questionsFor} oftenAsked={interview.oftenAsked} onClose={() => setQuestionsFor(null)} />
       {confirmDialog}
     </div>
   );

@@ -16,6 +16,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { HEAT_CLASS, heatOf, heatTitle } from "@/components/interview-stats";
 
 const BAND_DOT: Record<Grade, string> = {
   jun: "bg-emerald-400",
@@ -61,6 +63,28 @@ export function RoadmapNodeDetail({
     onSetResolved(topic, focalGrade, skills.filter((s) => next.has(s)));
   }
 
+  // Real client-interview questions for this topic, this level first
+  // (lib/question-bank.ts).
+  const [asked, setAsked] = useState<Array<{ id: string; text: string; kind: string; band: string | null; timesAsked: number; skill: string | null }> | null>(null);
+  const topicId = topic?.id;
+  useEffect(() => {
+    if (!topicId) return;
+    setAsked(null);
+    const controller = new AbortController();
+    fetch(`/api/tech-matrix/topics/${encodeURIComponent(topicId)}/questions?band=${focalGrade}`, { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { questions: typeof asked } | null) => setAsked(d?.questions ?? []))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [topicId, focalGrade]);
+
+  // How often each of this level's skills came up (the questions carry their skill).
+  const skillCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const q of asked ?? []) if (q.skill) m[q.skill] = (m[q.skill] ?? 0) + q.timesAsked;
+    return m;
+  }, [asked]);
+
   function toggleSkill(skill: string) {
     if (!canEdit) return;
     const next = new Set(resolved);
@@ -76,7 +100,7 @@ export function RoadmapNodeDetail({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         {topic && meta && (
           <>
             <DialogHeader>
@@ -144,7 +168,14 @@ export function RoadmapNodeDetail({
                         >
                           {checked && <Check className="h-3 w-3" strokeWidth={3} />}
                         </span>
-                        <span className={cn(checked ? "text-muted-foreground line-through" : "text-foreground/85")}>
+                        <span
+                          title={heatTitle(skillCounts[skill] ?? 0)}
+                          className={cn(
+                            "rounded-sm px-1 -mx-1",
+                            checked ? "text-muted-foreground line-through" : "text-foreground/85",
+                            !checked && heatOf(skillCounts[skill] ?? 0) && HEAT_CLASS[heatOf(skillCounts[skill] ?? 0)!]
+                          )}
+                        >
                           {skill}
                         </span>
                       </button>
@@ -152,6 +183,27 @@ export function RoadmapNodeDetail({
                   );
                 })}
               </ul>
+            )}
+
+            {asked && asked.length > 0 && (
+              <div className="space-y-1.5 border-t pt-3">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Asked at client interviews</div>
+                <ul className="space-y-1">
+                  {asked.map((q) => (
+                    <li key={q.id} className="flex items-start gap-2 text-[13px] leading-relaxed">
+                      <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-muted-foreground/60" />
+                      <span className="flex-1 text-foreground/85">
+                        {q.text}
+                        <span className="ml-1.5 text-[11px] text-muted-foreground">
+                          {q.kind === "EXPERIENCE" ? "· about your experience" : ""}
+                          {q.band && q.band !== focalGrade ? ` · ${BAND_LABELS[q.band as Grade]}` : ""}
+                          {q.timesAsked > 1 ? ` · asked ${q.timesAsked}×` : ""}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </>
         )}

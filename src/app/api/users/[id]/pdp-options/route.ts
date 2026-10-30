@@ -5,6 +5,7 @@ import { canComposePdp, PDP_GAP_THRESHOLD } from "@/lib/pdp-plan";
 import { loadTechMatrix } from "@/lib/data-loader";
 import { resolveUserDivision } from "@/lib/user-division";
 import { baseGrade, gradeLabel } from "@/lib/grades";
+import { matrixInterviewStats } from "@/lib/question-bank";
 import { forbidden, notFound } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +42,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   if (requestedId && !assessment) return notFound("Assessment not found for this employee");
 
   const division = await resolveUserDivision(subject.id);
-  const matrix = division ? await loadTechMatrix(division.id) : { sections: [] };
+  const [matrix, interview] = await Promise.all([
+    division ? loadTechMatrix(division.id) : Promise.resolve({ sections: [] as Awaited<ReturnType<typeof loadTechMatrix>>["sections"] }),
+    division ? matrixInterviewStats(division.id) : Promise.resolve(null),
+  ]);
   const band = subject.grade ? baseGrade(subject.grade) : null;
   const scoreByKey = new Map(
     (assessment?.results ?? []).filter((r) => r.score !== null).map((r) => [r.category.toLowerCase(), r.score as number])
@@ -59,6 +63,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
               title: t.title,
               skills: t[band],
               score: scoreByKey.get(t.id.toLowerCase()) ?? scoreByKey.get(t.title.toLowerCase()) ?? null,
+              // How often clients ask about it (lib/question-bank.ts): the topic in
+              // total, and each of this grade's skills.
+              interview: interview?.topics[t.id] ?? null,
+              skillAsked: Object.fromEntries(t[band].map((sk) => [sk, interview?.skills[t.id]?.[sk] ?? 0])),
             })),
         }))
         .filter((s) => s.topics.length > 0)

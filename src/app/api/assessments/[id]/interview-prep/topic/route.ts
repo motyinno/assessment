@@ -10,6 +10,7 @@ import {
   normalizeAiTask,
   readPrepContent,
   type PrepCandidateTopic,
+  withInterviewQuestions,
 } from "@/lib/interview-prep";
 import { interviewPrepTopicSchema } from "@/lib/schemas";
 import { errorJson, log, notFound, parseJsonBody } from "@/lib/api-helpers";
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest, { params }: Params) {
     band: ctx.band,
     assessmentType: ctx.assessment.assessmentType,
     language: prep.language === "en" ? ("en" as const) : ("ru" as const),
-    topics: [candidate],
+    topics: await withInterviewQuestions([candidate], ctx.band),
   };
 
   try {
