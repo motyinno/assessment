@@ -1,7 +1,8 @@
 "use client";
 
+import { ClimbLoader } from "@/components/brand/climb-loader";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Code2, EyeOff, ListChecks, Loader2, Plus, RotateCw, Sparkles } from "lucide-react";
+import { ChevronDown, Code2, EyeOff, ListChecks, Plus, RotateCw, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -309,7 +310,7 @@ export function InterviewPrepCard({ assessmentId }: { assessmentId: string }) {
         <span className="text-base font-semibold">Interview prep</span>
         {generating ? (
           <span className="text-xs text-muted-foreground ml-auto flex items-center gap-1">
-            <Loader2 className="size-3 animate-spin" /> Generating questions…
+            <ClimbLoader size="sm" label="Generating questions…" />
           </span>
         ) : (
           prep && (
@@ -346,7 +347,7 @@ export function InterviewPrepCard({ assessmentId }: { assessmentId: string }) {
 
           {data && !prep && submitting && (
             <p className="text-sm text-muted-foreground flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" /> Generating questions…
+              <ClimbLoader label="Generating questions…" />
             </p>
           )}
 
@@ -537,7 +538,7 @@ export function InterviewPrepCard({ assessmentId }: { assessmentId: string }) {
                     <div key={id} className="space-y-1">
                       <span className="text-sm font-semibold">{topicTitles.get(id) ?? id}</span>
                       <div className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                        <Loader2 className="size-4 animate-spin" /> Generating questions…
+                        <ClimbLoader label="Generating questions…" />
                       </div>
                     </div>
                   ))}

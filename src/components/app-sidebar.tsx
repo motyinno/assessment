@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserAvatar } from "@/components/user-avatar";
+import { ClimbTile } from "@/components/brand/climb-mark";
+import { ClimbLoader } from "@/components/brand/climb-loader";
 
 interface SidebarProps {
   user: {
@@ -177,8 +180,26 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
   return <>{icons[name] || null}</>;
 }
 
+/** Nav icon, or the climbing loader while that link's page is on its way. */
+function NavGlyph({ pending, ...props }: { pending: boolean; name: string; className?: string }) {
+  if (pending) return <ClimbLoader size="sm" className="w-[18px] h-[18px] shrink-0 justify-center text-sidebar-primary" />;
+  return <NavIcon {...props} />;
+}
+
 export function AppSidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  // Bumped on logo hover to remount the mark and replay its intro.
+  const [logoPlay, setLogoPlay] = useState(0);
+  // Link clicked but its page not rendered yet: give feedback right away
+  // instead of a frozen screen while the server renders (or dev compiles).
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => setPending(null), [pathname]);
+
+  const trackPending = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    const href = (e.target as HTMLElement).closest("a")?.getAttribute("href");
+    if (href && href.startsWith("/") && href !== pathname) setPending(href);
+  };
 
   const isActive = (href: string, exact = false) => {
     if (href === "/") return pathname === "/";
@@ -186,13 +207,23 @@ export function AppSidebar({ user }: SidebarProps) {
   };
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
+    <aside
+      className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border"
+      onClickCapture={trackPending}
+    >
+      {pending && (
+        <div aria-hidden className="fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden">
+          <div className="climb-progress h-full bg-trail" />
+        </div>
+      )}
       {/* Logo area */}
       <div className="flex items-center justify-between gap-2 px-5 py-5">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm ring-1 ring-primary/20 group-hover:shadow-md transition-shadow">
-            <span className="text-primary-foreground text-[11px] font-bold tracking-wider">NA</span>
-          </div>
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 items-center gap-3 group"
+          onMouseEnter={() => setLogoPlay((n) => n + 1)}
+        >
+          <ClimbTile key={logoPlay} animated className="size-9 group-hover:shadow-md transition-shadow" />
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-sidebar-foreground leading-tight">Node Assessment</h1>
             <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Assessments & PDPs</p>
@@ -220,7 +251,8 @@ export function AppSidebar({ user }: SidebarProps) {
                     : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                 )}
               >
-                <NavIcon
+                <NavGlyph
+                  pending={pending === item.href}
                   name={item.icon}
                   className={cn(
                     "w-[18px] h-[18px] shrink-0 transition-colors",
@@ -252,7 +284,8 @@ export function AppSidebar({ user }: SidebarProps) {
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <NavIcon
+                  <NavGlyph
+                    pending={pending === item.href}
                     name={item.icon}
                     className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors",
@@ -291,7 +324,8 @@ export function AppSidebar({ user }: SidebarProps) {
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <NavIcon
+                  <NavGlyph
+                    pending={pending === item.href}
                     name={item.icon}
                     className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors",
@@ -326,7 +360,8 @@ export function AppSidebar({ user }: SidebarProps) {
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <NavIcon
+                  <NavGlyph
+                    pending={pending === item.href}
                     name={item.icon}
                     className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors",
@@ -360,7 +395,8 @@ export function AppSidebar({ user }: SidebarProps) {
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <NavIcon
+                  <NavGlyph
+                    pending={pending === item.href}
                     name={item.icon}
                     className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors",
@@ -394,7 +430,8 @@ export function AppSidebar({ user }: SidebarProps) {
                       : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
                   )}
                 >
-                  <NavIcon
+                  <NavGlyph
+                    pending={pending === item.href}
                     name={item.icon}
                     className={cn(
                       "w-[18px] h-[18px] shrink-0 transition-colors",
