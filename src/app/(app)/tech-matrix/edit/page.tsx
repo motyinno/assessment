@@ -18,6 +18,7 @@ import {
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { HEAT_CLASS, HeatLegend, TopicAskedBadge, heatOf, heatTitle, skillCount, useInterviewStats } from "@/components/interview-stats";
 import { TopicQuestionsDialog, type DialogTopic } from "@/components/topic-questions-dialog";
+import { PageLoader } from "@/components/brand/page-loader";
 
 interface Topic {
   id: string;
@@ -322,7 +323,7 @@ export default function TechMatrixEditPage() {
       )}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <PageLoader label="Loading matrix…" />
       ) : mode === "preview" ? (
         <MatrixPreview sections={sections} />
       ) : (

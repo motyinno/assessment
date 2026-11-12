@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { gradeLabel } from "@/lib/grades";
 import { apiErrorMessage } from "@/lib/api-error";
+import { SkeletonList } from "@/components/ui/skeleton";
+import { PageLoader } from "@/components/brand/page-loader";
 
 interface AssessmentRequest {
   id: string;
@@ -108,9 +110,7 @@ export default function RequestAssessmentPage() {
 
   if (sessionStatus === "loading") {
     return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
+      <PageLoader />
     );
   }
 
@@ -173,7 +173,7 @@ export default function RequestAssessmentPage() {
         <h2 className="text-xl font-semibold">My requests</h2>
 
         {loading ? (
-          <p className="text-muted-foreground">Loading...</p>
+          <SkeletonList rows={3} />
         ) : requests.length === 0 ? (
           <p className="text-muted-foreground">No requests yet</p>
         ) : (

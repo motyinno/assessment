@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ClimbTile } from "@/components/brand/climb-mark";
 
 const devLoginEnabled = process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true";
 
@@ -53,9 +54,7 @@ function LoginForm() {
       />
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 mx-auto mb-4 flex items-center justify-center shadow-lg ring-1 ring-primary/20">
-            <span className="text-primary-foreground text-xl font-bold tracking-wider">NA</span>
-          </div>
+          <ClimbTile animated className="mx-auto mb-4 size-14 rounded-2xl shadow-lg" />
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Node Assessment</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
             Manage assessments and development plans

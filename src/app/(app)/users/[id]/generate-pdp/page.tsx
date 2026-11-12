@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiErrorMessage } from "@/lib/api-error";
 import { HEAT_CLASS, HeatLegend, heatOf, heatTitle, topicHeatOf } from "@/components/interview-stats";
+import { PageLoader } from "@/components/brand/page-loader";
 
 interface PickerTopic {
   id: string;
@@ -167,7 +168,7 @@ export default function GeneratePdpForUserPage() {
     return <p className="text-sm text-destructive">{loadError}</p>;
   }
   if (!options) {
-    return <p className="text-muted-foreground">Loading...</p>;
+    return <PageLoader />;
   }
   const user = options.subject;
 

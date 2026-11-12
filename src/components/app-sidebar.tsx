@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
 import { UserAvatar } from "@/components/user-avatar";
+import { ClimbTile } from "@/components/brand/climb-mark";
+import { ClimbLoader } from "@/components/brand/climb-loader";
+import { activeNav, visibleSections, type VisibleSection } from "@/lib/nav-sections";
 
 interface SidebarProps {
   user: {
@@ -19,58 +23,6 @@ interface SidebarProps {
     photoFileName?: string | null;
   };
 }
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: "home" },
-  { href: "/assessments", label: "Assessments", icon: "clipboard" },
-  // Exact match so the viewer isn't highlighted while on the /tech-matrix/edit
-  // configuration page (which has its own Configuration nav entry).
-  { href: "/tech-matrix", label: "Tech Matrix", icon: "grid", exact: true },
-  { href: "/request-assessment", label: "Request Assessment", icon: "send", hideForAdmin: true },
-];
-
-const assessorItems = [
-  { href: "/assessment-logs", label: "Assessment Log", icon: "file-text" },
-];
-
-// People-section items. Each carries the roles allowed to see the link —
-// "My Team" is MANAGER-only, the Users directory stays visible to MANAGER +
-// ADMIN, and "Departments" (the org chart) is visible to everyone, which is
-// why it lives here rather than under Administration.
-const ALL_ROLES = ["USER", "ASSESSOR", "MANAGER", "ADMIN"] as const;
-
-const peopleItems: Array<{
-  href: string;
-  label: string;
-  icon: string;
-  roles: ReadonlyArray<"USER" | "ASSESSOR" | "MANAGER" | "ADMIN">;
-}> = [
-  { href: "/my-team", label: "My Team", icon: "users", roles: ["MANAGER"] },
-  { href: "/users", label: "Users", icon: "users", roles: ["MANAGER", "ADMIN"] },
-  { href: "/departments", label: "Departments", icon: "sitemap", roles: ALL_ROLES },
-];
-
-// Admin review queues & insights — all "Assessment X" / "PDP X" review
-// actions. Org structure browsing moved to peopleItems above: it's the company
-// org chart, not an admin action.
-const adminItems = [
-  { href: "/requests", label: "Assessment Requests", icon: "inbox" },
-  { href: "/assessment-review", label: "Assessment Review", icon: "clipboard" },
-  { href: "/assessment-statistics", label: "Assessment Statistics", icon: "bar-chart" },
-  { href: "/pdps", label: "PDPs", icon: "file-text" },
-];
-
-// SUPER_ADMIN-only items: the HRM sync console.
-// Gated by `user.isSuperAdmin`, not just `role === "ADMIN"` (see lib/roles.ts).
-const superAdminItems = [{ href: "/admin/hrm-sync", label: "HRM Sync", icon: "refresh" }];
-
-// Admin configuration — how the app generates work, not a review action.
-const configItems = [
-  { href: "/tech-matrix/edit", label: "Tech Matrix", icon: "grid" },
-  { href: "/session-templates", label: "Session Templates", icon: "sliders" },
-  // Questions from real client interviews, attached to matrix topics (lib/question-bank.ts).
-  { href: "/interview-questions", label: "Interview Questions", icon: "message" },
-];
 
 function NavIcon({ name, className }: { name: string; className?: string }) {
   const icons: Record<string, React.ReactNode> = {
@@ -173,6 +125,19 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
       </svg>
     ),
     // lucide "network" glyph — org-chart shape, used for Departments (S10).
+    mountain: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2 20 L12 5 L22 20 Z" />
+        <path d="M7.5 20 L13.5 17.5 L9.5 14.5 L13 11.5" />
+        <path d="M12 5 V2 L15.5 3 L12 4" />
+      </svg>
+    ),
+    shield: (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="M9 12l2 2 4-4" />
+      </svg>
+    ),
     sitemap: (
       <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
         <rect x="9" y="2" width="6" height="6" rx="1" />
@@ -185,22 +150,74 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
   return <>{icons[name] || null}</>;
 }
 
+/** Nav icon, or the climbing loader while that link's page is on its way. */
+function NavGlyph({ pending, ...props }: { pending: boolean; name: string; className?: string }) {
+  if (pending) return <ClimbLoader size="sm" className="w-[18px] h-[18px] shrink-0 justify-center text-sidebar-primary" />;
+  return <NavIcon {...props} />;
+}
+
 export function AppSidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  // Bumped on logo hover to remount the mark and replay its intro.
+  const [logoPlay, setLogoPlay] = useState(0);
+  // Link clicked but its page not rendered yet: give feedback right away
+  // instead of a frozen screen while the server renders (or dev compiles).
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => setPending(null), [pathname]);
 
-  const isActive = (href: string, exact = false) => {
-    if (href === "/") return pathname === "/";
-    return exact ? pathname === href : pathname.startsWith(href);
+  const trackPending = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    const href = (e.target as HTMLElement).closest("a")?.getAttribute("href");
+    if (href && href.startsWith("/") && href !== pathname) setPending(href);
   };
 
+  const sections = visibleSections(user);
+  const activeId = activeNav(sections, pathname)?.section.id;
+  const navLink = (section: VisibleSection) => {
+    const active = section.id === activeId;
+    return (
+      <Link
+        key={section.id}
+        href={section.href}
+        className={cn(
+          "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
+          active
+            ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
+            : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+        )}
+      >
+        <NavGlyph
+          pending={pending === section.href}
+          name={section.icon}
+          className={cn(
+            "w-[18px] h-[18px] shrink-0 transition-colors",
+            active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
+          )}
+        />
+        <span className="truncate">{section.label}</span>
+      </Link>
+    );
+  };
+  const adminSections = sections.filter((s) => s.group === "admin");
+
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border">
+    <aside
+      className="flex h-full w-64 shrink-0 flex-col bg-sidebar border-r border-sidebar-border"
+      onClickCapture={trackPending}
+    >
+      {pending && (
+        <div aria-hidden className="fixed inset-x-0 top-0 z-50 h-0.5 overflow-hidden">
+          <div className="climb-progress h-full bg-trail" />
+        </div>
+      )}
       {/* Logo area */}
       <div className="flex items-center justify-between gap-2 px-5 py-5">
-        <Link href="/dashboard" className="flex min-w-0 items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-sm ring-1 ring-primary/20 group-hover:shadow-md transition-shadow">
-            <span className="text-primary-foreground text-[11px] font-bold tracking-wider">NA</span>
-          </div>
+        <Link
+          href="/dashboard"
+          className="flex min-w-0 items-center gap-3 group"
+          onMouseEnter={() => setLogoPlay((n) => n + 1)}
+        >
+          <ClimbTile key={logoPlay} animated className="size-9 group-hover:shadow-md transition-shadow" />
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-sidebar-foreground leading-tight">Node Assessment</h1>
             <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">Assessments & PDPs</p>
@@ -213,206 +230,15 @@ export function AppSidebar({ user }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        {navItems
-          .filter((item) => !("hideForAdmin" in item && item.hideForAdmin && user.role === "ADMIN"))
-          .map((item) => {
-            const active = isActive(item.href, "exact" in item && item.exact === true);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                )}
-              >
-                <NavIcon
-                  name={item.icon}
-                  className={cn(
-                    "w-[18px] h-[18px] shrink-0 transition-colors",
-                    active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
-                  )}
-                />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
-
-        {(user.role === "ADMIN" || user.role === "ASSESSOR" || user.role === "MANAGER") && (
-          <>
-            <div className="pt-5 pb-2 px-3">
-              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
-                Assessment Tools
-              </p>
-            </div>
-            {assessorItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <NavIcon
-                    name={item.icon}
-                    className={cn(
-                      "w-[18px] h-[18px] shrink-0 transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
-                    )}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {(() => {
-          const visiblePeopleItems = peopleItems.filter((it) =>
-            it.roles.includes(user.role as "USER" | "ASSESSOR" | "MANAGER" | "ADMIN")
-          );
-          if (visiblePeopleItems.length === 0) return null;
-          return (
-          <>
-            <div className="pt-5 pb-2 px-3">
-              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
-                People
-              </p>
-            </div>
-            {visiblePeopleItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <NavIcon
-                    name={item.icon}
-                    className={cn(
-                      "w-[18px] h-[18px] shrink-0 transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
-                    )}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </>
-          );
-        })()}
-
-        {user.role === "ADMIN" && (
+        {sections.filter((s) => s.group === "main").map(navLink)}
+        {adminSections.length > 0 && (
           <>
             <div className="pt-5 pb-2 px-3">
               <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
                 Administration
               </p>
             </div>
-            {adminItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <NavIcon
-                    name={item.icon}
-                    className={cn(
-                      "w-[18px] h-[18px] shrink-0 transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
-                    )}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {user.role === "ADMIN" && (
-          <>
-            <div className="pt-5 pb-2 px-3">
-              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
-                Configuration
-              </p>
-            </div>
-            {configItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <NavIcon
-                    name={item.icon}
-                    className={cn(
-                      "w-[18px] h-[18px] shrink-0 transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
-                    )}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
-          </>
-        )}
-
-        {user.isSuperAdmin && (
-          <>
-            <div className="pt-5 pb-2 px-3">
-              <p className="text-[10px] font-semibold text-muted-foreground/70 uppercase tracking-[0.08em]">
-                Super Admin
-              </p>
-            </div>
-            {superAdminItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "group/nav flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all relative",
-                    active
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-sm"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
-                  )}
-                >
-                  <NavIcon
-                    name={item.icon}
-                    className={cn(
-                      "w-[18px] h-[18px] shrink-0 transition-colors",
-                      active ? "text-sidebar-primary" : "text-sidebar-foreground/50 group-hover/nav:text-sidebar-foreground/80"
-                    )}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </Link>
-              );
-            })}
+            {adminSections.map(navLink)}
           </>
         )}
       </nav>

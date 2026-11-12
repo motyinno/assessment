@@ -10,6 +10,9 @@ import { cn } from "@/lib/utils";
 import { gradeLabel } from "@/lib/grades";
 import { DailyTopicButton } from "@/components/daily-topic-button";
 import { getAdminDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
+import { ClimbCard } from "@/components/brand/climb-card";
+import { loadReadiness } from "@/lib/climb";
+import { ClimbMark } from "@/components/brand/climb-mark";
 
 type StatTone = "primary" | "success" | "warning" | "muted";
 
@@ -55,12 +58,8 @@ function StatCard({
 function EmptyState({ title, description }: { title: string; description?: string }) {
   return (
     <div className="flex flex-col items-center gap-2 py-10 text-center">
-      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground/70">
+        <ClimbMark className="w-6 h-6" />
       </div>
       <p className="text-sm font-medium text-foreground">{title}</p>
       {description && <p className="text-xs text-muted-foreground max-w-xs">{description}</p>}
@@ -113,6 +112,7 @@ export default async function DashboardPage() {
     pendingRequestsCount,
     pdpDrafts,
     myRequests,
+    me,
   ] = await Promise.all([
     prisma.assessmentParticipant.findMany({
       where: { userId },
@@ -157,30 +157,44 @@ export default async function DashboardPage() {
           take: 5,
         })
       : Promise.resolve([]),
+    prisma.user.findUnique({ where: { id: userId }, select: { grade: true } }),
   ]);
 
   const myAssessments = assessments.filter((p) => p.participantRole === "SUBJECT");
   const conductingAssessments = assessments.filter((p) => p.participantRole === "ASSESSOR");
 
   const firstName = session.user.name?.split(" ")[0] ?? session.user.name;
+  // Everyone with a grade sees their camp first; admins without one skip it.
+  const showClimb = role !== "ADMIN" || Boolean(me?.grade);
+  const readiness = showClimb ? await loadReadiness(userId, me?.grade ?? null) : null;
 
   return (
     <div className="space-y-8">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Hi, {firstName} 👋</h1>
+          <h1 className="page-title">Hi, {firstName}</h1>
           <p className="page-subtitle mt-1">
-            Overview of your assessments and development plans
+            Where you are on the climb, and what&apos;s next
           </p>
         </div>
         <DailyTopicButton isAdmin={role === "ADMIN"} />
       </div>
 
+      {showClimb && (
+        <div className="climb-rise" style={{ ["--i" as string]: 1 }}>
+          <ClimbCard
+            grade={me?.grade ?? null}
+            readiness={readiness?.percent ?? null}
+          />
+        </div>
+      )}
+
       <div
         className={cn(
-          "grid gap-4 md:grid-cols-3",
+          "climb-rise grid gap-4 md:grid-cols-3",
           role === "ADMIN" && "md:grid-cols-2 xl:grid-cols-4"
         )}
+        style={{ ["--i" as string]: 2 }}
       >
         <StatCard
           label="My assessments"
@@ -249,7 +263,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* My Assessments as Subject */}
-      <Card>
+      <Card className="climb-rise" style={{ ["--i" as string]: 3 }}>
         <CardHeader>
           <CardTitle>My assessments</CardTitle>
         </CardHeader>
