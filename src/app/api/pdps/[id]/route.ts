@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/auth-helpers";
 import { canComposePdp, canViewPdp, pdpPlanInclude, planSchema, savePlan } from "@/lib/pdp-plan";
 import { badRequest, forbidden, notFound, parseJsonBody } from "@/lib/api-helpers";
 import { gradeLabel } from "@/lib/grades";
+import { latestScores } from "@/lib/self-check-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (!(await canViewPdp(me, pdp, pdp.user))) return forbidden();
 
   const isComposer = await canComposePdp(me, pdp.user);
+  const isOwner = me.id === pdp.userId;
+  // Self-checks are the employee's private practice: only they get scores.
+  const canSelfCheck = isOwner && (pdp.status === "ACTIVE" || pdp.status === "COMPLETED");
   const canEdit = isComposer && (pdp.status === "DRAFT" || pdp.status === "ACTIVE");
   return NextResponse.json({
     ...pdp,
@@ -40,7 +44,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     canEdit,
     canRetry: isComposer && pdp.status === "FAILED",
     // The employee works through the plan; the manager closes it.
-    isOwner: me.id === pdp.userId,
+    isOwner,
+    canSelfCheck,
+    selfCheckScores: canSelfCheck ? await latestScores(me.id, pdp.goals.map((g) => g.id)) : {},
     canComplete: isComposer && pdp.status === "ACTIVE",
     docStale:
       pdp.goals.length > 0 &&

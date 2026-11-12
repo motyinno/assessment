@@ -137,6 +137,8 @@ model User {
   notifications        Notification[]
   certificates         Certificate[]
   roadmapProgress      RoadmapProgress[]
+  pdpSelfChecks        PdpSelfCheck[]
+  activityEvents       ActivityEvent[]
   interviewPreps       InterviewPrep[]
   departments          UserDepartment[]
   division             Department?                 @relation("divisionMembers", fields: [divisionId], references: [id], onDelete: SetNull)
@@ -689,10 +691,38 @@ model PdpGoal {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  pdp   Pdp       @relation(fields: [pdpId], references: [id], onDelete: Cascade)
-  items PdpItem[]
+  pdp        Pdp            @relation(fields: [pdpId], references: [id], onDelete: Cascade)
+  items      PdpItem[]
+  selfChecks PdpSelfCheck[]
 
   @@index([pdpId])
+}
+
+/// "Check yourself" on one PDP goal: AI questions the employee answers on their
+/// own. Private to the plan's owner — managers and admins never see attempts
+/// or scores, so it stays practice and not a mini exam. Each attempt is a row;
+/// the latest one is shown. `questions` is SelfCheckQuestion[] (lib/self-check)
+/// including the correct answers, so it is never sent to the client unsanitised
+/// before the attempt is submitted.
+model PdpSelfCheck {
+  id          String    @id @default(cuid())
+  goalId      String
+  userId      String
+  language    String    @default("ru")
+  questions   Json
+  /// SelfCheckAnswer[] once submitted.
+  answers     Json?
+  /// SelfCheckVerdict[] once submitted, one per question.
+  verdicts    Json?
+  /// 0–100.
+  score       Int?
+  createdAt   DateTime  @default(now())
+  submittedAt DateTime?
+
+  goal PdpGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, userId, createdAt])
 }
 
 /// A question or practical task inside a goal. Ids are kept stable across
@@ -815,4 +845,21 @@ model InterviewQuestionImport {
   department Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   createdBy  User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
   questions  InterviewQuestion[]
+}
+
+/// App usage for the super-admin Activity page: sign-ins and page views.
+/// Kept 180 days (pruned when the page loads).
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  /// "sign_in" | "view"
+  kind      String
+  /// Page path for views, ids collapsed to ":id"; provider for sign-ins.
+  path      String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }

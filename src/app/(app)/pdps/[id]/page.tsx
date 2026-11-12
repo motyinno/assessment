@@ -19,6 +19,7 @@ import { PdpBuilder, type BuilderGoal, type BuilderStatus, type MatrixOption } f
 import { PdpProgressView, type ProgressGoal, type ProgressItem } from "@/components/pdp-progress-view";
 import { apiErrorMessage } from "@/lib/api-error";
 import { progressPercent } from "@/lib/pdp-progress";
+import { PageLoader } from "@/components/brand/page-loader";
 
 type PdpItem = ProgressItem;
 interface PdpGoal extends ProgressGoal {
@@ -45,6 +46,8 @@ interface PdpView {
   canEdit: boolean;
   canRetry: boolean;
   isOwner: boolean;
+  canSelfCheck: boolean;
+  selfCheckScores: Record<string, number>;
   canComplete: boolean;
   docStale: boolean;
 }
@@ -252,7 +255,7 @@ export default function PdpPage() {
   }
 
   if (loadError) return <p className="text-sm text-destructive">{loadError}</p>;
-  if (!pdp) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!pdp) return <PageLoader label="Loading the plan…" />;
 
   const isDraft = pdp.status === "DRAFT";
   const legacy = pdp.goals.length === 0 && !!pdp.driveLink;
@@ -402,6 +405,15 @@ export default function PdpPage() {
                 pdpId={pdp.id}
                 goals={pdp.goals}
                 editable={pdp.isOwner && pdp.status === "ACTIVE"}
+                selfCheck={
+                  pdp.canSelfCheck
+                    ? {
+                        scores: pdp.selfCheckScores,
+                        onScored: (goalId, score) =>
+                          setPdp((p) => (p ? { ...p, selfCheckScores: { ...p.selfCheckScores, [goalId]: score } } : p)),
+                      }
+                    : undefined
+                }
                 onGoalsChange={(fn) =>
                   setPdp((p) => (p ? { ...p, goals: fn(p.goals) as PdpGoal[] } : p))
                 }

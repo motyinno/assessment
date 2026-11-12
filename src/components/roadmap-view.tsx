@@ -15,6 +15,7 @@ import { gradeLabel } from "@/lib/grades";
 import { cn } from "@/lib/utils";
 import { RoadmapSection } from "@/components/roadmap-section";
 import { RoadmapNodeDetail } from "@/components/roadmap-node-detail";
+import { PageLoader } from "@/components/brand/page-loader";
 
 /** Optimistically set the resolved-skill set for one topic+band. */
 function applyResolved(
@@ -136,7 +137,7 @@ export function RoadmapView({
     }
   }
 
-  if (loading) return <p className="p-8 text-muted-foreground">Loading roadmap...</p>;
+  if (loading) return <PageLoader label="Loading roadmap…" />;
   if (error || !roadmap)
     return <p className="p-8 text-destructive">Failed to load roadmap</p>;
 

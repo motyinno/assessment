@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 type NoCorpEmailIssue = { id: string; hrmEmployeeId: number | null; email: string | null; message: string };
 type NotInHrmUser = { id: string; name: string; email: string; createdAt: string };
@@ -92,7 +93,7 @@ export function HrmSyncIssues() {
   }, [load]);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <SkeletonList rows={3} />;
   }
 
   if (!data.run) {

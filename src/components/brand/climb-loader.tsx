@@ -13,9 +13,9 @@ export function ClimbLoader({
 }: {
   label?: React.ReactNode;
   className?: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
 }) {
-  const box = { sm: "size-4", md: "size-6", lg: "size-12" }[size];
+  const box = { sm: "size-4", md: "size-6", lg: "size-12", xl: "size-20" }[size];
   return (
     <span role="status" className={cn("inline-flex items-center gap-2 text-muted-foreground", className)}>
       <svg viewBox="0 0 48 48" fill="none" aria-hidden="true" className={cn(box, "shrink-0 overflow-visible")}>

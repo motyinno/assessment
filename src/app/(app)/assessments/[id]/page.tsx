@@ -28,6 +28,7 @@ import { apiErrorMessage } from "@/lib/api-error";
 import { AssessmentMatrix } from "@/components/assessment-matrix";
 import { InterviewPrepCard } from "@/components/interview-prep-card";
 import { cn } from "@/lib/utils";
+import { PageLoader } from "@/components/brand/page-loader";
 
 const statusLabels: Record<string, string> = {
   PLANNED: "Planned",
@@ -351,7 +352,7 @@ export default function AssessmentDetailPage() {
   }
 
   if (loading)
-    return <p className="text-muted-foreground">Loading...</p>;
+    return <PageLoader label="Loading assessment…" />;
   if (!assessment)
     return <p className="text-destructive">Assessment not found</p>;
 

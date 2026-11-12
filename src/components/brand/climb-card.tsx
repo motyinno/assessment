@@ -24,13 +24,11 @@ const fmt = (n: number) => n.toLocaleString("ru-RU");
 
 export function ClimbCard({
   grade,
-  pdpProgress,
-  pdpHref,
+  readiness,
 }: {
   grade: string | null;
-  /** Percent of the active PDP that is done, or null without one. */
-  pdpProgress: number | null;
-  pdpHref?: string;
+  /** Roadmap readiness (0–100) for the next grade, or null without one. */
+  readiness: number | null;
 }) {
   const rank = gradeRank(grade);
   const known = rank >= 0;
@@ -117,21 +115,21 @@ export function ClimbCard({
                 Next camp <span className="font-medium text-foreground">{gradeLabel(next)}</span>
                 <span className="font-mono tabular-nums"> · +{fmt(STEP_ALTITUDE)} m</span>
               </p>
-              {pdpProgress !== null ? (
-                <Link href={pdpHref ?? "/dashboard"} className="group block space-y-1.5">
+              {readiness !== null ? (
+                <Link href="/climb" className="group block space-y-1.5">
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-trail transition-[width] duration-1000 ease-out"
-                      style={{ width: `${pdpProgress}%` }}
+                      style={{ width: `${readiness}%` }}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground group-hover:text-foreground">
-                    Development plan {pdpProgress}% done →
+                    Ready for {gradeLabel(next)}: {readiness}% →
                   </p>
                 </Link>
               ) : (
-                <Link href="/request-assessment" className="text-xs font-medium text-primary hover:underline">
-                  Plan the next leg →
+                <Link href="/climb" className="text-xs font-medium text-primary hover:underline">
+                  See this leg →
                 </Link>
               )}
             </div>

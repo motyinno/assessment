@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 interface CertDetails {
   status: string;
@@ -89,7 +90,7 @@ export function UserCertificatesCard({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading certificates...</p>
+          <SkeletonList rows={2} />
         ) : error ? (
           <p className="text-sm text-destructive">{error}</p>
         ) : certificates.length === 0 ? (

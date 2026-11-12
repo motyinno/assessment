@@ -5,6 +5,7 @@ import { Check, Code2, ExternalLink, Link2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { apiErrorMessage } from "@/lib/api-error";
 import { cn } from "@/lib/utils";
+import { SelfCheckButton, SelfCheckScore } from "@/components/self-check-dialog";
 
 export interface ProgressItem {
   id: string;
@@ -32,12 +33,15 @@ export function PdpProgressView({
   pdpId,
   goals,
   editable,
+  selfCheck,
   onGoalsChange,
 }: {
   pdpId: string;
   goals: ProgressGoal[];
   /** The employee on an active plan. */
   editable: boolean;
+  /** The plan's owner can check themselves on each goal; scores are theirs only. */
+  selfCheck?: { scores: Record<string, number>; onScored: (goalId: string, score: number) => void };
   onGoalsChange: (fn: (prev: ProgressGoal[]) => ProgressGoal[]) => void;
 }) {
   const [error, setError] = useState<{ goalId: string; message: string } | null>(null);
@@ -164,6 +168,17 @@ export function PdpProgressView({
                 {complete ? <Check className="size-3.5" /> : gi + 1}
               </span>
               <h3 className="min-w-0 flex-1 text-[15px] font-semibold">{goal.title}</h3>
+              {selfCheck && (
+                <>
+                  {selfCheck.scores[goal.id] !== undefined && <SelfCheckScore score={selfCheck.scores[goal.id]} />}
+                  <SelfCheckButton
+                    pdpId={pdpId}
+                    goalId={goal.id}
+                    goalTitle={goal.title}
+                    onScored={(score) => selfCheck.onScored(goal.id, score)}
+                  />
+                </>
+              )}
               <span className="text-xs tabular-nums text-muted-foreground">
                 {done}/{total}
               </span>

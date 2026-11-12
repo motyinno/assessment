@@ -39,6 +39,7 @@ import { buildOrgStructure } from "@/lib/org-structure";
 import { canManagePeople } from "@/lib/roles";
 import { UserAvatar } from "@/components/user-avatar";
 import type { ManagerRef, HrmUserFields } from "@/lib/types";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 interface User extends Omit<HrmUserFields, "departments"> {
   id: string;
@@ -383,7 +384,13 @@ export default function UsersPage() {
       </div>
 
       {/* User table — server-paginated (S08): `users` is already just this page. */}
-      {users.length === 0 ? (
+      {fetching && users.length === 0 ? (
+        <Card>
+          <CardContent className="py-5">
+            <SkeletonList rows={6} />
+          </CardContent>
+        </Card>
+      ) : users.length === 0 ? (
         <Card>
           <CardContent className="py-14 flex flex-col items-center gap-2 text-center">
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
@@ -393,7 +400,7 @@ export default function UsersPage() {
               </svg>
             </div>
             <p className="text-sm font-medium">
-              {fetching ? "Loading…" : "No users found"}
+              No users found
             </p>
             {!fetching && (
               <p className="text-xs text-muted-foreground">Try adjusting the filter or search.</p>

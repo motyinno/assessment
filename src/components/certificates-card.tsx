@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 interface CertificateRow {
   id: string;
@@ -126,7 +127,7 @@ export function CertificatesCard() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <SkeletonList rows={2} />
         ) : certificates.length === 0 ? (
           <p className="text-sm text-muted-foreground">No certificates yet.</p>
         ) : (

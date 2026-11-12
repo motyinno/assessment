@@ -25,6 +25,7 @@ import type {
   PrepTopic,
   TopicSignals,
 } from "@/lib/interview-prep";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 interface PickerTopic {
   id: string;
@@ -324,7 +325,7 @@ export function InterviewPrepCard({ assessmentId }: { assessmentId: string }) {
       {open && (
         <CardContent className="pt-0 space-y-4">
           {loadError && <p className="text-sm text-destructive">{loadError}</p>}
-          {!data && !loadError && <p className="text-sm text-muted-foreground">Loading…</p>}
+          {!data && !loadError && <SkeletonList rows={2} />}
 
           {generateError && <p className="text-sm text-destructive">{generateError}</p>}
 

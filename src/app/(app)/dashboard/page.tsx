@@ -11,6 +11,7 @@ import { gradeLabel } from "@/lib/grades";
 import { DailyTopicButton } from "@/components/daily-topic-button";
 import { getAdminDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 import { ClimbCard } from "@/components/brand/climb-card";
+import { loadReadiness } from "@/lib/climb";
 import { ClimbMark } from "@/components/brand/climb-mark";
 
 type StatTone = "primary" | "success" | "warning" | "muted";
@@ -163,9 +164,9 @@ export default async function DashboardPage() {
   const conductingAssessments = assessments.filter((p) => p.participantRole === "ASSESSOR");
 
   const firstName = session.user.name?.split(" ")[0] ?? session.user.name;
-  const activePdp = pdps.find((p) => p.status === "ACTIVE" && p.goals.length > 0);
   // Everyone with a grade sees their camp first; admins without one skip it.
   const showClimb = role !== "ADMIN" || Boolean(me?.grade);
+  const readiness = showClimb ? await loadReadiness(userId, me?.grade ?? null) : null;
 
   return (
     <div className="space-y-8">
@@ -183,8 +184,7 @@ export default async function DashboardPage() {
         <div className="climb-rise" style={{ ["--i" as string]: 1 }}>
           <ClimbCard
             grade={me?.grade ?? null}
-            pdpProgress={activePdp ? progressPercent(planProgress(activePdp.goals)) : null}
-            pdpHref={activePdp ? `/pdps/${activePdp.id}` : undefined}
+            readiness={readiness?.percent ?? null}
           />
         </div>
       )}
