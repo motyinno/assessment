@@ -14,6 +14,19 @@ import {
 } from "@/components/ui/select";
 import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { RoadmapView } from "@/components/roadmap-view";
+import { TopicQuestionsDialog, type DialogTopic } from "@/components/topic-questions-dialog";
+import {
+  HEAT_CLASS,
+  HEAT_DOT,
+  HeatLegend,
+  TopicAskedBadge,
+  byAsked,
+  heatOf,
+  heatTitle,
+  skillCount,
+  useInterviewStats,
+  type InterviewStats,
+} from "@/components/interview-stats";
 
 interface TechMatrixTopic {
   id: string;
@@ -58,6 +71,26 @@ export default function TechMatrixPage() {
   // after that it's whichever division is being viewed.
   const [divisionId, setDivisionId] = useState<string | null>(null);
   const [divisions, setDivisions] = useState<Division[]>([]);
+  const interview = useInterviewStats(divisionId);
+  const hasInterviewData = Object.keys(interview.topics).length > 0;
+  // View-only reordering: most-asked topics and skills first. Remembered per viewer.
+  const [askedFirst, setAskedFirst] = useState(true);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("techMatrix.askedFirst");
+      if (v !== null) setAskedFirst(v === "1");
+    } catch {}
+  }, []);
+  function toggleAskedFirst() {
+    setAskedFirst((v) => {
+      try {
+        localStorage.setItem("techMatrix.askedFirst", v ? "0" : "1");
+      } catch {}
+      return !v;
+    });
+  }
+  const sortByAsked = askedFirst && hasInterviewData;
+  const [questionsFor, setQuestionsFor] = useState<{ topic: DialogTopic; skill: string | null } | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -268,12 +301,22 @@ export default function TechMatrixPage() {
               <SelectItem value="sen">Senior</SelectItem>
             </SelectContent>
           </Select>
+          {hasInterviewData && (
+            <Button variant={askedFirst ? "secondary" : "outline"} size="sm" onClick={toggleAskedFirst} aria-pressed={askedFirst}>
+              Most asked first
+            </Button>
+          )}
           {search && (
             <button onClick={() => setSearch("")} className="text-xs text-muted-foreground hover:text-foreground">
               Clear
             </button>
           )}
         </div>
+        {hasInterviewData && (
+          <div className="pb-2">
+            <HeatLegend floor={interview.oftenAsked} />
+          </div>
+        )}
 
         {/* Single column header — transparent border matches the section cards'
             border widths so its grid lines up with the rows below. */}
@@ -352,11 +395,16 @@ export default function TechMatrixPage() {
                 {/* Topics */}
                 {!isCollapsed && (
                   <div className="border-t divide-y divide-border/60">
-                    {section.topics.map((topic) => (
+                    {(sortByAsked ? byAsked(section.topics, (t) => interview.topics[t.id]?.asked ?? 0) : section.topics).map((topic) => (
                       <div key={topic.id} className="grid" style={{ gridTemplateColumns: `180px repeat(${visibleGrades}, 1fr)` }}>
                         {/* Topic name */}
-                        <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex items-start">
+                        <div className="px-5 py-3 bg-muted/20 border-r border-border/60 flex flex-col items-start gap-1">
                           <span className="text-[13px] font-medium text-foreground leading-snug">{topic.title}</span>
+                          <TopicAskedBadge
+                            stats={interview}
+                            topicId={topic.id}
+                            onClick={() => setQuestionsFor({ topic, skill: null })}
+                          />
                         </div>
 
                         {/* Grade columns */}
@@ -366,6 +414,10 @@ export default function TechMatrixPage() {
                             grade="jun"
                             search={search}
                             showBorder={showMid || showSen}
+                            topicId={topic.id}
+                            interview={interview}
+                            sortByAsked={sortByAsked}
+                            onOpenSkill={(skill) => setQuestionsFor({ topic, skill })}
                           />
                         )}
                         {showMid && (
@@ -374,6 +426,10 @@ export default function TechMatrixPage() {
                             grade="mid"
                             search={search}
                             showBorder={showSen}
+                            topicId={topic.id}
+                            interview={interview}
+                            sortByAsked={sortByAsked}
+                            onOpenSkill={(skill) => setQuestionsFor({ topic, skill })}
                           />
                         )}
                         {showSen && (
@@ -382,6 +438,10 @@ export default function TechMatrixPage() {
                             grade="sen"
                             search={search}
                             showBorder={false}
+                            topicId={topic.id}
+                            interview={interview}
+                            sortByAsked={sortByAsked}
+                            onOpenSkill={(skill) => setQuestionsFor({ topic, skill })}
                           />
                         )}
                       </div>
@@ -395,6 +455,12 @@ export default function TechMatrixPage() {
       )}
         </>
       )}
+      <TopicQuestionsDialog
+        topic={questionsFor?.topic ?? null}
+        focusSkill={questionsFor?.skill}
+        oftenAsked={interview.oftenAsked}
+        onClose={() => setQuestionsFor(null)}
+      />
     </div>
   );
 }
@@ -404,11 +470,19 @@ function GradeColumn({
   grade,
   search,
   showBorder,
+  topicId,
+  interview,
+  sortByAsked,
+  onOpenSkill,
 }: {
   skills: string[];
   grade: string;
   search: string;
   showBorder: boolean;
+  topicId: string;
+  interview: InterviewStats;
+  sortByAsked: boolean;
+  onOpenSkill: (skill: string) => void;
 }) {
   const q = search.toLowerCase().trim();
 
@@ -426,16 +500,20 @@ function GradeColumn({
         <span className="text-[11px] text-muted-foreground/40 italic">—</span>
       ) : (
         <ul className="space-y-1">
-          {skills.map((skill, i) => {
+          {(sortByAsked ? byAsked(skills, (sk) => skillCount(interview, topicId, sk)) : skills).map((skill, i) => {
             const isHighlighted = q && skill.toLowerCase().includes(q);
+            const count = skillCount(interview, topicId, skill);
+            const heat = heatOf(count, interview.oftenAsked);
             return (
               <li
                 key={i}
+                title={count ? `${heatTitle(count)} — click to see the questions` : undefined}
+                onClick={count ? () => onOpenSkill(skill) : undefined}
                 className={`flex items-start gap-2 text-[12px] leading-relaxed rounded-sm px-1 py-0.5 -mx-1 ${
-                  isHighlighted ? highlightBg : "text-foreground/80"
-                }`}
+                  isHighlighted ? highlightBg : heat ? HEAT_CLASS[heat] : "text-foreground/80"
+                } ${count ? "cursor-pointer hover:brightness-95 hover:underline underline-offset-2" : ""}`}
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${dotColor} mt-[5px] shrink-0`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${heat ? HEAT_DOT[heat] : dotColor} mt-[5px] shrink-0`} />
                 {skill}
               </li>
             );

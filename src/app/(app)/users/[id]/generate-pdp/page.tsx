@@ -7,12 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { apiErrorMessage } from "@/lib/api-error";
+import { HEAT_CLASS, HeatLegend, heatOf, heatTitle, topicHeatOf } from "@/components/interview-stats";
 
 interface PickerTopic {
   id: string;
   title: string;
   skills: string[];
   score: number | null;
+  /** How often clients ask about it at interviews (null = never). */
+  interview: { questions: number; asked: number } | null;
+  skillAsked: Record<string, number>;
 }
 interface PickerSection {
   id: string;
@@ -59,6 +63,11 @@ export default function GeneratePdpForUserPage() {
   }, [userId, assessmentIdParam]);
 
   const filtered = useMemo(() => options?.sections ?? [], [options]);
+  // The most-asked topic sets the scale for the topic badges.
+  const maxTopicAsked = useMemo(
+    () => Math.max(0, ...filtered.flatMap((s) => s.topics.map((t) => t.interview?.asked ?? 0))),
+    [filtered]
+  );
 
   function toggleTopic(id: string) {
     setSelected((prev) => {
@@ -207,6 +216,7 @@ export default function GeneratePdpForUserPage() {
           <CardTitle className="text-base">
             Tech matrix topics ({selected.size} selected)
           </CardTitle>
+          {filtered.some((sec) => sec.topics.some((t) => t.interview)) && <HeatLegend />}
         </CardHeader>
         <CardContent className="space-y-2">
           {filtered.map((section) => {
@@ -260,8 +270,33 @@ export default function GeneratePdpForUserPage() {
                             {topic.score !== null && (
                               <Badge variant={topic.score < 7 ? "destructive" : "secondary"}>{topic.score}/10</Badge>
                             )}
+                            {topic.interview && (
+                              <span
+                                className={`rounded-full px-2 text-[11px] font-medium leading-5 ${
+                                  topicHeatOf(topic.interview.asked, maxTopicAsked)
+                                    ? HEAT_CLASS[topicHeatOf(topic.interview.asked, maxTopicAsked)!]
+                                    : "bg-muted text-muted-foreground"
+                                }`}
+                                title={`${topic.interview.questions} questions, asked ${topic.interview.asked} times at client interviews`}
+                              >
+                                Asked at interviews · {topic.interview.asked}×
+                              </span>
+                            )}
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{topic.skills.join(" · ")}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                            {topic.skills.map((sk, i) => {
+                              const n = topic.skillAsked?.[sk] ?? 0;
+                              const heat = heatOf(n);
+                              return (
+                                <span key={sk}>
+                                  {i > 0 && " · "}
+                                  <span title={heatTitle(n)} className={heat ? `rounded-sm px-1 ${HEAT_CLASS[heat]}` : undefined}>
+                                    {sk}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
                       </label>
                     ))}

@@ -146,6 +146,7 @@ model User {
   deputyDepartments    Department[]                @relation("departmentDeputy")
   roleAudit            RoleAuditLog[]              @relation("roleAuditSubject")
   roleAuditActions     RoleAuditLog[]              @relation("roleAuditActor")
+  questionImports      InterviewQuestionImport[]
 
   @@index([managerId])
   @@index([hrmEmployeeId])
@@ -180,14 +181,16 @@ model Department {
   /// It is the only source: nothing is configurable per assessment.
   meetingGuestEmails String[] @default([])
 
-  parent           Department?       @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
-  children         Department[]      @relation("depTree")
-  head             User?             @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
-  deputy           User?             @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
-  members          UserDepartment[]
-  divisionMembers  User[]            @relation("divisionMembers")
-  matrixSections   MatrixSection[]
-  sessionTemplates SessionTemplate[]
+  parent             Department?               @relation("depTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children           Department[]              @relation("depTree")
+  head               User?                     @relation("departmentHead", fields: [headUserId], references: [id], onDelete: SetNull)
+  deputy             User?                     @relation("departmentDeputy", fields: [deputyUserId], references: [id], onDelete: SetNull)
+  members            UserDepartment[]
+  divisionMembers    User[]                    @relation("divisionMembers")
+  matrixSections     MatrixSection[]
+  sessionTemplates   SessionTemplate[]
+  interviewQuestions InterviewQuestion[]
+  questionImports    InterviewQuestionImport[]
 
   @@index([parentId])
   @@index([isActive])
@@ -741,4 +744,75 @@ model InterviewPrep {
   assessor   User       @relation(fields: [assessorId], references: [id], onDelete: Cascade)
 
   @@unique([assessmentId, assessorId])
+}
+
+// ---- Interview question bank ----
+
+/// What a question checks (lib/question-bank.ts).
+enum InterviewQuestionKind {
+  THEORY // a knowledge question you can study for ("how does X work")
+  EXPERIENCE // the candidate's own experience with a technology ("how did you use Datadog?")
+  BEHAVIORAL // teamwork, conflict, ownership, communication
+  BACKGROUND // intro, career, past projects
+}
+
+/// A question asked at real client interviews, attached to a topic of a
+/// division's tech matrix (or proposing one the matrix lacks). Shown on the
+/// roadmap and fed to the AI for PDPs and interview prep as real examples.
+model InterviewQuestion {
+  id            String                @id @default(cuid())
+  departmentId  String
+  /// MatrixTopic.id — kept as a plain string like RoadmapProgress, so a
+  /// deleted topic leaves the question unattached instead of cascading.
+  topicId       String?
+  /// "jun" | "mid" | "sen" — the level the question targets, when known.
+  band          String?
+  kind          InterviewQuestionKind
+  text          String
+  /// Lower-cased, punctuation-free text: the dedupe key within a division.
+  normalized    String
+  /// How many times it came up across imports (repeats merge into one row).
+  timesAsked    Int                   @default(1)
+  /// A topic the matrix is missing ("Payments integration"), for unattached questions.
+  proposedTopic String?
+  /// The exact skill string of the topic (MatrixTopic.jun/mid/sen) the
+  /// question tests — drives the "often asked" marks on the matrix.
+  skill         String?
+  /// A skill the topic lacks that the question tests ("Backpressure handling").
+  proposedSkill String?
+  hidden        Boolean               @default(false)
+  /// Waiting for the AI to pick its topic/skill/level (the file had none, or an unknown topicId).
+  pendingTopic  Boolean               @default(false)
+  /// Waiting for the AI to classify the kind (the file had none).
+  pendingKind   Boolean               @default(false)
+  importId      String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  department Department               @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  import     InterviewQuestionImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
+
+  @@unique([departmentId, normalized])
+  @@index([departmentId, topicId])
+  @@index([topicId, skill])
+}
+
+/// One upload into the bank, kept for traceability.
+model InterviewQuestionImport {
+  id           String   @id @default(cuid())
+  departmentId String
+  title        String
+  /// { received, created, merged }
+  stats        Json     @default("{}")
+  /// "PROCESSING" while the AI maps questions to the matrix, then "DONE" or "FAILED".
+  status       String   @default("DONE")
+  mapTotal     Int      @default(0)
+  mapDone      Int      @default(0)
+  error        String?
+  createdById  String?
+  createdAt    DateTime @default(now())
+
+  department Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdBy  User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  questions  InterviewQuestion[]
 }

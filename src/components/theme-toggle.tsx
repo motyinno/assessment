@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 type Theme = "light" | "dark";
@@ -13,6 +13,7 @@ function readInitialTheme(): Theme {
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
+  const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setTheme(readInitialTheme());
@@ -22,11 +23,20 @@ export function ThemeToggle() {
   function toggle() {
     const next: Theme = theme === "dark" ? "light" : "dark";
     setTheme(next);
-    document.documentElement.classList.toggle("dark", next === "dark");
+    const root = document.documentElement;
+    // Fade the colours instead of snapping (see .theme-transition in globals.css).
+    root.classList.add("theme-transition");
+    root.classList.toggle("dark", next === "dark");
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    fadeTimer.current = setTimeout(() => root.classList.remove("theme-transition"), 500);
     try {
       localStorage.setItem("theme", next);
     } catch {}
   }
+
+  useEffect(() => () => {
+    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+  }, []);
 
   const isDark = mounted && theme === "dark";
 
