@@ -139,6 +139,8 @@ model User {
   roadmapProgress      RoadmapProgress[]
   pdpSelfChecks        PdpSelfCheck[]
   activityEvents       ActivityEvent[]
+  techMissions         TechMission[]
+  techMissionChecks    TechMissionCheck[]
   interviewPreps       InterviewPrep[]
   departments          UserDepartment[]
   division             Department?                 @relation("divisionMembers", fields: [divisionId], references: [id], onDelete: SetNull)
@@ -861,5 +863,58 @@ model ActivityEvent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+/// "Mission of the week" from the tech coach (lib/mission.ts): one roadmap
+/// topic picked for the person's next grade from their gaps, where people of
+/// their division struggle at assessments, their PDP and client demand — with
+/// an AI study plan and a self-check. Private to the person, like self-checks.
+model TechMission {
+  id          String    @id @default(cuid())
+  userId      String
+  /// Monday (UTC) of the week the mission was started, "YYYY-MM-DD".
+  weekStart   String
+  sectionId   String
+  /// MatrixTopic.id — a plain string like RoadmapProgress.
+  topicId     String
+  topicTitle  String
+  /// Roadmap band the mission works on: "jun" | "mid" | "sen".
+  band        String
+  /// The matrix skills (exact strings) the mission focuses on.
+  skills      String[]
+  /// MissionReason[]: why the coach picked this topic.
+  reasons     Json
+  language    String    @default("ru")
+  /// MissionPlan (lib/mission.ts).
+  plan        Json
+  /// "ACTIVE" | "DONE" | "DROPPED"
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user   User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  checks TechMissionCheck[]
+
+  @@index([userId, createdAt])
+}
+
+/// A self-check attempt on a mission; same shape as PdpSelfCheck.
+model TechMissionCheck {
+  id          String    @id @default(cuid())
+  missionId   String
+  userId      String
+  language    String    @default("ru")
+  questions   Json
+  answers     Json?
+  verdicts    Json?
+  score       Int?
+  createdAt   DateTime  @default(now())
+  submittedAt DateTime?
+
+  mission TechMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([missionId, createdAt])
   @@index([userId, createdAt])
 }

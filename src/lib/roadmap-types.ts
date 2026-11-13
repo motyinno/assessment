@@ -154,3 +154,25 @@ export function effectiveResolved(
 ): number {
   return status === "mastered" ? total : resolvedCount;
 }
+
+/**
+ * Roadmap ticks for closing a PDP: every skill of the plan's matrix topics at
+ * `band`, on top of what's already ticked. Topics with nothing new are left out.
+ */
+export function pdpTopicTicks(
+  roadmap: RoadmapDTO,
+  band: Grade,
+  topicIds: Iterable<string>
+): Array<{ sectionId: string; topicId: string; grade: Grade; resolvedSkills: string[]; added: string[] }> {
+  const wanted = new Set(topicIds);
+  const out: Array<{ sectionId: string; topicId: string; grade: Grade; resolvedSkills: string[]; added: string[] }> = [];
+  for (const section of roadmap.sections) {
+    for (const topic of section.topics) {
+      if (!wanted.has(topic.id)) continue;
+      const resolved = topic.resolvedSkills[band] ?? [];
+      const added = topic.skills[band].filter((s) => !resolved.includes(s));
+      if (added.length) out.push({ sectionId: section.id, topicId: topic.id, grade: band, resolvedSkills: [...resolved, ...added], added });
+    }
+  }
+  return out;
+}

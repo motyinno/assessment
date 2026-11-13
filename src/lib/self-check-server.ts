@@ -3,8 +3,13 @@ import prisma from "@/lib/prisma";
 import { buildRoadmap } from "@/lib/roadmap";
 import { baseGrade, gradeLabel, nextGrade } from "@/lib/grades";
 import { badRequest, forbidden, notFound } from "@/lib/api-helpers";
+import { gradeSelfCheckOpen } from "@/lib/ai-service";
 import {
   SELF_CHECK_PASS,
+  answeredOpen,
+  gradeChoices,
+  orderVerdicts,
+  parseOpenVerdicts,
   publicQuestions,
   skillsToTick,
   type SelfCheckAnswer,
@@ -61,7 +66,10 @@ export async function goalTopicContext(userId: string, goal: OwnGoal) {
   return empty;
 }
 
-export function toView(check: PdpSelfCheck, resolved: string[]): SelfCheckView {
+/** The columns an attempt row has, for a PDP goal or a coach mission alike. */
+export type CheckRow = Pick<PdpSelfCheck, "id" | "language" | "questions" | "answers" | "verdicts" | "score" | "createdAt" | "submittedAt">;
+
+export function toView(check: CheckRow, resolved: string[]): SelfCheckView {
   const questions = check.questions as unknown as SelfCheckQuestion[];
   const verdicts = (check.verdicts as unknown as SelfCheckVerdict[] | null) ?? null;
   const submitted = Boolean(check.submittedAt && verdicts);
@@ -91,4 +99,28 @@ export async function latestScores(userId: string, goalIds: string[]): Promise<R
   const out: Record<string, number> = {};
   for (const r of rows) if (!(r.goalId in out) && r.score !== null) out[r.goalId] = r.score;
   return out;
+}
+
+/** Grade one attempt: choices here, open answers by the AI. Verdicts in question order. */
+export async function gradeAttempt(
+  questions: SelfCheckQuestion[],
+  answers: SelfCheckAnswer[],
+  language: SelfCheckLanguage
+): Promise<SelfCheckVerdict[]> {
+  const { toGrade, blank } = answeredOpen(questions, answers);
+  const open = toGrade.length
+    ? parseOpenVerdicts(
+        await gradeSelfCheckOpen({
+          language,
+          answers: toGrade.map(({ question, answer }) => ({
+            id: question.id,
+            text: question.text,
+            keyPoints: question.keyPoints,
+            answer,
+          })),
+        }),
+        toGrade.map((g) => g.question.id)
+      )
+    : [];
+  return orderVerdicts(questions, [...gradeChoices(questions, answers), ...open, ...blank]);
 }

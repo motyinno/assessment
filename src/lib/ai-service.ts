@@ -848,3 +848,70 @@ function mockSelfCheck(req: SelfCheckRequest) {
     ],
   };
 }
+
+// ── Tech coach: mission of the week ──────────────────────────────────────────
+
+export interface MissionPlanRequest {
+  topicTitle: string;
+  section: string;
+  /** The matrix skills the mission focuses on. */
+  skills: string[];
+  targetGradeLabel: string;
+  /** The person's division, as a hint at their stack ("Node.js", "Python"). */
+  stack: string | null;
+  language: "ru" | "en";
+}
+
+/**
+ * A one-week study plan for one roadmap topic. Returns raw JSON;
+ * lib/mission parseMissionPlan validates it.
+ */
+export async function generateMissionPlan(req: MissionPlanRequest): Promise<unknown> {
+  if (process.env.AI_MOCK === "true") return mockMissionPlan(req);
+
+  const prompt = `You are a senior engineer coaching a colleague toward the grade ${req.targetGradeLabel}${req.stack ? ` in the ${req.stack} stack` : ""}.
+This week they work on one topic of their skills matrix. Write a focused plan that fits into 3-4 hours in total.
+
+Topic: ${req.section} › ${req.topicTitle}
+Skills to get solid on:
+${req.skills.map((s) => `- ${s}`).join("\n")}
+
+Return:
+- "summary": 2-3 sentences on why this matters at ${req.targetGradeLabel} level — what goes wrong in real projects without it.
+- "steps": 3-5 steps, in order. "kind": "learn" (understand something specific) or "practice" (try it in code). "title": short. "detail": exactly what to look at or do, 1-3 sentences, concrete (name the mechanisms, APIs, edge cases). "minutes": a realistic estimate.
+- "task": one hands-on task to finish the week with, small enough for an evening, that proves the skills above. "doneWhen": 2-4 checkable criteria.
+- "resources": up to 4 links, ONLY official documentation or well-known canonical pages whose URL you are certain of; return an empty list rather than guessing.
+
+All text values MUST be in ${req.language === "ru" ? "RUSSIAN" : "ENGLISH"}. Keep technical terms, API and code identifiers in their original form.
+
+Respond ONLY with JSON:
+{ "summary": "...", "steps": [ { "kind": "learn", "title": "...", "detail": "...", "minutes": 30 } ], "task": { "title": "...", "description": "...", "doneWhen": ["..."] }, "resources": [ { "label": "...", "url": "https://..." } ] }`;
+  try {
+    return await withAIRetry(() => callAI({ system: "Always respond with valid JSON only.", prompt, temperature: 0.6 }), 2);
+  } catch (error) {
+    console.error("Error generating mission plan:", error);
+    throw new Error("Failed to prepare the mission plan.");
+  }
+}
+
+// Local development only (AI_MOCK=true).
+function mockMissionPlan(req: MissionPlanRequest) {
+  return {
+    summary: `[mock] На уровне ${req.targetGradeLabel} от тебя ждут уверенного понимания темы «${req.topicTitle}»: без него сложно разбирать инциденты и принимать архитектурные решения.`,
+    steps: [
+      ...req.skills.map((s, i) => ({
+        kind: "learn",
+        title: s,
+        detail: `[mock] Разберись, как это устроено под капотом и где это ломается. Шаг ${i + 1}.`,
+        minutes: 40,
+      })),
+      { kind: "practice", title: "Повтори на маленьком примере", detail: "[mock] Воспроизведи поведение в песочнице и сломай его специально.", minutes: 45 },
+    ],
+    task: {
+      title: `[mock] Мини-проект: ${req.topicTitle}`,
+      description: "Сделай небольшой сервис, который демонстрирует разобранные механизмы.",
+      doneWhen: ["Код запускается", "Есть тест на граничный случай", "Можешь объяснить решение за 2 минуты"],
+    },
+    resources: [{ label: "Node.js docs", url: "https://nodejs.org/en/docs" }],
+  };
+}
