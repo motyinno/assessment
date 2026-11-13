@@ -12,6 +12,8 @@ import { DailyTopicButton } from "@/components/daily-topic-button";
 import { getAdminDivisionScope, userInScopeWhere } from "@/lib/admin-scope";
 import { ClimbCard } from "@/components/brand/climb-card";
 import { loadReadiness } from "@/lib/climb";
+import { loadCoachState } from "@/lib/mission-server";
+import { MissionCard } from "@/components/mission-card";
 import { ClimbMark } from "@/components/brand/climb-mark";
 
 type StatTone = "primary" | "success" | "warning" | "muted";
@@ -166,7 +168,9 @@ export default async function DashboardPage() {
   const firstName = session.user.name?.split(" ")[0] ?? session.user.name;
   // Everyone with a grade sees their camp first; admins without one skip it.
   const showClimb = role !== "ADMIN" || Boolean(me?.grade);
-  const readiness = showClimb ? await loadReadiness(userId, me?.grade ?? null) : null;
+  const [readiness, coach] = showClimb
+    ? await Promise.all([loadReadiness(userId, me?.grade ?? null), loadCoachState(userId)])
+    : [null, null];
 
   return (
     <div className="space-y-8">
@@ -186,6 +190,12 @@ export default async function DashboardPage() {
             grade={me?.grade ?? null}
             readiness={readiness?.percent ?? null}
           />
+        </div>
+      )}
+
+      {coach?.available && (
+        <div className="climb-rise" style={{ ["--i" as string]: 2 }}>
+          <MissionCard state={{ ...coach, history: [] }} compact />
         </div>
       )}
 

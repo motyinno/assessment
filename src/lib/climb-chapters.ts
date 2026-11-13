@@ -26,7 +26,7 @@ export function legPosition(readiness: number): number {
 }
 
 /** How far a topic counts toward readiness, by roadmap status. */
-function topicReadiness(status: RoadmapStatus, resolved: number, total: number): number {
+export function topicReadiness(status: RoadmapStatus, resolved: number, total: number): number {
   if (status === "mastered") return 1;
   const ticked = total ? resolved / total : 0;
   // Assessed but not mastered: the topic was covered at an assessment, so it

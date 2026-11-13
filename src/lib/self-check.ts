@@ -189,7 +189,7 @@ export function scoreOf(verdicts: SelfCheckVerdict[]): number {
 }
 
 /**
- * Roadmap skills a check may offer to tick: those of questions answered
+ * Roadmap skills a passed check ticks: those of questions answered
  * correctly, not yet ticked — and only once the check is passed.
  */
 export function skillsToTick(
@@ -218,6 +218,8 @@ export interface SelfCheckView {
   questions: Array<PublicQuestion | SelfCheckQuestion>;
   answers: SelfCheckAnswer[] | null;
   verdicts: SelfCheckVerdict[] | null;
-  /** Roadmap skills this passed check offers to tick. */
+  /** Roadmap skills this passed check proves (not ticked yet). */
   toTick: string[];
+  /** Skills this submit ticked on the roadmap. */
+  ticked?: string[];
 }
