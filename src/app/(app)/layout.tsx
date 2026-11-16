@@ -1,6 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppSidebar } from "@/components/app-sidebar";
+import { SectionTabs } from "@/components/section-tabs";
+import { ActivityBeacon } from "@/components/activity-beacon";
 
 export default async function AppLayout({
   children,
@@ -18,6 +20,8 @@ export default async function AppLayout({
       <AppSidebar user={session.user} />
       <main className="flex-1 overflow-auto">
         <div className="mx-auto w-full max-w-[1600px] px-6 py-8 lg:px-10 lg:py-10">
+          <ActivityBeacon />
+          <SectionTabs user={session.user} />
           {children}
         </div>
       </main>

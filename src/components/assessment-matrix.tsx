@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { baseGrade, gradeLabel } from "@/lib/grades";
+import { PageLoader } from "@/components/brand/page-loader";
 
 interface TechMatrixTopic {
   id: string;
@@ -246,7 +247,7 @@ export function AssessmentMatrix({ assessmentId, grade, isSubject, canAssess }: 
     });
   }
 
-  if (loading) return <p className="text-muted-foreground py-4">Loading matrix...</p>;
+  if (loading) return <PageLoader label="Loading matrix…" className="min-h-[30vh]" />;
   if (loadError) {
     return (
       <div className="py-4 text-sm text-destructive">

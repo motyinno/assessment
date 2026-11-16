@@ -6,6 +6,7 @@ import { MAX_MEETING_GUESTS } from "@/lib/schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Inherited {
   emails: string[];
@@ -125,7 +126,7 @@ export function MeetingGuestSetting({
         </p>
 
         {loading ? (
-          <p className="text-xs text-muted-foreground">Loading…</p>
+          <Skeleton className="h-4 w-40" />
         ) : guests.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nobody added.</p>
         ) : (

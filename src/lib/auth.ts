@@ -6,6 +6,7 @@ import prisma from "./prisma";
 import { isEmailAllowed } from "./allowed-domains";
 import { refreshEmployeeByEmail } from "@/lib/hrm/refresh-user";
 import { log } from "@/lib/logger";
+import { recordSignIn } from "@/lib/activity-server";
 
 type Provider = NonNullable<NextAuthConfig["providers"]>[number];
 
@@ -95,6 +96,12 @@ if (devLoginEnabled) {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers,
+  events: {
+    // For the super-admin Activity page; best effort, never blocks a sign-in.
+    async signIn({ user, account }) {
+      await recordSignIn(user.email, account?.provider ?? null);
+    },
+  },
   callbacks: {
     ...authConfig.callbacks,
     async signIn({ account, profile }) {

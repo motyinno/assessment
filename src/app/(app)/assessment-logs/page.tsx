@@ -21,6 +21,7 @@ import {
   SESSION_STATUSES,
   ASSESSMENT_TYPE_LABELS,
 } from "@/lib/assessment-sessions";
+import { PageLoader } from "@/components/brand/page-loader";
 
 const assessmentStatusLabels: Record<string, string> = {
   PLANNED: "Planned",
@@ -147,7 +148,7 @@ export default function AssessmentLogsPage() {
   }, [logs, search, statusFilter]);
 
   if (status === "loading" || loading) {
-    return <p className="text-muted-foreground">Loading...</p>;
+    return <PageLoader label="Loading the log…" />;
   }
   if (!canAccess) return null;
 

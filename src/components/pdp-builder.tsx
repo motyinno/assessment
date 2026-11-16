@@ -1,7 +1,8 @@
 "use client";
 
+import { ClimbLoader } from "@/components/brand/climb-loader";
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
-import { ArrowDown, ArrowUp, Code2, GripVertical, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Code2, GripVertical, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -402,7 +403,7 @@ export function PdpBuilder({
             <div className="space-y-3 px-4 pb-3.5 pl-[3.25rem]">
               {busy ? (
                 <p className="flex items-center gap-2 py-1 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" /> Generating questions and a task…
+                  <ClimbLoader label="Generating questions and a task…" />
                 </p>
               ) : (
                 <>

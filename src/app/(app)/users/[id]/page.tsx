@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { planProgress, progressPercent } from "@/lib/pdp-progress";
 import { UserAvatar } from "@/components/user-avatar";
 import type { HrmUserFields, ManagerLinkRef } from "@/lib/types";
+import { PageLoader } from "@/components/brand/page-loader";
 
 interface Assessment {
   id: string;
@@ -400,7 +401,7 @@ export default function UserProfilePage() {
     }
   }
 
-  if (loading) return <p className="text-muted-foreground">Loading...</p>;
+  if (loading) return <PageLoader label="Loading profile…" />;
   if (!profile) return <p className="text-destructive">User not found</p>;
 
   const roleMeta = ROLE_META[profile.role] ?? ROLE_META.USER;

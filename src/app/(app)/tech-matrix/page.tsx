@@ -27,6 +27,7 @@ import {
   useInterviewStats,
   type InterviewStats,
 } from "@/components/interview-stats";
+import { PageLoader } from "@/components/brand/page-loader";
 
 interface TechMatrixTopic {
   id: string;
@@ -61,6 +62,10 @@ export default function TechMatrixPage() {
   const isAdmin =
     (session?.user as { role?: string } | undefined)?.role === "ADMIN";
   const [view, setView] = useState<ViewMode>("table");
+  // Deep link from the climb page: /tech-matrix?view=roadmap
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("view") === "roadmap") setView("roadmap");
+  }, []);
   const [matrix, setMatrix] = useState<TechMatrix | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -250,10 +255,10 @@ export default function TechMatrixPage() {
         myId ? (
           <RoadmapView userId={myId} canEdit />
         ) : (
-          <p className="text-muted-foreground p-8">Loading roadmap...</p>
+          <PageLoader label="Loading roadmap…" />
         )
       ) : loading ? (
-        <p className="text-muted-foreground p-8">Loading matrix...</p>
+        <PageLoader label="Loading matrix…" />
       ) : !matrix ? (
         <p className="text-destructive p-8">Failed to load</p>
       ) : (

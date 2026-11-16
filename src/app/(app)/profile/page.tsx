@@ -21,6 +21,7 @@ import { ManagerCombobox } from "@/components/manager-combobox";
 import { ApiTokensCard } from "@/components/api-tokens-card";
 import { CertificatesCard } from "@/components/certificates-card";
 import { UserAvatar } from "@/components/user-avatar";
+import { PageLoader } from "@/components/brand/page-loader";
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: "Admin",
@@ -124,9 +125,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-sm text-muted-foreground">Loading...</p>
-      </div>
+      <PageLoader label="Loading profile…" />
     );
   }
 

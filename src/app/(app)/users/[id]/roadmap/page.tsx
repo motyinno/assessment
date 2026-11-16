@@ -9,6 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { RoadmapView } from "@/components/roadmap-view";
 import { isStaff, isAdmin, canManagePeople } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+import { PageLoader } from "@/components/brand/page-loader";
 
 /**
  * Read/edit a specific user's roadmap. Staff-only page (mirrors /users/[id]);
@@ -42,7 +43,7 @@ export default function UserRoadmapPage() {
     me?.id === userId;
 
   if (status === "loading" || !isStaff(me?.role)) {
-    return <p className="p-8 text-muted-foreground">Loading...</p>;
+    return <PageLoader label="Loading roadmap…" />;
   }
 
   return (
