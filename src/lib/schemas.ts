@@ -185,6 +185,13 @@ export const patchSectionSchema = z.object({
   order: z.number().int().min(0).optional(),
 });
 
+export const reorderSectionsSchema = z.object({
+  // Same rule as createSectionSchema: required for a super-admin, forced to
+  // the caller's own division for a plain admin.
+  departmentId: z.string().min(1).optional(),
+  sectionIds: z.array(z.string().min(1)).max(500),
+});
+
 export const createTopicSchema = z.object({
   sectionId: z.string().min(1),
   title: z.string().trim().min(1).max(200),

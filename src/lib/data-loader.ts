@@ -119,7 +119,8 @@ export function loadTechMatrixFromFile(): TechMatrix {
 export async function loadTechMatrix(departmentId: string): Promise<TechMatrix> {
   const sections = await prisma.matrixSection.findMany({
     where: { departmentId },
-    orderBy: { order: "asc" },
+    // createdAt breaks ties left by older rows that share an `order` value.
+    orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     include: { topics: { orderBy: { order: "asc" } } },
   });
 
