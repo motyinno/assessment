@@ -19,6 +19,8 @@ import { SECTION_COLORS, DEFAULT_SECTION_COLOR } from "@/lib/section-colors";
 import { HEAT_CLASS, HeatLegend, TopicAskedBadge, heatOf, heatTitle, skillCount, useInterviewStats } from "@/components/interview-stats";
 import { TopicQuestionsDialog, type DialogTopic } from "@/components/topic-questions-dialog";
 import { PageLoader } from "@/components/brand/page-loader";
+import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
+import { dropIndex, moveItem } from "@/lib/section-order";
 
 interface Topic {
   id: string;
@@ -140,6 +142,68 @@ export default function TechMatrixEditPage() {
     if (res.ok) reload(divisionId);
   }
 
+  // ---- Section ordering (drag & drop + keyboard up/down) ----
+  // Only a section whose grip is pressed becomes draggable, so text inputs
+  // inside the card keep normal selection behaviour.
+  const [armedId, setArmedId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: "before" | "after" } | null>(null);
+  const [orderError, setOrderError] = useState<string | null>(null);
+
+  /** Optimistically apply a new order, persist it, roll back on failure. */
+  async function saveOrder(next: Section[]) {
+    const prev = sections;
+    setSections(next);
+    setOrderError(null);
+    try {
+      const res = await fetch("/api/tech-matrix/sections", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ departmentId: divisionId, sectionIds: next.map((s) => s.id) }),
+      });
+      if (res.ok) return;
+      if (res.status === 409) {
+        setOrderError("Sections changed elsewhere — reloaded the latest order.");
+        reload(divisionId);
+        return;
+      }
+      setSections(prev);
+      setOrderError("Couldn't save the new section order. Please try again.");
+    } catch {
+      setSections(prev);
+      setOrderError("Couldn't save the new section order. Please try again.");
+    }
+  }
+
+  function moveSection(from: number, to: number) {
+    if (to < 0 || to >= sections.length || from === to) return;
+    saveOrder(moveItem(sections, from, to));
+  }
+
+  // A grip press that never turns into a drag (released elsewhere) must not
+  // leave the card draggable.
+  useEffect(() => {
+    if (!armedId) return;
+    const disarm = () => setArmedId(null);
+    window.addEventListener("mouseup", disarm);
+    return () => window.removeEventListener("mouseup", disarm);
+  }, [armedId]);
+
+  function endDrag() {
+    setDragId(null);
+    setArmedId(null);
+    setDropTarget(null);
+  }
+
+  function handleDrop(targetId: string) {
+    const from = sections.findIndex((s) => s.id === dragId);
+    const target = sections.findIndex((s) => s.id === targetId);
+    const position = dropTarget?.id === targetId ? dropTarget.position : "before";
+    endDrag();
+    if (from < 0 || target < 0) return;
+    moveSection(from, dropIndex(from, target, position));
+  }
+
   // ---- Topic mutations ----
   async function addTopic(sectionId: string) {
     const title = (topicDrafts[sectionId] ?? "").trim();
@@ -255,7 +319,8 @@ export default function TechMatrixEditPage() {
         <div>
           <h1 className="page-title">Edit tech matrix</h1>
           <p className="page-subtitle mt-1">
-            Add, rename, or remove sections, topics, and questions. Deleting an
+            Add, rename, reorder (drag the grip or use the arrows), or remove
+            sections, topics, and questions. Deleting an
             item orphans (but never deletes) users' existing progress on it.
             {/* The division actually on screen — a super-admin opens on their
                 own but may switch, and naming `ownDivision` here would then
@@ -322,162 +387,233 @@ export default function TechMatrixEditPage() {
         </Card>
       )}
 
+      {mode === "edit" && orderError && (
+        <p role="alert" className="text-sm text-destructive">
+          {orderError}
+        </p>
+      )}
+
       {loading ? (
         <PageLoader label="Loading matrix…" />
       ) : mode === "preview" ? (
         <MatrixPreview sections={sections} />
       ) : (
-        sections.map((section) => (
-          <Card key={section.id}>
-            <CardContent className="p-0">
-              <div className="flex items-center gap-2 border-b px-4 py-3">
-                <Input
-                  value={section.title}
-                  className="max-w-sm font-medium"
-                  onChange={(e) =>
-                    setSectionTitleLocal(section.id, e.target.value)
-                  }
-                  onBlur={(e) => renameSection(section.id, e.target.value.trim())}
-                />
-                <Badge variant="outline">
-                  {section.topics.length} topic
-                  {section.topics.length === 1 ? "" : "s"}
-                </Badge>
-                <code className="text-[11px] text-muted-foreground">
-                  {section.id}
-                </code>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="ml-auto"
-                  onClick={() => deleteSection(section)}
-                >
-                  Delete section
-                </Button>
-              </div>
-
-              <div className="divide-y">
-                {section.topics.map((topic) => (
-                  <div key={topic.id} className="px-4 py-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={topic.title}
-                        className="max-w-sm"
-                        onChange={(e) =>
-                          setTopicTitleLocal(topic.id, e.target.value)
-                        }
-                        onBlur={(e) =>
-                          renameTopic(topic.id, e.target.value.trim())
-                        }
-                      />
-                      <TopicAskedBadge stats={interview} topicId={topic.id} onClick={() => setQuestionsFor(topic)} />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="ml-auto text-destructive"
-                        onClick={() => deleteTopic(topic)}
-                      >
-                        Delete topic
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-3 md:grid-cols-3">
-                      {BANDS.map((band) => {
-                        const key = `${topic.id}:${band}`;
-                        return (
-                          <div
-                            key={band}
-                            className="rounded-lg border bg-muted/20 p-3 space-y-2"
-                          >
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                              {BAND_LABELS[band]}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {topic[band].length === 0 && (
-                                <span className="text-xs text-muted-foreground">
-                                  No questions
-                                </span>
-                              )}
-                              {topic[band].map((skill) => {
-                                const count = skillCount(interview, topic.id, skill);
-                                const heat = heatOf(count, interview.oftenAsked);
-                                return (
-                                <span
-                                  key={skill}
-                                  title={heatTitle(count)}
-                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${heat ? HEAT_CLASS[heat] : "bg-card ring-1 ring-border"}`}
-                                >
-                                  {skill}
-                                  <button
-                                    type="button"
-                                    className="text-muted-foreground hover:text-destructive"
-                                    onClick={() =>
-                                      removeSkill(topic, band, skill)
-                                    }
-                                    aria-label={`Remove ${skill}`}
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                                );
-                              })}
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <Input
-                                value={skillDrafts[key] ?? ""}
-                                placeholder="Add question…"
-                                className="h-7 text-xs"
-                                onChange={(e) =>
-                                  setSkillDrafts((d) => ({
-                                    ...d,
-                                    [key]: e.target.value,
-                                  }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.preventDefault();
-                                    addSkill(topic, band);
-                                  }
-                                }}
-                              />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => addSkill(topic, band)}
-                              >
-                                Add
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+        sections.map((section, index) => (
+          <div
+            key={section.id}
+            className="relative"
+            draggable={armedId === section.id}
+            onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", section.id);
+              setDragId(section.id);
+            }}
+            onDragEnd={endDrag}
+            onDragOver={(e) => {
+              if (!dragId) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              const rect = e.currentTarget.getBoundingClientRect();
+              const position = e.clientY < rect.top + rect.height / 2 ? "before" : "after";
+              if (dropTarget?.id !== section.id || dropTarget.position !== position) {
+                setDropTarget({ id: section.id, position });
+              }
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              handleDrop(section.id);
+            }}
+          >
+            {dropTarget?.id === section.id && dragId !== section.id && (
+              <div
+                aria-hidden
+                className={`pointer-events-none absolute inset-x-0 z-10 h-1 rounded-full bg-primary ${
+                  dropTarget.position === "before" ? "-top-2.5" : "-bottom-2.5"
+                }`}
+              />
+            )}
+            <Card className={dragId === section.id ? "opacity-50" : undefined}>
+              <CardContent className="p-0">
+                <div className="flex items-center gap-2 border-b px-4 py-3">
+                  <span
+                    className="flex cursor-grab touch-none items-center text-muted-foreground hover:text-foreground active:cursor-grabbing"
+                    title="Drag to reorder"
+                    aria-hidden
+                    onMouseDown={() => setArmedId(section.id)}
+                    onMouseUp={() => setArmedId(null)}
+                  >
+                    <GripVertical className="size-4" />
+                  </span>
+                  <div className="flex flex-col">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-4"
+                      disabled={index === 0}
+                      aria-label={`Move section ${section.title} up`}
+                      onClick={() => moveSection(index, index - 1)}
+                    >
+                      <ChevronUp className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="h-4"
+                      disabled={index === sections.length - 1}
+                      aria-label={`Move section ${section.title} down`}
+                      onClick={() => moveSection(index, index + 1)}
+                    >
+                      <ChevronDown className="size-3.5" />
+                    </Button>
                   </div>
-                ))}
-              </div>
-
-              {/* Add a topic */}
-              <div className="flex items-center gap-2 border-t bg-muted/30 px-4 py-3">
-                <Input
-                  value={topicDrafts[section.id] ?? ""}
-                  placeholder="New topic title"
-                  className="max-w-sm"
-                  onChange={(e) =>
-                    setTopicDrafts((d) => ({
-                      ...d,
-                      [section.id]: e.target.value,
-                    }))
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addTopic(section.id);
-                  }}
-                />
-                <Button variant="outline" onClick={() => addTopic(section.id)}>
-                  Add topic
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  <Input
+                    value={section.title}
+                    className="max-w-sm font-medium"
+                    onChange={(e) =>
+                      setSectionTitleLocal(section.id, e.target.value)
+                    }
+                    onBlur={(e) => renameSection(section.id, e.target.value.trim())}
+                  />
+                  <Badge variant="outline">
+                    {section.topics.length} topic
+                    {section.topics.length === 1 ? "" : "s"}
+                  </Badge>
+                  <code className="text-[11px] text-muted-foreground">
+                    {section.id}
+                  </code>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="ml-auto"
+                    onClick={() => deleteSection(section)}
+                  >
+                    Delete section
+                  </Button>
+                </div>
+  
+                <div className="divide-y">
+                  {section.topics.map((topic) => (
+                    <div key={topic.id} className="px-4 py-4 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={topic.title}
+                          className="max-w-sm"
+                          onChange={(e) =>
+                            setTopicTitleLocal(topic.id, e.target.value)
+                          }
+                          onBlur={(e) =>
+                            renameTopic(topic.id, e.target.value.trim())
+                          }
+                        />
+                        <TopicAskedBadge stats={interview} topicId={topic.id} onClick={() => setQuestionsFor(topic)} />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto text-destructive"
+                          onClick={() => deleteTopic(topic)}
+                        >
+                          Delete topic
+                        </Button>
+                      </div>
+  
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {BANDS.map((band) => {
+                          const key = `${topic.id}:${band}`;
+                          return (
+                            <div
+                              key={band}
+                              className="rounded-lg border bg-muted/20 p-3 space-y-2"
+                            >
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                {BAND_LABELS[band]}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {topic[band].length === 0 && (
+                                  <span className="text-xs text-muted-foreground">
+                                    No questions
+                                  </span>
+                                )}
+                                {topic[band].map((skill) => {
+                                  const count = skillCount(interview, topic.id, skill);
+                                  const heat = heatOf(count, interview.oftenAsked);
+                                  return (
+                                  <span
+                                    key={skill}
+                                    title={heatTitle(count)}
+                                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${heat ? HEAT_CLASS[heat] : "bg-card ring-1 ring-border"}`}
+                                  >
+                                    {skill}
+                                    <button
+                                      type="button"
+                                      className="text-muted-foreground hover:text-destructive"
+                                      onClick={() =>
+                                        removeSkill(topic, band, skill)
+                                      }
+                                      aria-label={`Remove ${skill}`}
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Input
+                                  value={skillDrafts[key] ?? ""}
+                                  placeholder="Add question…"
+                                  className="h-7 text-xs"
+                                  onChange={(e) =>
+                                    setSkillDrafts((d) => ({
+                                      ...d,
+                                      [key]: e.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      addSkill(topic, band);
+                                    }
+                                  }}
+                                />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addSkill(topic, band)}
+                                >
+                                  Add
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+  
+                {/* Add a topic */}
+                <div className="flex items-center gap-2 border-t bg-muted/30 px-4 py-3">
+                  <Input
+                    value={topicDrafts[section.id] ?? ""}
+                    placeholder="New topic title"
+                    className="max-w-sm"
+                    onChange={(e) =>
+                      setTopicDrafts((d) => ({
+                        ...d,
+                        [section.id]: e.target.value,
+                      }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addTopic(section.id);
+                    }}
+                  />
+                  <Button variant="outline" onClick={() => addTopic(section.id)}>
+                    Add topic
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ))
       )}
 
