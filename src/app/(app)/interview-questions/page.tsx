@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage } from "@/lib/api-error";
 import { QuestionImportFormat } from "@/components/question-import-format";
+import { QuestionRematchDialog } from "@/components/question-rematch-dialog";
 
 type Kind = "THEORY" | "EXPERIENCE" | "BEHAVIORAL" | "BACKGROUND";
 const KIND_LABEL: Record<Kind, string> = { THEORY: "Theory", EXPERIENCE: "Experience", BEHAVIORAL: "Behavioral", BACKGROUND: "Background" };
@@ -35,13 +36,25 @@ interface SkillSuggestion {
   skills: Array<{ skill: string; questions: number; asked: number }>;
 }
 interface Summary {
-  topics: Array<{ id: string; title: string; sectionTitle: string; theory: number; experience: number; other: number; total: number }>;
+  topics: Array<{ id: string; title: string; sectionTitle: string; createdAt: string | null; theory: number; experience: number; other: number; total: number }>;
   proposed: Array<{ title: string; count: number }>;
   totals: Array<{ kind: Kind; hidden: boolean; count: number }>;
   imports: Array<{
     id: string;
     title: string;
-    stats: { received?: number; created?: number; merged?: number; unknownTopics?: number; toMap?: number };
+    type: "IMPORT" | "REMATCH";
+    targetTopicIds: string[];
+    stats: {
+      received?: number;
+      created?: number;
+      merged?: number;
+      unknownTopics?: number;
+      toMap?: number;
+      /** REMATCH */
+      moved?: number;
+      byTopic?: Record<string, number>;
+      undone?: boolean;
+    };
     status: "PROCESSING" | "DONE" | "FAILED";
     mapTotal: number;
     mapDone: number;
@@ -49,6 +62,7 @@ interface Summary {
     createdAt: string;
     createdBy: { name: string } | null;
   }>;
+  rematch: { unattached: number; technical: number; batch: number };
 }
 
 /**
@@ -73,6 +87,8 @@ export default function InterviewQuestionsPage() {
   const [importing, setImporting] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string; issues?: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [rematchOpen, setRematchOpen] = useState(false);
+  const [hiddenResults, setHiddenResults] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (status === "loading") return;
@@ -156,6 +172,13 @@ export default function InterviewQuestionsPage() {
     const r = await fetch(`/api/interview-questions/import/${id}/retry`, { method: "POST" });
     if (!r.ok) setMessage({ tone: "error", text: apiErrorMessage(await r.json().catch(() => null), "Couldn't restart mapping") });
     loadSummary();
+  }
+  async function undoRematch(id: string) {
+    const r = await fetch(`/api/interview-questions/rematch/${id}/undo`, { method: "POST" });
+    const d = await r.json().catch(() => null);
+    if (!r.ok) setMessage({ tone: "error", text: apiErrorMessage(d, "Couldn't undo the re-match") });
+    else setMessage({ tone: "ok", text: `Moved ${d.restored} question${d.restored === 1 ? "" : "s"} back to where they were.` });
+    await Promise.all([loadSummary(), loadItems(), loadSuggestions()]);
   }
   useEffect(() => {
     const t = setTimeout(loadItems, filters.q ? 300 : 0);
@@ -241,6 +264,11 @@ export default function InterviewQuestionsPage() {
   const hot = [...(summary?.topics ?? [])].sort((a, b) => b.total - a.total);
   const cold = hot.filter((t) => t.total === 0);
   const pages = Math.max(1, Math.ceil(total / 50));
+  // The most recent finished re-match, until it's undone or hidden.
+  const latestRematch = summary?.imports.find(
+    (i, idx) => idx === 0 && i.type === "REMATCH" && i.status === "DONE" && !i.stats.undone && !hiddenResults.has(i.id)
+  );
+  const lastImport = summary?.imports.find((i) => i.type !== "REMATCH");
   const setFilter = (patchF: Partial<typeof filters>) => {
     setPage(1);
     setFilters((f) => ({ ...f, ...patchF }));
@@ -266,6 +294,9 @@ export default function InterviewQuestionsPage() {
               ))}
             </select>
           )}
+          <Button variant="outline" disabled={!summary || !!mapping || visibleTotal === 0} onClick={() => setRematchOpen(true)}>
+            Re-match with AI
+          </Button>
           <Button disabled={importing || !divisionId} onClick={() => fileRef.current?.click()}>
             {importing ? "Importing…" : "Import JSON"}
           </Button>
@@ -307,7 +338,8 @@ export default function InterviewQuestionsPage() {
             {i.status === "PROCESSING" ? (
               <>
                 <span className="text-muted-foreground">
-                  Matching questions to the matrix with AI… {i.mapDone} / {i.mapTotal}
+                  {i.type === "REMATCH" ? "Checking questions with AI…" : "Matching questions to the matrix with AI…"} {i.mapDone} / {i.mapTotal}
+                  {i.type === "REMATCH" && i.stats.moved ? ` · ${i.stats.moved} moved so far` : ""}
                 </span>
                 <span className="h-1.5 min-w-32 flex-1 rounded-full bg-muted">
                   <span
@@ -328,6 +360,50 @@ export default function InterviewQuestionsPage() {
             )}
           </div>
         ))}
+
+      {latestRematch && (
+        <div className="flex flex-wrap items-start gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
+          <div className="min-w-0 flex-1 space-y-1">
+            <p>
+              <span className="font-medium">{latestRematch.title}</span> — the AI checked {latestRematch.mapTotal} questions and moved{" "}
+              <b>{latestRematch.stats.moved ?? 0}</b>.
+            </p>
+            {Object.keys(latestRematch.stats.byTopic ?? {}).length > 0 && (
+              <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                {Object.entries(latestRematch.stats.byTopic!)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([id, n]) => (
+                    <button key={id} type="button" className="text-primary hover:underline" onClick={() => setFilter({ topicId: id })}>
+                      {topicTitle.get(id) ?? id}: {n}
+                    </button>
+                  ))}
+              </p>
+            )}
+          </div>
+          {(latestRematch.stats.moved ?? 0) > 0 && (
+            <Button size="sm" variant="outline" onClick={() => undoRematch(latestRematch.id)}>
+              Undo
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={() => setHiddenResults((prev) => new Set(prev).add(latestRematch.id))}>
+            Hide
+          </Button>
+        </div>
+      )}
+
+      {divisionId && summary && (
+        <QuestionRematchDialog
+          open={rematchOpen}
+          onClose={() => setRematchOpen(false)}
+          divisionId={divisionId}
+          topics={summary.topics}
+          counts={summary.rematch}
+          onStarted={(n) => {
+            setMessage({ tone: "ok", text: `The AI is checking ${n} questions — progress is shown below. You can leave the page.` });
+            loadSummary();
+          }}
+        />
+      )}
 
       {divisionId && <QuestionImportFormat divisionId={divisionId} divisionName={divisions.find((d) => d.id === divisionId)?.name ?? null} />}
 
@@ -556,11 +632,10 @@ export default function InterviewQuestionsPage() {
         </CardContent>
       </Card>
 
-      {summary && summary.imports.length > 0 && (
+      {lastImport && (
         <p className="text-xs text-muted-foreground">
-          Last import: {summary.imports[0].title} · {new Date(summary.imports[0].createdAt).toLocaleDateString()}
-          {summary.imports[0].createdBy ? ` · ${summary.imports[0].createdBy.name}` : ""} · {summary.imports[0].stats.created ?? 0} new,{" "}
-          {summary.imports[0].stats.merged ?? 0} merged
+          Last import: {lastImport.title} · {new Date(lastImport.createdAt).toLocaleDateString()}
+          {lastImport.createdBy ? ` · ${lastImport.createdBy.name}` : ""} · {lastImport.stats.created ?? 0} new, {lastImport.stats.merged ?? 0} merged
         </p>
       )}
     </div>
