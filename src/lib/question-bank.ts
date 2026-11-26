@@ -3,7 +3,7 @@ import type { InterviewQuestionKind, Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { loadTechMatrix } from "@/lib/data-loader";
 import { log } from "@/lib/logger";
-import { mapInterviewQuestions } from "@/lib/ai-service";
+import { mapInterviewQuestions, matchQuestionsToTopics } from "@/lib/ai-service";
 
 /**
  * Interview question bank: questions asked at real client interviews,
@@ -265,6 +265,191 @@ export async function runImportMapping(importId: string): Promise<void> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Re-match: the matrix grew after the questions came in, so let the AI move
+// questions to the new topics. Runs as an InterviewQuestionImport of type
+// REMATCH (same progress/retry plumbing as an import); every move is kept in
+// its stats so the whole run can be undone.
+// ---------------------------------------------------------------------------
+
+/** Kinds that belong to a matrix topic; people questions never move. */
+const TECH_KINDS: InterviewQuestionKind[] = ["THEORY", "EXPERIENCE"];
+const REMATCH_BATCH = 60;
+
+/** A question's topic fields before a re-match moved it. */
+interface RematchMove {
+  id: string;
+  to: string;
+  from: { topicId: string | null; skill: string | null; band: string | null; proposedTopic: string | null; proposedSkill: string | null };
+}
+
+export interface RematchStats {
+  moved: number;
+  byTopic: Record<string, number>;
+  moves: RematchMove[];
+  undone?: boolean;
+}
+
+/** Which questions a re-match looks at: the unattached ones, or every technical one outside the targets. */
+function rematchWhere(departmentId: string, targetTopicIds: string[]): Prisma.InterviewQuestionWhereInput {
+  const base = { departmentId, hidden: false, kind: { in: TECH_KINDS } };
+  if (!targetTopicIds.length) return { ...base, topicId: null };
+  return { ...base, OR: [{ topicId: null }, { topicId: { notIn: targetTopicIds } }] };
+}
+
+/** Counts behind the re-match dialog. */
+export async function rematchCounts(departmentId: string) {
+  const [unattached, technical] = await Promise.all([
+    prisma.interviewQuestion.count({ where: rematchWhere(departmentId, []) }),
+    prisma.interviewQuestion.count({ where: { departmentId, hidden: false, kind: { in: TECH_KINDS } } }),
+  ]);
+  return { unattached, technical, batch: REMATCH_BATCH };
+}
+
+export class RematchError extends Error {}
+
+/**
+ * Start a re-match in the background. `targetTopicIds` empty: re-run the
+ * full matching for unattached questions; otherwise look for questions that
+ * belong to those topics (typically just added to the matrix).
+ */
+export async function startRematch(opts: { departmentId: string; targetTopicIds: string[]; createdById: string }) {
+  const { departmentId } = opts;
+  const running = await prisma.interviewQuestionImport.findFirst({ where: { departmentId, status: "PROCESSING" }, select: { id: true } });
+  if (running) throw new RematchError("The AI is still working on another import or re-match in this division — wait for it to finish.");
+
+  const matrix = await loadTechMatrix(departmentId);
+  const titles = new Map(matrix.sections.flatMap((s) => s.topics.map((t) => [t.id, t.title] as const)));
+  const targets = [...new Set(opts.targetTopicIds)];
+  const unknown = targets.filter((id) => !titles.has(id));
+  if (unknown.length) throw new RematchError(`Not topics of this division's matrix: ${unknown.join(", ")}`);
+
+  const where = rematchWhere(departmentId, targets);
+  const total = await prisma.interviewQuestion.count({ where });
+  if (!total) throw new RematchError(targets.length ? "There are no technical questions to check." : "Every technical question is already attached to a topic.");
+
+  const title = targets.length
+    ? `Re-match: ${targets.map((id) => titles.get(id)).join(", ")}`.slice(0, 200)
+    : "Re-match: questions not in the matrix";
+  const stats: RematchStats = { moved: 0, byTopic: {}, moves: [] };
+  const job = await prisma.interviewQuestionImport.create({
+    data: {
+      departmentId,
+      title,
+      type: "REMATCH",
+      targetTopicIds: targets,
+      status: "PROCESSING",
+      mapTotal: total,
+      mapDone: 0,
+      stats: stats as unknown as Prisma.InputJsonValue,
+      createdById: opts.createdById,
+    },
+  });
+  await prisma.interviewQuestion.updateMany({ where, data: { rematchId: job.id } });
+  void runRematch(job.id);
+  return { id: job.id, total };
+}
+
+/** Background job behind startRematch; resumable — it works through whatever still carries its id. */
+export async function runRematch(jobId: string): Promise<void> {
+  try {
+    const job = await prisma.interviewQuestionImport.findUniqueOrThrow({ where: { id: jobId } });
+    const matrix = await loadTechMatrix(job.departmentId);
+    const topics = matrix.sections.flatMap((s) => s.topics.map((t) => ({ id: t.id, section: s.title, title: t.title, jun: t.jun, mid: t.mid, sen: t.sen })));
+    const byId = new Map(topics.map((t) => [t.id, t]));
+    const targets = job.targetTopicIds.map((id) => byId.get(id)).filter((t): t is (typeof topics)[number] => !!t);
+    if (job.targetTopicIds.length && !targets.length) throw new Error("The chosen topics are no longer in the matrix.");
+    const allowed = targets.length ? new Map(targets.map((t) => [t.id, t])) : byId;
+    const stats = job.stats as unknown as RematchStats;
+
+    for (;;) {
+      const rows = await prisma.interviewQuestion.findMany({
+        where: { rematchId: jobId },
+        orderBy: { createdAt: "asc" },
+        take: REMATCH_BATCH,
+        select: { id: true, text: true, kind: true, topicId: true, skill: true, band: true, proposedTopic: true, proposedSkill: true },
+      });
+      if (!rows.length) break;
+
+      const raw = targets.length
+        ? await matchQuestionsToTopics(
+            rows.map((r, i) => {
+              const t = r.topicId ? byId.get(r.topicId) : undefined;
+              return { i, text: r.text, current: t ? `${t.section} › ${t.title}` : null };
+            }),
+            targets
+          )
+        : await mapInterviewQuestions(rows.map((r, i) => ({ i, text: r.text, kind: r.kind })), topics);
+      const answers = new Map<number, Record<string, unknown>>();
+      const list = (raw as { results?: unknown })?.results;
+      if (Array.isArray(list)) for (const x of list) if (x && typeof (x as { i?: unknown }).i === "number") answers.set((x as { i: number }).i, x as Record<string, unknown>);
+
+      const ops: Prisma.PrismaPromise<unknown>[] = [];
+      rows.forEach((r, i) => {
+        const a = answers.get(i);
+        const topic = a && typeof a.topicId === "string" ? allowed.get(a.topicId) : undefined;
+        if (!topic || topic.id === r.topicId) {
+          ops.push(prisma.interviewQuestion.update({ where: { id: r.id }, data: { rematchId: null } }));
+          return;
+        }
+        const skills = new Set([...topic.jun, ...topic.mid, ...topic.sen]);
+        const skill = typeof a!.skill === "string" && skills.has(a!.skill) ? a!.skill : null;
+        const band = typeof a!.band === "string" && (BANDS as readonly string[]).includes(a!.band) ? a!.band : r.band;
+        stats.moves.push({
+          id: r.id,
+          to: topic.id,
+          from: { topicId: r.topicId, skill: r.skill, band: r.band, proposedTopic: r.proposedTopic, proposedSkill: r.proposedSkill },
+        });
+        stats.byTopic[topic.id] = (stats.byTopic[topic.id] ?? 0) + 1;
+        stats.moved++;
+        ops.push(
+          prisma.interviewQuestion.update({
+            where: { id: r.id },
+            data: { rematchId: null, topicId: topic.id, skill, band, proposedTopic: null, proposedSkill: null },
+          })
+        );
+      });
+      ops.push(
+        prisma.interviewQuestionImport.update({
+          where: { id: jobId },
+          data: { mapDone: { increment: rows.length }, stats: stats as unknown as Prisma.InputJsonValue },
+        })
+      );
+      await prisma.$transaction(ops);
+    }
+    await prisma.interviewQuestionImport.update({ where: { id: jobId }, data: { status: "DONE", error: null } });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    log.error("Interview question re-match failed", { jobId, error: message });
+    await prisma.interviewQuestionImport.update({ where: { id: jobId }, data: { status: "FAILED", error: message } }).catch(() => {});
+  }
+}
+
+/**
+ * Put every question a re-match moved back where it was — unless an admin
+ * has re-attached it since. Returns how many were restored.
+ */
+export async function undoRematch(jobId: string): Promise<number> {
+  return prisma.$transaction(
+    async (tx) => {
+      const job = await tx.interviewQuestionImport.findUniqueOrThrow({ where: { id: jobId } });
+      const stats = job.stats as unknown as RematchStats;
+      if (job.type !== "REMATCH" || job.status === "PROCESSING" || stats.undone) throw new RematchError("This re-match can't be undone.");
+      let restored = 0;
+      for (const m of stats.moves) {
+        const res = await tx.interviewQuestion.updateMany({ where: { id: m.id, topicId: m.to }, data: m.from });
+        restored += res.count;
+      }
+      await tx.interviewQuestionImport.update({
+        where: { id: jobId },
+        data: { stats: { ...stats, undone: true } as unknown as Prisma.InputJsonValue },
+      });
+      return restored;
+    },
+    { timeout: 120_000 }
+  );
+}
+
 export interface TopicQuestion {
   id: string;
   text: string;
@@ -305,7 +490,7 @@ export async function questionsForTopics(
 
 /** Per-topic counts and the topics the matrix lacks — the admin overview. */
 export async function bankSummary(departmentId: string) {
-  const [byTopic, proposed, totals, imports, matrix] = await Promise.all([
+  const [byTopic, proposed, totals, imports, matrix, topicDates, rematch] = await Promise.all([
     prisma.interviewQuestion.groupBy({
       by: ["topicId", "kind"],
       where: { departmentId, hidden: false, topicId: { not: null } },
@@ -327,6 +512,8 @@ export async function bankSummary(departmentId: string) {
       select: {
         id: true,
         title: true,
+        type: true,
+        targetTopicIds: true,
         stats: true,
         status: true,
         mapTotal: true,
@@ -337,7 +524,10 @@ export async function bankSummary(departmentId: string) {
       },
     }),
     loadTechMatrix(departmentId),
+    prisma.matrixTopic.findMany({ where: { section: { departmentId } }, select: { id: true, createdAt: true } }),
+    rematchCounts(departmentId),
   ]);
+  const createdAt = new Map(topicDates.map((t) => [t.id, t.createdAt]));
 
   const counts = new Map<string, { theory: number; experience: number; other: number }>();
   for (const g of byTopic) {
@@ -350,14 +540,20 @@ export async function bankSummary(departmentId: string) {
   const topics = matrix.sections.flatMap((s) =>
     s.topics.map((t) => {
       const c = counts.get(t.id) ?? { theory: 0, experience: 0, other: 0 };
-      return { id: t.id, title: t.title, sectionTitle: s.title, ...c, total: c.theory + c.experience + c.other };
+      return { id: t.id, title: t.title, sectionTitle: s.title, createdAt: createdAt.get(t.id) ?? null, ...c, total: c.theory + c.experience + c.other };
     })
   );
   return {
     topics,
     proposed: proposed.map((p) => ({ title: p.proposedTopic!, count: p._count._all })),
     totals: totals.map((t) => ({ kind: t.kind, hidden: t.hidden, count: t._count._all })),
-    imports,
+    // A re-match's list of moves is only for undo — keep it off the wire.
+    imports: imports.map((i) => {
+      if (i.type !== "REMATCH") return i;
+      const { moves: _moves, ...rest } = i.stats as unknown as RematchStats;
+      return { ...i, stats: rest };
+    }),
+    rematch,
   };
 }
 

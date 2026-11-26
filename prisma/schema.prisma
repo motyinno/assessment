@@ -816,6 +816,8 @@ model InterviewQuestion {
   /// Waiting for the AI to classify the kind (the file had none).
   pendingKind   Boolean               @default(false)
   importId      String?
+  /// The re-match job (InterviewQuestionImport of type REMATCH) still to check this question.
+  rematchId     String?
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
 
@@ -823,24 +825,30 @@ model InterviewQuestion {
   import     InterviewQuestionImport? @relation(fields: [importId], references: [id], onDelete: SetNull)
 
   @@unique([departmentId, normalized])
+  @@index([rematchId])
   @@index([departmentId, topicId])
   @@index([topicId, skill])
 }
 
 /// One upload into the bank, kept for traceability.
 model InterviewQuestionImport {
-  id           String   @id @default(cuid())
-  departmentId String
-  title        String
-  /// { received, created, merged }
-  stats        Json     @default("{}")
+  id             String   @id @default(cuid())
+  departmentId   String
+  title          String
+  /// "IMPORT" — a file upload; "REMATCH" — the AI re-checks existing questions
+  /// against the matrix (after topics were added), see lib/question-bank.ts.
+  type           String   @default("IMPORT")
+  /// REMATCH only: the topics to find questions for; empty = re-match the unattached ones.
+  targetTopicIds String[] @default([])
+  /// IMPORT: { received, created, merged, … }; REMATCH: { moved, byTopic, moves, undone }
+  stats          Json     @default("{}")
   /// "PROCESSING" while the AI maps questions to the matrix, then "DONE" or "FAILED".
-  status       String   @default("DONE")
-  mapTotal     Int      @default(0)
-  mapDone      Int      @default(0)
-  error        String?
-  createdById  String?
-  createdAt    DateTime @default(now())
+  status         String   @default("DONE")
+  mapTotal       Int      @default(0)
+  mapDone        Int      @default(0)
+  error          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
 
   department Department          @relation(fields: [departmentId], references: [id], onDelete: Cascade)
   createdBy  User?               @relation(fields: [createdById], references: [id], onDelete: SetNull)
