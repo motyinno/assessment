@@ -77,9 +77,8 @@ export function SelfCheckButton({
       </Button>
       {open && (
         <SelfCheckDialog
-          pdpId={pdpId}
-          goalId={goalId}
-          goalTitle={goalTitle}
+          url={`/api/pdps/${pdpId}/goals/${goalId}/self-check`}
+          title={goalTitle}
           onClose={() => {
             setOpen(false);
             if (changed.current) router.refresh();
@@ -98,28 +97,30 @@ export function SelfCheckButton({
   );
 }
 
-function SelfCheckDialog({
-  pdpId,
-  goalId,
-  goalTitle,
+/**
+ * The quiz itself. `url` is the attempts collection of whatever is being
+ * checked — a PDP goal or a tech-coach mission; both APIs have the same shape.
+ */
+export function SelfCheckDialog({
+  url,
+  title,
+  subject = "goal",
   onClose,
   onScored,
   onTicked,
 }: {
-  pdpId: string;
-  goalId: string;
-  goalTitle: string;
+  url: string;
+  title: string;
+  subject?: "goal" | "mission";
   onClose: () => void;
   onScored?: (score: number) => void;
   onTicked?: () => void;
 }) {
-  const url = `/api/pdps/${pdpId}/goals/${goalId}/self-check`;
   const [check, setCheck] = useState<SelfCheckView | null>(null);
   const [phase, setPhase] = useState<"loading" | "intro" | "generating" | "answering" | "grading" | "result">("loading");
   const [error, setError] = useState<string | null>(null);
   const [language, setLanguage] = useState<SelfCheckLanguage>("ru");
   const [answers, setAnswers] = useState<Record<string, SelfCheckAnswer>>({});
-  const [ticking, setTicking] = useState(false);
   const [ticked, setTicked] = useState<string[]>([]);
 
   const show = useCallback((c: SelfCheckView | null) => {
@@ -167,25 +168,13 @@ function SelfCheckDialog({
       });
       show(result);
       if (result?.score != null) onScored?.(result.score);
+      if (result?.ticked?.length) {
+        setTicked(result.ticked);
+        onTicked?.();
+      }
     } catch (e) {
       setError((e as Error).message);
       setPhase("answering");
-    }
-  }
-
-  async function tick() {
-    if (!check) return;
-    setTicking(true);
-    setError(null);
-    try {
-      const before = check.toTick;
-      setCheck(await call(`${url}/${check.id}/roadmap`, { method: "POST" }));
-      setTicked(before);
-      onTicked?.();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setTicking(false);
     }
   }
 
@@ -204,7 +193,7 @@ function SelfCheckDialog({
       <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Check yourself</DialogTitle>
-          <DialogDescription>{goalTitle}</DialogDescription>
+          <DialogDescription>{title}</DialogDescription>
         </DialogHeader>
 
         {phase === "loading" && <Loader2 className="mx-auto my-8 size-5 animate-spin text-muted-foreground" />}
@@ -212,8 +201,11 @@ function SelfCheckDialog({
         {phase === "intro" && (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Six questions on this goal: four with options and two to answer in your own words. Takes about ten
+              Six questions on this {subject}: four with options and two to answer in your own words. Takes about ten
               minutes. The AI checks your answers and tells you what to revisit.
+              {subject === "mission"
+                ? ` Score ${SELF_CHECK_PASS}% or more to complete the mission — the skills you get right are ticked on your roadmap.`
+                : " It's practice for you — your roadmap moves when your manager closes the PDP."}
             </p>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Lock className="size-3.5" /> Only you see your answers and score — not your manager, not admins.
@@ -306,7 +298,7 @@ function SelfCheckDialog({
         )}
 
         {phase === "result" && check && (
-          <Result check={check} ticked={ticked} ticking={ticking} onTick={tick} onRetry={() => setPhase("intro")} error={error} />
+          <Result check={check} subject={subject} ticked={ticked} onRetry={() => setPhase("intro")} error={error} />
         )}
       </DialogContent>
     </Dialog>
@@ -315,16 +307,14 @@ function SelfCheckDialog({
 
 function Result({
   check,
+  subject,
   ticked,
-  ticking,
-  onTick,
   onRetry,
   error,
 }: {
   check: SelfCheckView;
+  subject: "goal" | "mission";
   ticked: string[];
-  ticking: boolean;
-  onTick: () => void;
   onRetry: () => void;
   error: string | null;
 }) {
@@ -335,7 +325,7 @@ function Result({
       <div className="flex items-center justify-between gap-4 rounded-xl bg-muted/50 px-4 py-3">
         <div>
           <p className="text-sm font-medium">
-            {check.passed ? "Solid — you've got this goal." : "Not there yet — worth another pass over the material."}
+            {check.passed ? (subject === "mission" ? "Mission complete — well climbed." : "Solid — you've got this goal.") : "Not there yet — worth another pass over the material."}
           </p>
           <p className="text-xs text-muted-foreground">
             {check.passed ? `${SELF_CHECK_PASS}% or more counts as passed.` : `You need ${SELF_CHECK_PASS}% to pass. Review the notes below and try again.`}
@@ -346,28 +336,10 @@ function Result({
         </p>
       </div>
 
-      {(check.toTick.length > 0 || ticked.length > 0) && (
-        <div className="space-y-2 rounded-xl border border-trail/40 bg-trail/5 px-4 py-3">
-          {ticked.length > 0 ? (
-            <p className="flex items-center gap-1.5 text-sm">
-              <Check className="size-4 text-success" /> Ticked on your roadmap: {ticked.join(", ")}
-            </p>
-          ) : (
-            <>
-              <p className="text-sm">
-                You answered these right. Tick them on your roadmap? It moves you up the climb.
-              </p>
-              <ul className="list-disc pl-5 text-xs text-muted-foreground">
-                {check.toTick.map((s) => (
-                  <li key={s}>{s}</li>
-                ))}
-              </ul>
-              <Button size="sm" onClick={onTick} disabled={ticking}>
-                {ticking && <Loader2 className="animate-spin" />} Tick on my roadmap
-              </Button>
-            </>
-          )}
-        </div>
+      {ticked.length > 0 && (
+        <p className="flex items-center gap-1.5 rounded-xl border border-trail/40 bg-trail/5 px-4 py-3 text-sm">
+          <Check className="size-4 shrink-0 text-success" /> Ticked on your roadmap: {ticked.join(", ")}
+        </p>
       )}
 
       <ol className="space-y-4">

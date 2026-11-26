@@ -588,8 +588,8 @@ export default function PdpPage() {
           <DialogHeader>
             <DialogTitle>Close this PDP?</DialogTitle>
             <DialogDescription>
-              {pdp.user.name} has done {doneItems} of {allItems} items. Closing marks the plan completed and makes it
-              read-only.
+              {pdp.user.name} has done {doneItems} of {allItems} items. Closing marks the plan completed, makes it
+              read-only and ticks its tech-matrix topics on {pdp.user.name}&apos;s roadmap.
             </DialogDescription>
           </DialogHeader>
           <textarea

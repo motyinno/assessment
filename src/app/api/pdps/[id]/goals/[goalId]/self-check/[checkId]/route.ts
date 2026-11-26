@@ -2,23 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
 import { conflict, notFound, parseJsonBody, serverError } from "@/lib/api-helpers";
-import { gradeSelfCheckOpen } from "@/lib/ai-service";
 import {
-  answeredOpen,
   answersSchema,
-  gradeChoices,
-  orderVerdicts,
-  parseOpenVerdicts,
   scoreOf,
   type SelfCheckLanguage,
   type SelfCheckQuestion,
 } from "@/lib/self-check";
-import { goalTopicContext, loadOwnGoal, toView } from "@/lib/self-check-server";
+import { goalTopicContext, gradeAttempt, loadOwnGoal, toView } from "@/lib/self-check-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Submit the answers: choices are graded here, open answers by the AI. */
+/**
+ * Submit the answers: choices are graded here, open answers by the AI. It's
+ * practice only — the roadmap moves when the manager closes the PDP.
+ */
 export async function POST(req: NextRequest, { params }: { params: { id: string; goalId: string; checkId: string } }) {
   const auth = await requireAuth();
   if (auth.error) return auth.error;
@@ -36,22 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string;
   const questions = check.questions as unknown as SelfCheckQuestion[];
 
   try {
-    const { toGrade, blank } = answeredOpen(questions, answers);
-    const open = toGrade.length
-      ? parseOpenVerdicts(
-          await gradeSelfCheckOpen({
-            language: check.language as SelfCheckLanguage,
-            answers: toGrade.map(({ question, answer }) => ({
-              id: question.id,
-              text: question.text,
-              keyPoints: question.keyPoints,
-              answer,
-            })),
-          }),
-          toGrade.map((g) => g.question.id)
-        )
-      : [];
-    const verdicts = orderVerdicts(questions, [...gradeChoices(questions, answers), ...open, ...blank]);
+    const verdicts = await gradeAttempt(questions, answers, check.language as SelfCheckLanguage);
     // Only the transition from unsubmitted counts, so a double submit can't overwrite.
     const { count } = await prisma.pdpSelfCheck.updateMany({
       where: { id: check.id, submittedAt: null },

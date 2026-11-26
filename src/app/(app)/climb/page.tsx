@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChapterTrail } from "@/components/brand/chapter-trail";
 import { SelfCheckButton, SelfCheckScore } from "@/components/self-check-dialog";
 import { SELF_CHECK_PASS } from "@/lib/self-check";
+import { MissionCard } from "@/components/mission-card";
+import { loadCoachState } from "@/lib/mission-server";
 import { cn } from "@/lib/utils";
 
 const monthYear = (d: Date) => d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
@@ -74,7 +76,7 @@ export default async function ClimbPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
-  const climb = await loadClimb(session.user.id);
+  const [climb, coach] = await Promise.all([loadClimb(session.user.id), loadCoachState(session.user.id)]);
   const { grade, target, chapters, plans, readiness, push } = climb;
   const current = chapters.current;
 
@@ -190,6 +192,8 @@ export default async function ClimbPage() {
               })}
             </CardContent>
           </Card>
+
+          <MissionCard state={coach} className="climb-rise" />
 
           <div className="climb-rise grid gap-4 md:grid-cols-2" style={{ ["--i" as string]: 2 }}>
             <Card>
